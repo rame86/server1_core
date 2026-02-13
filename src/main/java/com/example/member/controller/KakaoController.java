@@ -51,6 +51,7 @@ public class KakaoController {
 	    String accessToken = kakaoService.getAccessToken(code);
 	    KakaoUserInfoResponse userInfo = kakaoService.getUserInfo(accessToken);
 	    
+		@SuppressWarnings("all")
 	    // 2. DB 확인 및 저장
 	    Member member = memberRepository.findByKakaoId(userInfo.getId())
 	            .map(existingMember -> {
