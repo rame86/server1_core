@@ -7,7 +7,6 @@ import java.util.Date;
 import javax.crypto.SecretKey;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,8 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RestController
-@RequestMapping("/member")
-@CrossOrigin(origins = "http://localhost:5173")
+@RequestMapping("/kakao")
 public class KakaoController {
 	
 	@Autowired
@@ -34,7 +32,7 @@ public class KakaoController {
 	@Autowired
 	private MemberRepository memberRepository;
 	
-	@GetMapping("/login/kakao")
+	@GetMapping("/login")
 	public void loginKakao(HttpServletResponse response) throws IOException {
 		String kakaoUrl = "https://kauth.kakao.com/oauth/authorize?client_id=60436ff86cba6a6503953dcc36304a02&redirect_uri=http://34.158.208.117:8080/member/login/kakao/callback&response_type=code";
 		log.info("!!!!! [진짜 IP 확인용 로그] !!!!! : " + kakaoUrl);
@@ -42,7 +40,7 @@ public class KakaoController {
 	    response.sendRedirect(kakaoUrl);
 	}
 
-	@GetMapping("/login/kakao/callback")
+	@GetMapping("/login/callback")
 	public void kakaoCallback(@RequestParam("code") String code, HttpServletResponse response) throws IOException {
 	    
 	    log.info("---------> [STEP 2] 카카오 인증 코드 수신: " + code);
