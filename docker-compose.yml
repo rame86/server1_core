@@ -1,0 +1,25 @@
+#core_service docker_compose.yml
+version: '3.8'
+
+services:
+  core-service:
+    image: rame86/server1_core:latest  # GitHub Actions 빌드 이미지
+    container_name: core-service
+    restart: always                    # 컨테이너 가용성 확보를 위해 추가
+    ports:
+      - "8080:8080"                    # Server 3(Nginx)에서 GCP 내부 IP로 접근 가능 
+    networks:
+      - msa-network                    # main-db, rabbitmq와 통신하기 위한 외부 네트워크 
+    environment:
+      # 실제 배포환경에서 DB 접속경로 오버라이딩      
+      SPRING_DATASOURCE_URL: jdbc:postgresql://main-db:5432/msa_core_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      
+      # RabbitMQ 연결 설정
+      # Server 1 내에 함께 존재하므로 컨테이너명(rabbitmq)으로 통신
+      SPRING_RABBITMQ_HOST: rabbitmq
+
+networks:
+  msa-network:
+    external: true # 이미 생성된 msa-network 사용
