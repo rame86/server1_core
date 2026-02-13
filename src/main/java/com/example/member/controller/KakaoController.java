@@ -1,4 +1,4 @@
-package com.example.test.controller;
+package com.example.member.controller;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -13,10 +13,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.test.dto.KakaoUserInfoResponse;
-import com.example.test.entity.Member;
-import com.example.test.repository.MemberRepository;
-import com.example.test.service.KakaoService;
+import com.example.member.dto.KakaoUserInfoResponse;
+import com.example.member.entity.Member;
+import com.example.member.repository.MemberRepository;
+import com.example.member.service.KakaoService;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -51,6 +51,7 @@ public class KakaoController {
 	    String accessToken = kakaoService.getAccessToken(code);
 	    KakaoUserInfoResponse userInfo = kakaoService.getUserInfo(accessToken);
 	    
+		@SuppressWarnings("all")
 	    // 2. DB 확인 및 저장
 	    Member member = memberRepository.findByKakaoId(userInfo.getId())
 	            .map(existingMember -> {

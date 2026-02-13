@@ -23,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 public class LoginCheckFilter implements Filter {
     
     private static final String[] whiteList = {"/", "/event", "/dbtest", "/member/*"};
-    private String secretKey = "your-very-very-secret-key-should-be-very-long-and-secure";
+    private final String secretKey = "your-very-very-secret-key-should-be-very-long-and-secure";
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
