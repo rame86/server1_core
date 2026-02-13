@@ -1,4 +1,4 @@
-#coer service ci-cd.yml
+#core service ci-cd.yml
 name: CI/CD Pipeline
 
 on:
