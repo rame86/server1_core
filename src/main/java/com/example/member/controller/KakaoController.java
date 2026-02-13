@@ -34,7 +34,7 @@ public class KakaoController {
 	
 	@GetMapping("/login")
 	public void loginKakao(HttpServletResponse response) throws IOException {
-		String kakaoUrl = "https://kauth.kakao.com/oauth/authorize?client_id=60436ff86cba6a6503953dcc36304a02&redirect_uri=http://34.158.208.117:8080/member/login/kakao/callback&response_type=code";
+		String kakaoUrl = "https://kauth.kakao.com/oauth/authorize?client_id=60436ff86cba6a6503953dcc36304a02&redirect_uri=http://34.158.208.117:8080/kakao/login/callback&response_type=code";
 		log.info("!!!!! [진짜 IP 확인용 로그] !!!!! : " + kakaoUrl);
 		log.info("---------> [STEP 1] 카카오 로그인 페이지로 리다이렉트");
 	    response.sendRedirect(kakaoUrl);
