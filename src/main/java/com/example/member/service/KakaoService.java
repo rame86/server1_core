@@ -1,4 +1,4 @@
-package com.example.test.service;
+package com.example.member.service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -10,8 +10,8 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
-import com.example.test.dto.KakaoTokenResponse;
-import com.example.test.dto.KakaoUserInfoResponse;
+import com.example.member.dto.KakaoTokenResponse;
+import com.example.member.dto.KakaoUserInfoResponse;
 
 @Service
 public class KakaoService {

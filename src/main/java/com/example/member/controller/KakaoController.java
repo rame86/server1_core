@@ -1,4 +1,4 @@
-package com.example.test.controller;
+package com.example.member.controller;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -7,25 +7,26 @@ import java.util.Date;
 import javax.crypto.SecretKey;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.test.dto.KakaoUserInfoResponse;
-import com.example.test.repository.MemberRepository;
-import com.example.test.service.KakaoService;
+import com.example.member.dto.KakaoUserInfoResponse;
+import com.example.member.entity.Member;
+import com.example.member.repository.MemberRepository;
+import com.example.member.service.KakaoService;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 
-import com.example.test.entity.Member;
-
 @Slf4j
 @RestController
 @RequestMapping("/member")
+@CrossOrigin(origins = "http://localhost:5173")
 public class KakaoController {
 	
 	@Autowired
@@ -35,7 +36,8 @@ public class KakaoController {
 	
 	@GetMapping("/login/kakao")
 	public void loginKakao(HttpServletResponse response) throws IOException {
-		String kakaoUrl = "https://kauth.kakao.com/oauth/authorize?client_id=60436ff86cba6a6503953dcc36304a02&redirect_uri=http://localhost:8080/member/login/kakao/callback&response_type=code";
+		String kakaoUrl = "https://kauth.kakao.com/oauth/authorize?client_id=60436ff86cba6a6503953dcc36304a02&redirect_uri=http://34.158.208.117:8080/member/login/kakao/callback&response_type=code";
+		log.info("!!!!! [진짜 IP 확인용 로그] !!!!! : " + kakaoUrl);
 		log.info("---------> [STEP 1] 카카오 로그인 페이지로 리다이렉트");
 	    response.sendRedirect(kakaoUrl);
 	}
