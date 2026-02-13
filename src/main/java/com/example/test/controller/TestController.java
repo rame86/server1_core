@@ -18,13 +18,7 @@ package com.example.test.controller;
 ` 게시글상세보기	/board/getBoard?seq=글번호		/board/글번호		GET
 ` 게시글수정		/board/updateBoard?seq=글번호		/board/글번호		PUT
 ` 게시글삭제		/board/deleteBoard?seq=글번호		/board/글번호		DELETE
-
-
-
-
 */
-
-
 
 import java.util.HashMap;
 import java.util.List;
@@ -42,8 +36,6 @@ public class TestController {
 
     @Autowired
     private TestService testService;
-
-    // ---------------------------------------------------------------
 
     // 1. 모든 모드에서 접근 가능해야 하는 경로 (/, /event)
     @GetMapping("/")
