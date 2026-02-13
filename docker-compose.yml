@@ -3,7 +3,7 @@ version: '3.8'
 
 services:
   core-service:
-    image: rame86/server1_core:latest  # GitHub Actions 빌드 이미지
+    image: ssrabw/server1_core:latest  # GitHub Actions 빌드 이미지
     container_name: core-service
     restart: always                    # 컨테이너 가용성 확보를 위해 추가
     ports:

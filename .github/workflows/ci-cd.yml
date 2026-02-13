@@ -34,7 +34,7 @@ jobs:
 
       - name: Build and Push Docker Image
         run: |
-          IMAGE_NAME=rame86/server1_core
+          IMAGE_NAME=${{ secrets.DOCKER_USERNAME }}/server1_core
           docker build -t $IMAGE_NAME:latest .
           docker push $IMAGE_NAME:latest
 
