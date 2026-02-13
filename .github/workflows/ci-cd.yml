@@ -56,6 +56,8 @@ jobs:
           username: ${{ secrets.GCP_USER }}
           key: ${{ secrets.GCP_KEY }}
           script: |
+            export POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+            export POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
             export SPRING_PROFILES_ACTIVE=prod
             docker network ls | grep msa-network || docker network create msa-network
             docker-compose pull
