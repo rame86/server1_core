@@ -7,5 +7,6 @@ import com.example.member.entity.Member;
 
 public interface MemberRepository extends JpaRepository<Member, Long> {
 	// 널값 방지 Optional
-    Optional<Member> findByKakaoId(Long kakaoId);
+    Optional<Member> findByKakaoId(String kakaoId);
+    Optional<Member> findByNaverId(String naverId);
 }

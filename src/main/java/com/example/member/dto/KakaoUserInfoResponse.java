@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class KakaoUserInfoResponse {
 	
-	private Long id; // 카카오 회원 고유번호
+	private String id; // 카카오 회원 고유번호
     private KakaoAccount kakao_account;
 
     @Data
