@@ -61,6 +61,7 @@ public class KakaoService {
         headers.add("Content-type", "application/x-www-form-urlencoded;charset=utf-8");
 
         HttpEntity<MultiValueMap<String, String>> kakaoProfileRequest = new HttpEntity<>(headers);
+        
         @SuppressWarnings("all")
         ResponseEntity<KakaoUserInfoResponse> response = rt.exchange(
                 "https://kapi.kakao.com/v2/user/me",

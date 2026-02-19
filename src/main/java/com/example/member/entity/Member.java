@@ -22,16 +22,20 @@ public class Member {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id; // 우리 시스템 내부 식별용 PK
 
-    @Column(nullable = false, unique = true)
-    private Long kakaoId;
+	@Column(unique = true)
+    private String kakaoId;
+	
+	@Column(unique = true)
+    private String naverId;
 
     private String nickname;
     
     private String profileImageUrl;
 
     @Builder
-    public Member(Long kakaoId, String nickname, String profileImageUrl) {
+    public Member(String kakaoId, String naverId, String nickname, String profileImageUrl) {
         this.kakaoId = kakaoId;
+        this.naverId = naverId;
         this.nickname = nickname;
         this.profileImageUrl = profileImageUrl;
     }
