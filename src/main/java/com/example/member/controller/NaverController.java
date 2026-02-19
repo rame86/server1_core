@@ -94,10 +94,5 @@ public class NaverController {
         response.sendRedirect(redirectUrl);
         
     }
-    
-    @GetMapping("/hello")
-    public String hello() {
-        return "Hello World!@@";
-    }
-    
+        
 }

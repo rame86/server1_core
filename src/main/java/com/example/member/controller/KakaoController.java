@@ -7,6 +7,7 @@ import java.util.Date;
 import javax.crypto.SecretKey;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -32,11 +33,21 @@ public class KakaoController {
 	@Autowired
 	private MemberRepository memberRepository;
 	
+	@Value("${kakao.client-id}")
+    private String clientId;
+
+    @Value("${kakao.redirect-uri}")
+    private String redirectUri;
+    
 	@GetMapping("/login")
 	public void loginKakao(HttpServletResponse response) throws IOException {
-		String kakaoUrl = "https://kauth.kakao.com/oauth/authorize?client_id=60436ff86cba6a6503953dcc36304a02&redirect_uri=http://34.158.208.117:8080/kakao/login/callback&response_type=code";
+		String url = "https://kauth.kakao.com/oauth/authorize"
+				+ "?client_id=" + clientId
+				+ "&redirect_uri=" + redirectUri
+				+ "&response_type=code";
+		
 		log.info("---------> [STEP 1] 카카오 로그인 페이지로 리다이렉트");
-	    response.sendRedirect(kakaoUrl);
+	    response.sendRedirect(url);
 	}
 
 	@GetMapping("/login/callback")
