@@ -27,15 +27,18 @@ public class Member {
 	
 	@Column(unique = true)
     private String naverId;
+	
+	@Column(unique = true)
+	private String googleId;
 
     private String nickname;
-    
     private String profileImageUrl;
 
     @Builder
-    public Member(String kakaoId, String naverId, String nickname, String profileImageUrl) {
+    public Member(String kakaoId, String naverId, String googleId, String nickname, String profileImageUrl) {
         this.kakaoId = kakaoId;
         this.naverId = naverId;
+        this.googleId = googleId;
         this.nickname = nickname;
         this.profileImageUrl = profileImageUrl;
     }
