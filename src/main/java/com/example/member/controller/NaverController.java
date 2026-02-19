@@ -97,7 +97,7 @@ public class NaverController {
     
     @GetMapping("/hello")
     public String hello() {
-        return "Hello World!";
+        return "Hello World!@@";
     }
     
 }
