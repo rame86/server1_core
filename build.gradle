@@ -38,7 +38,7 @@ dependencies {
 
 	// [TOOLS] - 개발 편의 도구
 	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
 	// [TEST] - 단위 및 통합 테스트
