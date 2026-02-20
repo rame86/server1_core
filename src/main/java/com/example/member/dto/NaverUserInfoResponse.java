@@ -4,7 +4,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-public class NaverUserInfoResponse {
+@NoArgsConstructor // 파라미터가 없는 기본 생성자(JSON을위해 사용)
+public class NaverUserInfoResponse implements OAuthUserInfo {
 
 	private String resultcode;
 	private String message;
@@ -19,5 +20,14 @@ public class NaverUserInfoResponse {
         private String email;        // 이메일
         private String name;         // 실명
     }
+
+	@Override
+	public String getProviderId() { return response.getId(); }
+	@Override
+	public String getEmail() { return response.getEmail(); }
+	@Override
+	public String getNickname() { return response.getNickname(); }
+	@Override
+	public String getProvider() { return "naver"; }
 	
 }

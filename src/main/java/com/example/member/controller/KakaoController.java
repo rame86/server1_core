@@ -1,12 +1,7 @@
 package com.example.member.controller;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Date;
 
-import javax.crypto.SecretKey;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,24 +9,21 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.member.dto.KakaoUserInfoResponse;
-import com.example.member.entity.Member;
-import com.example.member.repository.MemberRepository;
 import com.example.member.service.KakaoService;
+import com.example.member.service.OAuthService;
 
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+@RequiredArgsConstructor
 @Slf4j
 @RestController
 @RequestMapping("/kakao")
 public class KakaoController {
 	
-	@Autowired
-    private KakaoService kakaoService;
-	@Autowired
-	private MemberRepository memberRepository;
+    private final KakaoService kakaoService;
+	private final OAuthService oauthService;
 	
 	@Value("${kakao.client-id}")
     private String clientId;
@@ -52,46 +44,9 @@ public class KakaoController {
 
 	@GetMapping("/login/callback")
 	public void kakaoCallback(@RequestParam("code") String code, HttpServletResponse response) throws IOException {
-	    
-	    log.info("---------> [STEP 2] 카카오 인증 코드 수신: " + code);
-
-	    // 1. 토큰 받아오고 정보 가져오기
 	    String accessToken = kakaoService.getAccessToken(code);
 	    KakaoUserInfoResponse userInfo = kakaoService.getUserInfo(accessToken);
-	    
-		@SuppressWarnings("all")
-	    // 2. DB 확인 및 저장
-	    Member member = memberRepository.findByKakaoId(userInfo.getId())
-	            .map(existingMember -> {
-	                existingMember.setNickname(userInfo.getKakao_account().getProfile().getNickname());
-	                existingMember.setProfileImageUrl(userInfo.getKakao_account().getProfile().getProfile_image_url());
-	                return memberRepository.save(existingMember);
-	            })
-	            .orElseGet(() -> {
-	                return memberRepository.save(Member.builder()
-	                        .kakaoId(userInfo.getId().toString())
-	                        .nickname(userInfo.getKakao_account().getProfile().getNickname())
-	                        .profileImageUrl(userInfo.getKakao_account().getProfile().getProfile_image_url())
-	                        .build());
-	            });
-	    
-	    // 3. 보안 키 및 JWT 토큰 생성
-	    String secretKey = "your-very-very-secret-key-should-be-very-long-and-secure";
-	    SecretKey key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
-	    
-	    String jwtToken = Jwts.builder()
-	            .setSubject(member.getKakaoId().toString())
-	            .setIssuedAt(new Date())
-	            .setExpiration(new Date(System.currentTimeMillis() + 3600000))
-	            .signWith(key)
-	            .compact();
-	    
-	    // 4. [핵심] 리액트(Server 3)로 토큰을 실어서 돌려보내기!
-	    String redirectUrl = "http://localhost:5173/?token=" + jwtToken;
-	    log.info("---------> [성공] 리액트로 이동: " + redirectUrl);
-	    
-	    response.sendRedirect(redirectUrl);
-	    
+	    oauthService.memberLogin(userInfo, response);
 	}
 
 }
