@@ -30,7 +30,7 @@ public class OAuthService {
     	if(memberOpt.isEmpty()) {
     		// 신규유저 -> 회원가입 창으로 리다이랙트
     		log.info("---------> [신규 유저] 추가 정보 입력 페이지로 이동");
-    		String redirectUrl = "http://localhost:3000/extra-info"
+    		String redirectUrl = "http://34.64.85.123/signup.html"
         			+ "?email=" + userInfo.getEmail()
         			+ "&nickname=" + userInfo.getNickname()
         			+ "&provider=" + userInfo.getProvider()
