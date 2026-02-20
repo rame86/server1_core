@@ -53,6 +53,9 @@ dependencies {
     
     // [JPA]
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    
+    // JSONB
+    implementation 'io.hypersistence:hypersistence-utils-hibernate-63:3.7.0'
 }
 
 tasks.named('test') {
