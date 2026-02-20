@@ -39,7 +39,7 @@ public class OAuthService {
     	} else {
     		// 기존유저 -> JWT발급 후 메인으로 리다이랙트
     		log.info("---------> [로그인 성공] JWT 발급 후 메인으로 이동");
-    		String jwtToken = jwtTokenProvider.createToken(memberOpt.get().getId().toString());
+    		String jwtToken = jwtTokenProvider.createToken(memberOpt.get().getMemberId().toString());
     		response.sendRedirect("http://localhost:5173/?token=" + jwtToken);
     	}
     	
