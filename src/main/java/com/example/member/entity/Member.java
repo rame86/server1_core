@@ -24,12 +24,13 @@ public class Member {
 	
 	@Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // 우리 시스템 내부 식별용 PK
+    private Long memberId; // 우리 시스템 내부 식별용 PK
 	
 	private String email;
 	private String name;
 	private String phone;
 	private String address;
+	private String age;
 	
 	@Type(JsonBinaryType.class)
 	@Column(columnDefinition = "jsonb")
