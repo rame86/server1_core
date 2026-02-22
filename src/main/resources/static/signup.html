@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>회원가입 테스트</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; max-width: 500px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .info-msg { color: #666; font-size: 0.85em; margin-top: 5px; }
+        button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #0056b3; }
+        hr { margin: 20px 0; border: 0; border-top: 1px solid #eee; }
+    </style>
+</head>
+<body>
+    <h2>회원가입 (추가 정보 입력)</h2>
+    <p class="info-msg">반갑습니다! 가입을 위해 아래 정보를 완성해 주세요.</p>
+    <hr>
+
+    <form id="signupForm">
+        <div class="form-group">
+            <label>이메일</label>
+            <input type="email" id="email" required>
+        </div>
+
+        <div class="form-group">
+            <label>이름(닉네임)</label>
+            <input type="text" id="name" required>
+        </div>
+
+        <div class="form-group">
+            <label>비밀번호</label>
+            <input type="password" id="password" placeholder="비밀번호를 입력하세요" required>
+        </div>
+
+        <div class="form-group">
+            <label>전화번호</label>
+            <input type="text" id="phone" placeholder="010-0000-0000">
+        </div>
+
+        <div class="form-group">
+            <label>주소</label>
+            <input type="text" id="address" placeholder="주소를 입력하세요">
+        </div>
+
+        <div class="form-group">
+            <label>나이</label>
+            <input type="number" id="age" placeholder="20">
+        </div>
+
+        <input type="hidden" id="provider">
+        <input type="hidden" id="providerId">
+
+        <button type="submit">회원가입 완료</button>
+    </form>
+
+    <script>
+        // 1. 페이지 로드 시 URL 파라미터를 읽어서 input에 채워넣기
+        const urlParams = new URLSearchParams(window.location.search);
+        document.getElementById('email').value = urlParams.get('email') || '';
+        document.getElementById('name').value = urlParams.get('nickname') || '';
+        document.getElementById('provider').value = urlParams.get('provider') || '';
+        document.getElementById('providerId').value = urlParams.get('providerId') || '';
+
+        // 2. 가입하기 버튼 클릭 이벤트 (JSON 전송)
+        document.getElementById('signupForm').addEventListener('submit', async function(e) {
+            e.preventDefault(); // 폼 제출 시 페이지 새로고침 방지
+
+            // 서버로 보낼 데이터 객체 생성 (DTO 필드명과 정확히 일치해야 함!)
+            const signupData = {
+                email: document.getElementById('email').value,
+                name: document.getElementById('name').value,
+                password: document.getElementById('password').value,
+                phone: document.getElementById('phone').value,
+                address: document.getElementById('address').value,
+                age: document.getElementById('age').value,
+                provider: document.getElementById('provider').value,
+                providerId: document.getElementById('providerId').value
+            };
+
+            try {
+                // 서버에 데이터 전송
+                const response = await fetch('/member/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json' // 나 지금 JSON 보낸다! 라고 알려줌
+                    },
+                    body: JSON.stringify(signupData) // 객체를 문자열로 변환
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert(result.message);
+                    // 서버가 준 JWT 토큰을 브라우저에 저장
+                    localStorage.setItem('token', result.token);
+                    // 메인 페이지로 이동
+                    window.location.href = result.redirectUrl; 
+                } else {
+                    alert("가입 실패: " + (result.message || "오류가 발생했습니다."));
+                }
+            } catch (error) {
+                console.error("통신 에러:", error);
+                alert("서버 연결에 실패했습니다.");
+            }
+        });
+    </script>
+</body>
+</html>

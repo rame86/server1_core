@@ -6,10 +6,16 @@ import lombok.Data;
 
 @Data
 public class MemberSignupRequest {
-	private String email;
+	
+    private String email;
     private String name;
     private String phone;
     private String address;
+    private String age;
+	private String password;
+
     private String provider;
-    private Map<String, Object> info; // 추가 정보들을 담을 맵
+    private String providerId;
+
+    private Map<String, Object> info;
 }
