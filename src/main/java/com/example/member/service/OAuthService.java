@@ -31,26 +31,27 @@ public class OAuthService {
     	
 		// 소셜계정으로 가입된 이력이 있는지 확인하기
 		Optional<SocialAccount> socialOpt = socialAccountRepository.findByProviderAndProviderId(userInfo.getProvider(), userInfo.getProviderId());
-		
 		// 소셜로 가입/연동된 적이 있음
 		if(socialOpt.isPresent()) {
 			loginUser(socialOpt.get().getMember(), response);
 			return;
 		}
 
-    	// 소셜 ID는 없지만!! 이메일이 있는 기존회원이 있는지 확인
-    	Optional<Member> memberOpt = memberRepository.findByEmail(userInfo.getEmail());
-
-		if(memberOpt.isPresent()) {
-			// 이메일이 있지만 해당 소셜 계정은 없을때
-			Member member = memberOpt.get();
-			linkSocialAccount(member, userInfo);
-			loginUser(member, response);
-		} else {
-			// 신규회원
-			redirectSignup(userInfo, response);
+		if(userInfo.getEmail() != null && !userInfo.getEmail().trim().isEmpty()) {
+			// 소셜 ID는 없지만!! 이메일이 있는 기존회원이 있는지 확인
+	    	Optional<Member> memberOpt = memberRepository.findByEmail(userInfo.getEmail());
+			if(memberOpt.isPresent()) {
+				// 이메일이 있지만 해당 소셜 계정은 없을때
+				Member member = memberOpt.get();
+				linkSocialAccount(member, userInfo);
+				loginUser(member, response);
+				return;
+			}
 		}
-
+		
+		// 신규회원
+		redirectSignup(userInfo, response);
+    	
     }
 
 	// 소셜 계정 연동

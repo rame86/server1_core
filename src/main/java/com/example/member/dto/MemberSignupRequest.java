@@ -16,6 +16,8 @@ public class MemberSignupRequest {
 
     private String provider;
     private String providerId;
+    
+    private String authCode;
 
     private Map<String, Object> info;
 }
