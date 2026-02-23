@@ -56,6 +56,9 @@ dependencies {
     
     // JSONB
     implementation 'io.hypersistence:hypersistence-utils-hibernate-63:3.7.0'
+    
+    // 이메일 전송을 위한 라이브러리 추가
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
 }
 
 tasks.named('test') {
