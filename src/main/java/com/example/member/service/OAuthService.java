@@ -1,8 +1,10 @@
 package com.example.member.service;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Optional;
 
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import com.example.member.dto.OAuthUserInfo;
@@ -26,6 +28,7 @@ public class OAuthService {
 	private final MemberRepository memberRepository;
     private final JwtTokenProvider jwtTokenProvider;
 	private final SocialAccountRepository socialAccountRepository;
+	private final StringRedisTemplate redisTemplate;
     
     public void memberLogin(OAuthUserInfo userInfo, HttpServletResponse response) throws IOException {
     	
@@ -67,7 +70,13 @@ public class OAuthService {
 	// 로그인 처리(JWT 발급 및 이동)
 	private void loginUser(Member member, HttpServletResponse response) throws IOException {
 		log.info("---------> [로그인 성공] JWT 발급: {}", member.getEmail());
-		String jwtToken = jwtTokenProvider.createToken(member.getMemberId().toString());
+		String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
+		
+		// Redis에 유저 정보를 저장하고 공유
+		// Key를 "TOKEN:토큰값"으로 하고, Value를 "유저ID:역할"로 저장해서 다른 서비스가 읽게 합니다.
+		String userInfo = member.getMemberId() + ":" + member.getRole();
+	    redisTemplate.opsForValue().set("TOKEN:" + jwtToken, userInfo, Duration.ofHours(1));
+		
 		response.sendRedirect("http://localhost:8080?token=" + jwtToken);
 	}
 

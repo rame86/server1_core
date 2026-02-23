@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # 1. Redis 서비스 추가 (새로 들어가는 부분!)
+  # 1. Redis 서비스 추가
   msa-redis:
     image: redis:alpine
     container_name: msa-redis
