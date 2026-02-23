@@ -11,6 +11,8 @@ services:
     networks:
       - msa-network                    # main-db, rabbitmq와 통신하기 위한 외부 네트워크 
     environment:
+	  # 스프링 프로파일을 prod로 설정
+	  SPRING_PROFILES_ACTIVE: prod
       # 실제 배포환경에서 DB 접속경로 오버라이딩      
       SPRING_DATASOURCE_URL: jdbc:postgresql://main-db:5432/msa_core_db
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
