@@ -1,8 +1,10 @@
 package com.example.member.controller;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,14 +21,15 @@ import com.example.member.repository.SocialAccountRepository;
 import com.example.member.service.MailSenderService;
 import com.example.security.JwtTokenProvider;
 
-import jakarta.servlet.http.HttpSession;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RequestMapping("/member")
 @RequiredArgsConstructor
 @RestController
 @Transactional
+@Slf4j
 public class MemberController {
 	
 	private final MemberRepository memberRepository;
@@ -34,12 +37,13 @@ public class MemberController {
 	private final SocialAccountRepository socialAccountRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final MailSenderService mailSenderService;
+	private final StringRedisTemplate redisTemplate;
      
     @PostMapping("/signup")
-    public ResponseEntity<?> signup(@RequestBody MemberSignupRequest dto, HttpSession session) {
+    public ResponseEntity<?> signup(@RequestBody MemberSignupRequest dto) {
 
-    	// 세션에서 인증코드 가져오기
-    	String saveCode = (String)session.getAttribute("verificationCode");
+    	// Redis에서 해당 이메일의 인증번호 가져오기
+    	String saveCode = redisTemplate.opsForValue().get("CHECK:" + dto.getEmail());
     	
     	// 인증번호가 없거나(시간초과) 입력한 번호와 다르면 에러!
     	if(saveCode == null || !saveCode.equals(dto.getAuthCode())) {
@@ -65,10 +69,10 @@ public class MemberController {
 		        	socialAccountRepository.save(socialAccount);
 				}
 				
-				session.removeAttribute("verificationCode");
-			    session.removeAttribute("verifiedEmail");
+				log.info("인증 완료로 인한 Redis 키 삭제: {}", dto.getEmail());
+				redisTemplate.delete("CHECK:" + dto.getEmail());
 			    
-				String token = jwtTokenProvider.createToken(member.getMemberId().toString());
+				String token = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
 				return ResponseEntity.ok(Map.of(
 					"message", "기존 계정에 소셜 정보가 연동되었습니다!",
 					"token", token,
@@ -98,11 +102,10 @@ public class MemberController {
 		member.getSocialAccounts().add(socialAccount);
 
     	Member savedMember = memberRepository.save(member);
+    	String token = jwtTokenProvider.createToken(savedMember.getMemberId(), savedMember.getRole());
     	
-    	session.removeAttribute("verificationCode");
-    	session.removeAttribute("verifiedEmail");
-    	
-    	String token = jwtTokenProvider.createToken(savedMember.getMemberId().toString());
+    	log.info("인증 완료로 인한 Redis 키 삭제: {}", dto.getEmail());
+    	redisTemplate.delete("CHECK:" + dto.getEmail());
     	
     	return ResponseEntity.ok(Map.of(
     		    "message", "회원가입 성공! 환영합니다.",
@@ -114,15 +117,14 @@ public class MemberController {
     
     // 인증메일
     @PostMapping("/SendVerification")
-    public ResponseEntity<?> sendVerificationCode(@RequestParam("email")String email, HttpSession session){
+    public ResponseEntity<?> sendVerificationCode(@RequestParam("email")String email){
     	// 1. 6자리 랜덤 인증번호 생성 (100000 ~ 999999)
     	String verificationCode = String.valueOf((int)(Math.random() * 899999) + 100000);
     	
-    	// 2. 세션에 인증번호 저장 (유효시간 5분 설정)
-        session.setAttribute("verificationCode", verificationCode);
-        session.setAttribute("verifiedEmail", email); // 인증받은 이메일인지 나중에 체크용
-        session.setMaxInactiveInterval(300); // 300초(5분)
-        
+    	// 2. Redis에 저장하기(key : email, Value : 인증번호, 유효시간 : 5분)
+    	redisTemplate.opsForValue().set("CHECK:" + email, verificationCode, Duration.ofMinutes(5));
+    	log.info("-----> [Redis 저장] 이메일: {}, 인증번호: {}", email, verificationCode);
+    	        
         // 3. 메일 발송
         String title = "[TEST] 회원가입 인증번호입니다.";
         String content = "안녕하세요! 인증번호는 [" + verificationCode + "] 입니다. \n5분 이내에 입력해 주세요.";

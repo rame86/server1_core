@@ -8,6 +8,7 @@ import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
@@ -22,11 +23,19 @@ public class JwtTokenProvider {
     }
     
     // 토큰 생성
-    public String createToken(String subject) {
+    public String createToken(Long memberId, String role) {
+    	// Claims생성(토큰에 담을 정보)
+    	Claims claims = Jwts.claims().setSubject(String.valueOf(memberId));
+    	claims.put("role", role);
+    	
+    	// 시간 생성
+    	Date now = new Date();
+    	Date validity = new Date(now.getTime() + validityInMilliseconds);
+    	
     	return Jwts.builder()
-    			.setSubject(subject)
-    			.setIssuedAt(new Date())
-    			.setExpiration(new Date(System.currentTimeMillis() + validityInMilliseconds))
+    			.setClaims(claims)
+    			.setIssuedAt(now)
+    			.setExpiration(validity)
     			.signWith(key)
     			.compact();
     }
