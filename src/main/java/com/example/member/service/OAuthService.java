@@ -67,15 +67,20 @@ public class OAuthService {
 	private void loginUser(Member member, HttpServletResponse response) throws IOException {
 		log.info("---------> [로그인 성공] JWT 발급: {}", member.getEmail());
 		String jwtToken = jwtTokenProvider.createToken(member.getMemberId().toString());
-		response.sendRedirect("http://34.64.85.123?token=" + jwtToken);
+		response.sendRedirect("http://localhost:8080?token=" + jwtToken);
 	}
 
 	// 회원가입 페이지로 이동
 	private void redirectSignup(OAuthUserInfo userInfo, HttpServletResponse response) throws IOException {
 		log.info("---------> [신규 유저] 추가 정보 입력 페이지로 이동");
-    	String redirectUrl = "http://34.64.85.123/signup.html"
-        		+ "?email=" + userInfo.getEmail()
-        		+ "&nickname=" + userInfo.getNickname()
+
+		String email = (userInfo.getEmail() != null) ? userInfo.getEmail() : "";
+		String nickName = "";
+		if(userInfo.getNickname() != null) nickName = java.net.URLEncoder.encode(userInfo.getNickname(), java.nio.charset.StandardCharsets.UTF_8);
+
+    	String redirectUrl = "http://localhost:8080/signup.html"
+        		+ "?email=" + email
+        		+ "&nickname=" + nickName
         		+ "&provider=" + userInfo.getProvider()
     			+ "&providerId=" + userInfo.getProviderId();
        	response.sendRedirect(redirectUrl);
