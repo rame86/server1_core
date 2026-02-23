@@ -35,6 +35,7 @@ public class Member {
 	private String address;
 	private String age;
 	private String password;
+	private String role;
 	
 	// 아직은 용도가 불분명한 부가 정보들을 담는 용도로 jsonb 유지
 	@Type(JsonBinaryType.class)
