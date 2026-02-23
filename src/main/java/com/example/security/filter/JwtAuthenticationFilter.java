@@ -23,7 +23,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	
 	private final MemberRepository memberRepository;
 	private final JwtTokenProvider jwtTokenProvider;
-    private static final String[] whiteList = {"/", "/event", "/member/*", "/dbtest", "/api/core/*", "/signup/*", "/signup.html"};
+    private static final String[] whiteList = {"/", "/event", "/member/*", "/dbtest", "/api/core/*", "/signup/*", "/signup.html", "/api/board/**"};
     
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, 
