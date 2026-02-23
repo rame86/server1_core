@@ -22,7 +22,14 @@
     <form id="signupForm">
         <div class="form-group">
             <label>이메일</label>
-            <input type="email" id="email" required>
+		    <input type="email" id="email" name="email" th:value="${email}">
+		    <button type="button" onclick="sendCode()">인증번호 받기</button>
+        </div>
+        
+        <div id="authSection">
+        	<label>인증번호</label>
+        	<input type="text" id="authCode" placeholder="인증번호 6자리 입력">
+        	<span id="timer" style="color: red;"></span>
         </div>
 
         <div class="form-group">
@@ -56,56 +63,75 @@
         <button type="submit">회원가입 완료</button>
     </form>
 
-    <script>
-        // 1. 페이지 로드 시 URL 파라미터를 읽어서 input에 채워넣기
-        const urlParams = new URLSearchParams(window.location.search);
-        document.getElementById('email').value = urlParams.get('email') || '';
-        document.getElementById('name').value = urlParams.get('nickname') || '';
-        document.getElementById('provider').value = urlParams.get('provider') || '';
-        document.getElementById('providerId').value = urlParams.get('providerId') || '';
+<script>
+    // 1. 페이지 로드 시 URL 파라미터 읽기 (기존과 동일)
+    const urlParams = new URLSearchParams(window.location.search);
+    document.getElementById('email').value = urlParams.get('email') || '';
+    document.getElementById('name').value = urlParams.get('nickname') || '';
+    document.getElementById('provider').value = urlParams.get('provider') || '';
+    document.getElementById('providerId').value = urlParams.get('providerId') || '';
 
-        // 2. 가입하기 버튼 클릭 이벤트 (JSON 전송)
-        document.getElementById('signupForm').addEventListener('submit', async function(e) {
-            e.preventDefault(); // 폼 제출 시 페이지 새로고침 방지
+    // [추가] 1-2. 인증번호 발송 함수
+    // HTML에 <button type="button" onclick="sendCode()">인증번호 받기</button> 가 있어야 해요!
+    async function sendCode() {
+        const email = document.getElementById('email').value;
+        if(!email) {
+            alert("이메일이 없습니다.");
+            return;
+        }
 
-            // 서버로 보낼 데이터 객체 생성 (DTO 필드명과 정확히 일치해야 함!)
-            const signupData = {
-                email: document.getElementById('email').value,
-                name: document.getElementById('name').value,
-                password: document.getElementById('password').value,
-                phone: document.getElementById('phone').value,
-                address: document.getElementById('address').value,
-                age: document.getElementById('age').value,
-                provider: document.getElementById('provider').value,
-                providerId: document.getElementById('providerId').value
-            };
+        try {
+            const response = await fetch('/member/SendVerification?email=' + email, {
+                method: 'POST'
+            });
+            const result = await response.json();
+            alert(result.message); // "인증번호가 발송되었습니다."
+        } catch (error) {
+            alert("메일 발송 중 오류가 발생했습니다.");
+        }
+    }
 
-            try {
-                // 서버에 데이터 전송
-                const response = await fetch('/member/signup', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json' // 나 지금 JSON 보낸다! 라고 알려줌
-                    },
-                    body: JSON.stringify(signupData) // 객체를 문자열로 변환
-                });
+    // 2. 가입하기 버튼 클릭 이벤트
+    document.getElementById('signupForm').addEventListener('submit', async function(e) {
+        e.preventDefault(); 
 
-                const result = await response.json();
+        // [수정] signupData에 authCode를 추가했어요!
+        const signupData = {
+            email: document.getElementById('email').value,
+            name: document.getElementById('name').value,
+            password: document.getElementById('password').value,
+            phone: document.getElementById('phone').value,
+            address: document.getElementById('address').value,
+            age: document.getElementById('age').value,
+            provider: document.getElementById('provider').value,
+            providerId: document.getElementById('providerId').value,
+            authCode: document.getElementById('authCode').value // 화면에 만든 인증번호 입력칸 ID
+        };
 
-                if (response.ok) {
-                    alert(result.message);
-                    // 서버가 준 JWT 토큰을 브라우저에 저장
-                    localStorage.setItem('token', result.token);
-                    // 메인 페이지로 이동
-                    window.location.href = result.redirectUrl; 
-                } else {
-                    alert("가입 실패: " + (result.message || "오류가 발생했습니다."));
-                }
-            } catch (error) {
-                console.error("통신 에러:", error);
-                alert("서버 연결에 실패했습니다.");
+        try {
+            const response = await fetch('/member/signup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(signupData)
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                alert(result.message);
+                localStorage.setItem('token', result.token);
+                window.location.href = result.redirectUrl; 
+            } else {
+                // 인증번호가 틀리면 여기서 "인증번호가 일치하지 않습니다"가 뜰 거예요.
+                alert("가입 실패: " + (result.message || "오류가 발생했습니다."));
             }
-        });
-    </script>
+        } catch (error) {
+            console.error("통신 에러:", error);
+            alert("서버 연결에 실패했습니다.");
+        }
+    });
+</script>
 </body>
 </html>
