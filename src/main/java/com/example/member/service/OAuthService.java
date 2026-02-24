@@ -81,7 +81,7 @@ public class OAuthService {
 		String userInfo = member.getMemberId() + ":" + member.getRole();
 	    redisTemplate.opsForValue().set("TOKEN:" + jwtToken, userInfo, Duration.ofHours(1));
 		
-		response.sendRedirect("http://localhost:8080?token=" + jwtToken);
+		response.sendRedirect("http://localhost:3000?token=" + jwtToken);
 	}
 
 	// 회원가입 페이지로 이동
