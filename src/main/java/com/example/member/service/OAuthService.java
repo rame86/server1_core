@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -24,12 +25,18 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 public class OAuthService {
+
+	
 	
 	private final MemberRepository memberRepository;
     private final JwtTokenProvider jwtTokenProvider;
 	private final SocialAccountRepository socialAccountRepository;
 	private final StringRedisTemplate redisTemplate;
     
+	@Value("${sign.up.url}")
+	private String signUpUrl;	
+
+	
     public void memberLogin(OAuthUserInfo userInfo, HttpServletResponse response) throws IOException {
     	
 		// 소셜계정으로 가입된 이력이 있는지 확인하기
@@ -88,7 +95,7 @@ public class OAuthService {
 		String nickName = "";
 		if(userInfo.getNickname() != null) nickName = java.net.URLEncoder.encode(userInfo.getNickname(), java.nio.charset.StandardCharsets.UTF_8);
 
-    	String redirectUrl = "http://localhost:8080/signup.html"
+    	String redirectUrl = signUpUrl
         		+ "?email=" + email
         		+ "&nickname=" + nickName
         		+ "&provider=" + userInfo.getProvider()
