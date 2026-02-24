@@ -32,7 +32,9 @@ public class OAuthService {
 	private final StringRedisTemplate redisTemplate;
     
 	@Value("${sign.up.url}")
-	private String signUpUrl;	
+	private String signUpUrl;
+	@Value("${login.user.url}")
+	private String loginUrl;	
 
     public void memberLogin(OAuthUserInfo userInfo, HttpServletResponse response) throws IOException {
     	
@@ -81,7 +83,7 @@ public class OAuthService {
 		String userInfo = member.getMemberId() + ":" + member.getRole();
 	    redisTemplate.opsForValue().set("TOKEN:" + jwtToken, userInfo, Duration.ofHours(1));
 		
-		response.sendRedirect("http://localhost:3000?token=" + jwtToken);
+		response.sendRedirect(loginUrl + jwtToken);
 	}
 
 	// 회원가입 페이지로 이동
