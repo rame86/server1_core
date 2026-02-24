@@ -26,8 +26,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class OAuthService {
 
-	
-	
 	private final MemberRepository memberRepository;
     private final JwtTokenProvider jwtTokenProvider;
 	private final SocialAccountRepository socialAccountRepository;
@@ -36,7 +34,6 @@ public class OAuthService {
 	@Value("${sign.up.url}")
 	private String signUpUrl;	
 
-	
     public void memberLogin(OAuthUserInfo userInfo, HttpServletResponse response) throws IOException {
     	
 		// 소셜계정으로 가입된 이력이 있는지 확인하기
@@ -84,7 +81,7 @@ public class OAuthService {
 		String userInfo = member.getMemberId() + ":" + member.getRole();
 	    redisTemplate.opsForValue().set("TOKEN:" + jwtToken, userInfo, Duration.ofHours(1));
 		
-		response.sendRedirect("http://localhost:8080?token=" + jwtToken);
+		response.sendRedirect("http://localhost:3000?token=" + jwtToken);
 	}
 
 	// 회원가입 페이지로 이동
