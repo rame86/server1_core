@@ -19,7 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 @RestController
-@RequestMapping("/naver")
+@RequestMapping("/api/naver")
 public class NaverController {
 	
 	private final NaverService naverService;
