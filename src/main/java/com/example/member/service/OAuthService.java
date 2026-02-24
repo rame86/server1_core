@@ -26,8 +26,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class OAuthService {
 
-	
-	
 	private final MemberRepository memberRepository;
     private final JwtTokenProvider jwtTokenProvider;
 	private final SocialAccountRepository socialAccountRepository;
@@ -36,7 +34,6 @@ public class OAuthService {
 	@Value("${sign.up.url}")
 	private String signUpUrl;	
 
-	
     public void memberLogin(OAuthUserInfo userInfo, HttpServletResponse response) throws IOException {
     	
 		// 소셜계정으로 가입된 이력이 있는지 확인하기
