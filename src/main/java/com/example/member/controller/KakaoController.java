@@ -19,7 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 @RestController
-@RequestMapping("/kakao")
+@RequestMapping("/api/kakao")
 public class KakaoController {
 	
     private final KakaoService kakaoService;
