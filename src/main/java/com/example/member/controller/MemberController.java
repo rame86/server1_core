@@ -59,6 +59,7 @@ public class MemberController {
 			Member member = existingMember.get();
 			
 			if(dto.getProvider() != null && !dto.getProviderId().isEmpty()) {
+				
 				// 소셜 계정이 이미 이 회원에게 연결되어 있는지 최종적으로 확인
 				Optional<SocialAccount> alreadyLinked = socialAccountRepository.findByProviderAndProviderId(dto.getProvider(), dto.getProviderId());
 
@@ -73,13 +74,22 @@ public class MemberController {
 				
 				log.info("인증 완료로 인한 Redis 키 삭제: {}", dto.getEmail());
 				redisTemplate.delete("CHECK:" + dto.getEmail());
-			    
-				String token = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
-				return ResponseEntity.ok(Map.of(
-					"message", "기존 계정에 소셜 정보가 연동되었습니다!",
-					"token", token,
-					"redirectUrl", "/"
-	        	));
+
+				return loginUser(member, "기존 계정에 소셜 정보가 연동되었습니다!");
+				
+			} else if(passwordEncoder.matches("SOCIAL_USER", member.getPassword())) {
+				
+				// 소셜 유저가 비밀번호 설정함
+				member.setPassword(passwordEncoder.encode(dto.getPassword()));
+				member.setName(dto.getName());
+				member.setPhone(dto.getPhone());
+				memberRepository.save(member);
+				
+				log.info("인증 완료로 인한 Redis 키 삭제: {}", dto.getEmail());
+				redisTemplate.delete("CHECK:" + dto.getEmail());
+				
+				return loginUser(member, "일반 로그인 설정이 완료되었습니다!");
+				
 			} else {
 				return ResponseEntity.badRequest().body(Map.of("message", "이미 가입된 이메일입니다."));
 			}
@@ -92,28 +102,34 @@ public class MemberController {
     	member.setPhone(dto.getPhone());
     	member.setAddress(dto.getAddress());
 		member.setAge(dto.getAge());
-		member.setPassword(passwordEncoder.encode(dto.getPassword()));
-
+		member.setRole("USER");
+		
 		// 소셜계정 생성
-		SocialAccount socialAccount = new SocialAccount();
-		socialAccount.setProvider(dto.getProvider());
-		socialAccount.setProviderId(dto.getProviderId());
-		socialAccount.setMember(member); // 연관관계 설정
+		if(dto.getProvider() != null && !dto.getProvider().isEmpty()) {
+			
+			SocialAccount socialAccount = new SocialAccount();
+			socialAccount.setProvider(dto.getProvider());
+			socialAccount.setProviderId(dto.getProviderId());
+			socialAccount.setMember(member); // 연관관계 설정
 
-		// Member의 리스트에도 추가
-		member.getSocialAccounts().add(socialAccount);
-
-    	Member savedMember = memberRepository.save(member);
-    	String token = jwtTokenProvider.createToken(savedMember.getMemberId(), savedMember.getRole());
-    	
-    	log.info("인증 완료로 인한 Redis 키 삭제: {}", dto.getEmail());
-    	redisTemplate.delete("CHECK:" + dto.getEmail());
-    	
-    	return ResponseEntity.ok(Map.of(
-    		    "message", "회원가입 성공! 환영합니다.",
-    		    "token", token,
-    		    "redirectUrl", "/"
-    	));
+			member.getSocialAccounts().add(socialAccount);	
+			member.setPassword(passwordEncoder.encode("SOCIAL_USER"));
+			
+			Member savedMember = memberRepository.save(member);
+			socialAccountRepository.save(socialAccount);
+			
+			log.info("-----> 소셜 계정 테이블 저장 완료: {}", dto.getProvider());
+	    	redisTemplate.delete("CHECK:" + dto.getEmail());
+	    	return loginUser(savedMember, "회원가입 성공! 환영합니다.");
+			
+		}else {
+			member.setPassword(passwordEncoder.encode(dto.getPassword()));
+	    	Member savedMember = memberRepository.save(member);
+	    	
+	    	log.info("인증 완료로 인한 Redis 키 삭제: {}", dto.getEmail());
+	    	redisTemplate.delete("CHECK:" + dto.getEmail());
+	    	return loginUser(savedMember, "회원가입 성공! 환영합니다.");
+		}
     	
     }
     
@@ -137,6 +153,43 @@ public class MemberController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("message", "메일 발송 실패: " + e.getMessage()));
         }
+    }
+    
+    // 토큰을 만들고 redis에 저장한 뒤 응답 데이터 반환(로그인 처리) -> 우리사이트(?) 회원
+    private ResponseEntity<?> loginUser(Member member, String message) {
+    	String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
+    	String userInfo = member.getMemberId() + ":" + member.getRole();
+    	redisTemplate.opsForValue().set("TOKEN:" + jwtToken, userInfo, Duration.ofHours(1));
+    	
+    	log.info("-----> [로그인 처리 완료] 유저: {}, 토큰 저장됨", member.getEmail());
+    	
+    	return ResponseEntity.ok(Map.of(
+                "message", message,
+                "token", jwtToken,
+                "memberId", member.getMemberId(),
+                "role", member.getRole(),
+                "redirectUrl", "/"
+    	));
+    }
+    
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody Map<String, String> loginData) {
+    	
+    	String email = loginData.get("email");
+    	String password = loginData.get("password");
+    	
+    	Optional<Member> memberOpt = memberRepository.findByEmail(email);
+    	if(memberOpt.isEmpty()) {
+    		return ResponseEntity.badRequest().body(Map.of("message", "존재하지 않는 계정입니다."));
+    	}
+    	
+    	Member member = memberOpt.get();
+    	if(!passwordEncoder.matches(password, member.getPassword())) {
+    		return ResponseEntity.badRequest().body(Map.of("message", "비밀번호가 일치하지 않습니다."));
+    	}
+    	
+    	return loginUser(member, "로그인 성공!");
+    	
     }
 
 }
