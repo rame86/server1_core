@@ -36,6 +36,7 @@ public class OAuthService {
     
 	@Value("${sign.up.url}")
 	private String signUpUrl;
+	
 	@Value("${login.user.url}")
 	private String loginUrl;	
 
