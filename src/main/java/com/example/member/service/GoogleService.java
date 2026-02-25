@@ -12,12 +12,17 @@ import org.springframework.web.client.RestTemplate;
 
 import com.example.member.dto.GoogleUserInfoResponse;
 import com.example.member.dto.NaverTokenResponse;
+import com.example.member.dto.OAuthUserInfo;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
-public class GoogleService {
+@RequiredArgsConstructor
+public class GoogleService implements OAuthProvider {
+	
+	private final RestTemplate restTemplate;
 	
 	@Value("${google.client.id}")
 	private String clientId;
@@ -27,10 +32,18 @@ public class GoogleService {
 	
 	@Value("${google.redirect.uri}")
 	private String clientUri;
+	
+	@Override
+	public String getProviderName() { return "google"; }
+	
+	@Override
+	public OAuthUserInfo getSocialUserInfo(String code, String state) {
+		String token = getAccessToken(code);
+		GoogleUserInfoResponse userInfo = getUserInfo(token);
+		return userInfo;
+	}
 
 	public String getAccessToken(String code) {
-		
-		RestTemplate rt = new RestTemplate();
 		
 		HttpHeaders headers = new HttpHeaders();
         headers.add("Content-type", "application/x-www-form-urlencoded;charset=utf-8");
@@ -42,12 +55,11 @@ public class GoogleService {
         params.add("code", code);
         params.add("redirect_uri", clientUri);
         
-        HttpEntity<MultiValueMap<String, String>> naverTokenRequest = new HttpEntity<>(params, headers);
-        
-        ResponseEntity<NaverTokenResponse> response = rt.exchange(
+        HttpEntity<MultiValueMap<String, String>> googleTokenRequest = new HttpEntity<>(params, headers);
+        ResponseEntity<NaverTokenResponse> response = restTemplate.exchange(
         		"https://oauth2.googleapis.com/token",
                 HttpMethod.POST,
-                naverTokenRequest,
+                googleTokenRequest,
                 NaverTokenResponse.class
         );
         
@@ -57,15 +69,13 @@ public class GoogleService {
 	
 	public GoogleUserInfoResponse getUserInfo(String accessToken) {
 		
-		RestTemplate rt = new RestTemplate();
-		
 		HttpHeaders headers = new HttpHeaders();
 		headers.add("Authorization", "Bearer " + accessToken);
 	    headers.add("Content-type", "application/x-www-form-urlencoded;charset=utf-8");
 	    
 	    HttpEntity<MultiValueMap<String, String>> googleProfileRequest = new HttpEntity<>(headers);
 	    
-	    ResponseEntity<GoogleUserInfoResponse> response = rt.exchange(
+	    ResponseEntity<GoogleUserInfoResponse> response = restTemplate.exchange(
 	    		"https://www.googleapis.com/oauth2/v3/userinfo",
 	            HttpMethod.POST,
 	            googleProfileRequest,
@@ -75,6 +85,15 @@ public class GoogleService {
 	    log.info("---------> [구글 사용자 정보 수신]: " + response.getBody());
 	    return response.getBody();
 	    
+	}
+
+	@Override
+	public String getAuthUrl() {
+		return "https://accounts.google.com/o/oauth2/v2/auth"
+                + "?client_id=" + clientId
+                + "&redirect_uri=" + clientUri
+                + "&response_type=code"
+                + "&scope=email profile openid";
 	}
 	
 }
