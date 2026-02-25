@@ -1,13 +1,13 @@
 package com.example.member.controller;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,12 +21,12 @@ import com.example.member.repository.MemberRepository;
 import com.example.member.repository.SocialAccountRepository;
 import com.example.member.service.MailSenderService;
 import com.example.security.JwtTokenProvider;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-@CrossOrigin(origins = "http://localhost:3000")
 @RequestMapping("/member")
 @RequiredArgsConstructor
 @RestController
@@ -157,12 +157,26 @@ public class MemberController {
     
     // 토큰을 만들고 redis에 저장한 뒤 응답 데이터 반환(로그인 처리) -> 우리사이트(?) 회원
     private ResponseEntity<?> loginUser(Member member, String message) {
+    	log.info("---------> [로그인 성공] JWT 발급: {}", member.getEmail());
     	String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
-    	String userInfo = member.getMemberId() + ":" + member.getRole();
-    	redisTemplate.opsForValue().set("TOKEN:" + jwtToken, userInfo, Duration.ofHours(1));
     	
-    	log.info("-----> [로그인 처리 완료] 유저: {}, 토큰 저장됨", member.getEmail());
+    	// 데이터를 JSON 구조로 만들기
+    	Map<String, Object> userInfo = new HashMap<>();
+    	userInfo.put("memberId", member.getMemberId());
+    	userInfo.put("role", member.getRole());
     	
+    	try {
+    		// Jackson ObjectMapper를 사용하여 Map을 JSON 문자열로 변환
+        	ObjectMapper objectMapper = new ObjectMapper();
+        	String jsonUserInfo = objectMapper.writeValueAsString(userInfo);
+        	log.info("JSON으로 저장될 값: {}", jsonUserInfo);
+        	
+        	// Redis에 저장
+    	    redisTemplate.opsForValue().set("TOKEN:" + jwtToken, jsonUserInfo, Duration.ofHours(1));
+    	} catch(Exception e) {
+    		log.error("Redis 저장용 JSON 변환 실패", e);
+    	}
+    	    	
     	return ResponseEntity.ok(Map.of(
                 "message", message,
                 "token", jwtToken,

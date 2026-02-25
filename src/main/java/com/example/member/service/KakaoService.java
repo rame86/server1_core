@@ -12,9 +12,17 @@ import org.springframework.web.client.RestTemplate;
 
 import com.example.member.dto.KakaoTokenResponse;
 import com.example.member.dto.KakaoUserInfoResponse;
+import com.example.member.dto.OAuthUserInfo;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
-public class KakaoService {
+@RequiredArgsConstructor
+public class KakaoService implements OAuthProvider{
+	
+	private final RestTemplate restTemplate;
 	
 	@Value("${kakao.client-id}")
     private String clientId;
@@ -25,9 +33,18 @@ public class KakaoService {
     @Value("${kakao.client-secret}")
     private String clientSecret;
     
-    public String getAccessToken(String code) {
-        RestTemplate rt = new RestTemplate();
+	@Override
+	public String getProviderName() { return "kakao"; }
 
+	@Override
+	public OAuthUserInfo getSocialUserInfo(String code, String state) {
+		String token = getAccessToken(code);
+		KakaoUserInfoResponse userInfo = getUserInfo(token);
+		return userInfo;
+	}
+    
+    public String getAccessToken(String code) {
+    	
         // 헤더 설정 (카카오가 정한 규칙)
         HttpHeaders headers = new HttpHeaders();
         headers.add("Content-type", "application/x-www-form-urlencoded;charset=utf-8");
@@ -42,7 +59,7 @@ public class KakaoService {
 
         // 요청 전송
         HttpEntity<MultiValueMap<String, String>> kakaoTokenRequest = new HttpEntity<>(params, headers);
-        ResponseEntity<KakaoTokenResponse> response = rt.exchange(
+        ResponseEntity<KakaoTokenResponse> response = restTemplate.exchange(
                 "https://kauth.kakao.com/oauth/token",
                 HttpMethod.POST,
                 kakaoTokenRequest,
@@ -53,8 +70,7 @@ public class KakaoService {
     }
     
     public KakaoUserInfoResponse getUserInfo(String accessToken) {
-        RestTemplate rt = new RestTemplate();
-
+    	
         // 이번에는 헤더에 토큰을 담아서 보냅니다.
         HttpHeaders headers = new HttpHeaders();
         headers.add("Authorization", "Bearer " + accessToken); // 앞에 'Bearer ' 한 칸 띄우는 거 필수!
@@ -63,7 +79,7 @@ public class KakaoService {
         HttpEntity<MultiValueMap<String, String>> kakaoProfileRequest = new HttpEntity<>(headers);
         
         @SuppressWarnings("all")
-        ResponseEntity<KakaoUserInfoResponse> response = rt.exchange(
+        ResponseEntity<KakaoUserInfoResponse> response = restTemplate.exchange(
                 "https://kapi.kakao.com/v2/user/me",
                 HttpMethod.POST,
                 kakaoProfileRequest,
@@ -71,6 +87,15 @@ public class KakaoService {
         );
 
         return response.getBody();
+        
     }
+
+	@Override
+	public String getAuthUrl() {
+		return "https://kauth.kakao.com/oauth/authorize"
+				+ "?client_id=" + clientId
+				+ "&redirect_uri=" + redirectUri
+				+ "&response_type=code";
+	}
 
 }
