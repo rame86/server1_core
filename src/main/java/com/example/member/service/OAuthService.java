@@ -2,6 +2,8 @@ package com.example.member.service;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -14,6 +16,7 @@ import com.example.member.entity.SocialAccount;
 import com.example.member.repository.MemberRepository;
 import com.example.member.repository.SocialAccountRepository;
 import com.example.security.JwtTokenProvider;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
@@ -78,12 +81,30 @@ public class OAuthService {
 		log.info("---------> [로그인 성공] JWT 발급: {}", member.getEmail());
 		String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
 		
-		// Redis에 유저 정보를 저장하고 공유
-		// Key를 "TOKEN:토큰값"으로 하고, Value를 "유저ID:역할"로 저장해서 다른 서비스가 읽게 합니다.
-		String userInfo = member.getMemberId() + ":" + member.getRole();
-	    redisTemplate.opsForValue().set("TOKEN:" + jwtToken, userInfo, Duration.ofHours(1));
+		// 데이터를 JSON 구조로 만들기
+		Map<String, Object> userInfo = new HashMap<>();
+		userInfo.put("memberId", member.getMemberId());
+		userInfo.put("role", member.getRole());
 		
-		response.sendRedirect(loginUrl + jwtToken);
+		// Jackson ObjectMapper를 사용하여 Map을 JSON 문자열로 변환
+		ObjectMapper objectMapper = new ObjectMapper();
+		String jsonUserInfo = objectMapper.writeValueAsString(userInfo);
+		log.info("JSON으로 저장될 값: {}", jsonUserInfo);
+
+		// Redis에 저장
+	    redisTemplate.opsForValue().set("TOKEN:" + jwtToken, jsonUserInfo, Duration.ofHours(1));
+	    
+	    // JSON응답 생성
+	    response.setContentType("application/json;charset=UTF-8");
+	    response.setStatus(HttpServletResponse.SC_OK);
+	    
+	    // 리액트가 로컬스토리지에 바로 담을 수 있게 JSON 구조를 만듭니다.
+	    String jsonResponse = String.format(
+	        "{\"accessToken\":\"%s\", \"memberId\":%d, \"role\":\"%s\", \"email\":\"%s\"}",
+	        jwtToken, member.getMemberId(), member.getRole(), member.getEmail()
+	    );
+		
+	    response.getWriter().write(jsonResponse);
 	}
 
 	// 회원가입 페이지로 이동
