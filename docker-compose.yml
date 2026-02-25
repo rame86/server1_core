@@ -1,3 +1,4 @@
+#core-service/ docker_compose.yml
 version: '3.8'
 
 services:
@@ -11,7 +12,7 @@ services:
     networks:
       - msa-network
 
-  # 2. Core Service 설정 (기존 설정에서 Redis 환경변수 추가!)
+  # 2. Core Service 설정
   core-service:
     image: ssrabw/server1_core:latest
     container_name: core-service
@@ -24,7 +25,7 @@ services:
       # 스프링 프로파일 설정
       SPRING_PROFILES_ACTIVE: prod
       
-      # [중요] Redis 연결 정보 (이게 environment 안에 있어야 함!)
+      # Redis 연결 정보
       SPRING_DATA_REDIS_HOST: msa-redis
       SPRING_DATA_REDIS_PORT: 6379
       
