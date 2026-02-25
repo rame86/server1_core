@@ -23,7 +23,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	
 	private final JwtTokenProvider jwtTokenProvider;
 	private final StringRedisTemplate redisTemplate;
-    private static final String[] whiteList = {"/", "/event", "/member/*", "/dbtest", "/api/core/**", "/signup/*", "/signup.html","/api/**"};
+    private static final String[] whiteList = {"/", "/event", "/member/*", "/dbtest", "/msa/core/**", "/signup/*", "/signup.html","/api/**"};
     
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, 
