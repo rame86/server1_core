@@ -3,28 +3,29 @@
 
 <mapper namespace="com.example.board.mapper.BoardMapper">
 
-    <select id="findAll" resultType="com.example.board.dto.BoardDTO">
-        SELECT 
-            b.board_id AS boardId,
-            b.category,
-            b.title,
-            b.content,
-            b.member_id AS memberId,
-            b.view_count AS viewCount,
-            b.like_count AS likeCount,
-            b.comment_count AS commentCount,
-            b.is_artist_post AS isArtistPost,
-            b.created_at AS createdAt,
-            m.name AS authorName,
-            m.role AS authorRole
-        FROM board b 
-        LEFT JOIN member m ON b.member_id = m.member_id 
-        <where>
-            <if test="category != null and category != '' and category != '전체'">
-                b.category = #{category}
-            </if>
-        </where>
-        ORDER BY b.created_at DESC
-    </select>
+<select id="findAll" resultType="com.example.board.dto.BoardDTO">
+    SELECT 
+        b.board_id AS boardId,
+        b.category,
+        b.title,
+        b.content,
+        b.member_id AS memberId,
+        b.view_count AS viewCount,
+        b.like_count AS likeCount,
+        b.comment_count AS commentCount,
+        b.is_artist_post AS isArtistPost,
+        b.created_at AS createdAt,
+        m.name AS authorName,
+        m.role AS authorRole
+    /* 'board' 스키마 안의 'board' 테이블임을 명시합니다. */
+    FROM board.board b 
+    LEFT JOIN public.member m ON b.member_id = m.member_id
+    <where>
+        <if test="category != null and category != '' and category != '전체'">
+            b.category = #{category}
+        </if>
+    </where>
+    ORDER BY b.created_at DESC
+</select>
 
 </mapper>
