@@ -23,7 +23,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	
 	private final JwtTokenProvider jwtTokenProvider;
 	private final StringRedisTemplate redisTemplate;
+<<<<<<< HEAD
     private static final String[] whiteList = {"/", "/event", "/member/*", "/dbtest", "/msa/core/**", "/signup/*", "/signup.html","/api/**"};
+=======
+    private static final String[] whiteList = {"/", "/event", "/msa/core/member/**", "/dbtest", "/msa/core/api/login/**"};
+>>>>>>> 1408f8c1225bad91bdfafd5e080de7978f8c3c9c
     
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, 
@@ -61,9 +65,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         		log.error("---------> [AUTH] Redis에 토큰이 없음 (만료되었거나 로그아웃됨)");
         		throw new RuntimeException("로그아웃되었거나 만료된 세션입니다.");
         	}
+        	
         	// Redis에 값이 있다면 확인 가능
         	log.info("---------> [AUTH] Redis 확인 완료: {}", userInfo);
-        
         	log.info("---------> [인증성공] 유저 정보: {}", userInfo);
         	filterChain.doFilter(request, response);
         	

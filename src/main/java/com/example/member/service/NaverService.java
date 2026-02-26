@@ -12,12 +12,17 @@ import org.springframework.web.client.RestTemplate;
 
 import com.example.member.dto.NaverTokenResponse;
 import com.example.member.dto.NaverUserInfoResponse;
+import com.example.member.dto.OAuthUserInfo;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+@RequiredArgsConstructor
 @Service
 @Slf4j
-public class NaverService {
+public class NaverService implements OAuthProvider{
+	
+	private final RestTemplate restTemplate;
 	
 	@Value("${naver.client.id}")
 	private String clientId;
@@ -25,10 +30,21 @@ public class NaverService {
 	@Value("${naver.client.secret}")
     private String clientSecret;
 	
+	@Value("${naver.redirect.uri}")
+    private String redirectUri;
+	
+	@Override
+	public String getProviderName() { return "naver"; }
+
+	@Override
+	public OAuthUserInfo getSocialUserInfo(String code, String state) {
+		String token = getAccessToken(code, state);
+		NaverUserInfoResponse userInfo = getUserInfo(token);
+		return userInfo;
+	}
+	
 	public String getAccessToken(String code, String state) {
-		
-		RestTemplate rt = new RestTemplate();
-		
+
 		HttpHeaders headers = new HttpHeaders();
         headers.add("Content-type", "application/x-www-form-urlencoded;charset=utf-8");
         
@@ -41,7 +57,7 @@ public class NaverService {
         
         HttpEntity<MultiValueMap<String, String>> naverTokenRequest = new HttpEntity<>(params, headers);
         
-        ResponseEntity<NaverTokenResponse> response = rt.exchange(
+        ResponseEntity<NaverTokenResponse> response = restTemplate.exchange(
         		"https://nid.naver.com/oauth2.0/token",
                 HttpMethod.POST,
                 naverTokenRequest,
@@ -54,15 +70,13 @@ public class NaverService {
 	
 	public NaverUserInfoResponse getUserInfo(String accessToken) {
 		
-		RestTemplate rt = new RestTemplate();
-		
 		HttpHeaders headers = new HttpHeaders();
 		headers.add("Authorization", "Bearer " + accessToken);
 	    headers.add("Content-type", "application/x-www-form-urlencoded;charset=utf-8");
 	    
 	    HttpEntity<MultiValueMap<String, String>> naverProfileRequest = new HttpEntity<>(headers);
 	    
-	    ResponseEntity<NaverUserInfoResponse> response = rt.exchange(
+	    ResponseEntity<NaverUserInfoResponse> response = restTemplate.exchange(
 	    		"https://openapi.naver.com/v1/nid/me",
 	            HttpMethod.POST,
 	            naverProfileRequest,
@@ -72,6 +86,15 @@ public class NaverService {
 	    log.info("---------> [네이버 사용자 정보 수신]: " + response.getBody());
 	    return response.getBody();
 	    
+	}
+
+	@Override
+	public String getAuthUrl() {
+		String state = "RANDOM_STATE_STRING"; 
+		return "https://nid.naver.com/oauth2.0/authorize?response_type=code"
+        + "&client_id=" + clientId
+        + "&redirect_uri=" + redirectUri
+        + "&state=" + state;
 	}
 	
 }
