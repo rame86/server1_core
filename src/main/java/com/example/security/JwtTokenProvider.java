@@ -23,9 +23,9 @@ public class JwtTokenProvider {
     }
     
     // 토큰 생성
-    public String createToken(Long memberId, String role) {
+    public String createToken(Long member_id, String role) {
     	// Claims생성(토큰에 담을 정보)
-    	Claims claims = Jwts.claims().setSubject(String.valueOf(memberId));
+    	Claims claims = Jwts.claims().setSubject(String.valueOf(member_id));
     	claims.put("role", role);
     	
     	// 시간 생성

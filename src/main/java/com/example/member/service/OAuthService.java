@@ -84,7 +84,7 @@ public class OAuthService {
 		
 		// 데이터를 JSON 구조로 만들기
 		Map<String, Object> userInfo = new HashMap<>();
-		userInfo.put("memberId", member.getMemberId());
+		userInfo.put("member_id", member.getMemberId());
 		userInfo.put("role", member.getRole());
 		
 		// Jackson ObjectMapper를 사용하여 Map을 JSON 문자열로 변환
@@ -101,7 +101,7 @@ public class OAuthService {
 	    
 	    // 리액트가 로컬스토리지에 바로 담을 수 있게 JSON 구조를 만듭니다.
 	    String jsonResponse = String.format(
-	        "{\"accessToken\":\"%s\", \"memberId\":%d, \"role\":\"%s\", \"email\":\"%s\"}",
+	        "{\"accessToken\":\"%s\", \"member_id\":%d, \"role\":\"%s\", \"email\":\"%s\"}",
 	        jwtToken, member.getMemberId(), member.getRole(), member.getEmail()
 	    );
 		

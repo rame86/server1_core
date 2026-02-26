@@ -162,7 +162,7 @@ public class MemberController {
     	
     	// 데이터를 JSON 구조로 만들기
     	Map<String, Object> userInfo = new HashMap<>();
-    	userInfo.put("memberId", member.getMemberId());
+    	userInfo.put("member_id", member.getMemberId());
     	userInfo.put("role", member.getRole());
     	
     	try {
@@ -180,7 +180,7 @@ public class MemberController {
     	return ResponseEntity.ok(Map.of(
                 "message", message,
                 "token", jwtToken,
-                "memberId", member.getMemberId(),
+                "member_id", member.getMemberId(),
                 "role", member.getRole(),
                 "redirectUrl", "/"
     	));
