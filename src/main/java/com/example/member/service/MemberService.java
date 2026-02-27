@@ -128,7 +128,6 @@ public class MemberService {
     	Map<String, Object> userInfo = new HashMap<>();
     	userInfo.put("token", jwtToken);
 		userInfo.put("role", member.getRole());
-		userInfo.put("last_login", java.time.LocalDateTime.now().toString());
     	
     	try {
     		// Jackson ObjectMapper를 사용하여 Map을 JSON 문자열로 변환
