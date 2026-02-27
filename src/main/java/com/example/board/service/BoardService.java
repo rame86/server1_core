@@ -1,29 +1,29 @@
 package com.example.board.service;
 
 import com.example.board.mapper.BoardMapper;
+import com.example.board.repository.BoardRepository;
 import com.example.board.dto.BoardDTO;
+import com.example.board.entity.Board;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class BoardService {
 
     private final BoardMapper boardMapper;
+    private final BoardRepository boardRepository;
 
-    /**
-     * 게시글 목록 조회
-     * @param category '전체' 또는 특정 카테고리
-     */
-    @Transactional(readOnly = true)
-    public List<BoardDTO> getBoardList(String category) {
-        // category가 null이거나 비어있을 경우를 대비한 기본값 처리
-        String searchCategory = (category == null || category.isEmpty()) ? "전체" : category;
-        return boardMapper.findAll(searchCategory);
+    // 게시글 보기
+    public List<Board> getBoardList(String category) {
+        if (category == null || category.equals("전체") || category.isEmpty()) {
+            return boardRepository.findAllByOrderByCreatedAtDesc();
+        }
+        return boardRepository.findByCategoryOrderByCreatedAtDesc(category);
     }
 
     /**

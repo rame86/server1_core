@@ -4,7 +4,9 @@ import lombok.*;
 
 import java.time.OffsetDateTime;
 
-@Getter @Setter @ToString
+@Getter
+@Setter
+@ToString
 public class BoardDTO {
     private Long boardId;
     private String category;    // [추가] 팬레터, 아티스트 레터, 공지 등
