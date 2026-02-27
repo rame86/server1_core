@@ -1,7 +1,16 @@
-POST http://localhost/msa/core/api/test/pay-request
-Content-Type: application/json
+# POST http://localhost/msa/core/api/test/pay-request
+# Content-Type: application/json
 
-{
-  "reservationId": "RESV-20260226",
-  "amount": 150000
-}
+# {
+#   "reservationId": "RESV-20260226",
+#   "amount": 150000
+# }
+
+# {
+#   "reservationId": "RESV-20260226",
+#   "amount": 150000
+# }
+
+POST http://localhost/msa/pay/payment
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxNiIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzcyMTczNzcxLCJleHAiOjE3NzIxNzczNzF9.T0igQmT93c8EhNMGUM444aCFhKtZvT5g7v2-nX7lSFnd2tw5YKpv1f4PGD8ybGeY
