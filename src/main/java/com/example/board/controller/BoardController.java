@@ -1,73 +1,68 @@
 package com.example.board.controller;
 
-import com.example.common.annotation.LoginUser;
-import com.example.member.dto.RedisMemberDTO;
 import com.example.board.service.BoardService;
 import com.example.board.dto.BoardDTO;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.ArrayList;
+
 @Slf4j
 @RestController
-@RequestMapping("/board")
+@RequestMapping("/board") // 포스트맨 'path: /board/list' 결과에 맞춤
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*") // MSA 환경에 맞춰 모든 오리진 허용
 public class BoardController {
 
     private final BoardService boardService;
 
-    // @LoginUser RedisMemberDTO user 사용해서 Redis정보 가져오기
-    // 게시글 보기
+    /**
+     * 게시글 목록 조회
+     * GET /board/list?category=전체
+     */
     @GetMapping("/list")
-    public ResponseEntity<?> getBoardList(@LoginUser RedisMemberDTO user, 
-        @RequestParam(name = "category", defaultValue = "전체") String category,
-        @RequestParam(name = "artistId", required = false) Long artistId) {
-    	log.info("-----> [BOARD LIST] 요청 카테고리: {}", category);
-        return ResponseEntity.ok(boardService.getBoardList(category, artistId));
+    public ResponseEntity<List<BoardDTO>> getList(@RequestParam(name = "category", defaultValue = "전체") String category) {
+        log.info("====> [MSA Board] 목록 조회 호출: {}", category);
+        try {
+            List<BoardDTO> list = boardService.getBoardList(category);
+            return ResponseEntity.ok(list != null ? list : new ArrayList<>());
+        } catch (Exception e) {
+            log.error("====> [Error] 목록 조회 실패: ", e);
+            return ResponseEntity.internalServerError().body(new ArrayList<>());
+        }
     }
 
     /**
      * 게시글 상세 조회
+     * GET /board/detail/{id}
      */
-    @GetMapping("/{id}")
+    @GetMapping("{id}")
     public ResponseEntity<BoardDTO> getDetail(@PathVariable("id") Long id) {
-        log.info("====> [GET] 게시글 상세 조회 (ID: {})", id);
-        
+        log.info("====> [MSA Board] 상세 조회 호출 ID: {}", id);
         try {
             BoardDTO detail = boardService.getBoardDetail(id);
-            if (detail == null) {
-                log.warn("====> 해당 ID({})의 게시글을 찾을 수 없습니다.", id);
-                return ResponseEntity.notFound().build();
-            }
+            if (detail == null) return ResponseEntity.notFound().build();
             return ResponseEntity.ok(detail);
         } catch (Exception e) {
-            log.error("====> 상세 조회 중 에러: ", e);
             return ResponseEntity.internalServerError().build();
         }
     }
 
     /**
-     * 게시글 작성
+     * 게시글 작성 (포스트맨 테스트용)
+     * POST /board/write
      */
-    @PostMapping
+    @PostMapping("/write")
     public ResponseEntity<?> write(@RequestBody BoardDTO boardDTO) {
-        log.info("====> [POST] 게시글 작성 요청 (제목: {})", boardDTO.getTitle());
-        
-        // 데이터 정합성 검사: 제목이 없으면 400 에러 반환
-        if (boardDTO.getTitle() == null || boardDTO.getTitle().trim().isEmpty()) {
-            return ResponseEntity.badRequest().body("{\"error\": \"제목은 필수 입력 항목입니다.\"}");
-        }
-
+        log.info("====> [MSA Board] 게시글 작성 호출: {}", boardDTO.getTitle());
         try {
             boardService.writeBoard(boardDTO);
-            // 성공 시 JSON 객체로 메시지 전달 (프론트엔드 처리 용이성)
             return ResponseEntity.status(201).body("{\"message\": \"Success\"}");
         } catch (Exception e) {
-            log.error("====> 게시글 작성 중 에러: ", e);
-            return ResponseEntity.internalServerError().body("{\"error\": \"Server Error\"}");
+            return ResponseEntity.internalServerError().build();
         }
     }
 }
