@@ -1,4 +1,4 @@
-package com.example.security;
+package com.example.security.tokenProvider;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Date;

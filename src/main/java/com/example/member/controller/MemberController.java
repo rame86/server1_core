@@ -20,7 +20,7 @@ import com.example.member.entity.SocialAccount;
 import com.example.member.repository.MemberRepository;
 import com.example.member.repository.SocialAccountRepository;
 import com.example.member.service.MailSenderService;
-import com.example.security.JwtTokenProvider;
+import com.example.security.tokenProvider.JwtTokenProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.transaction.Transactional;

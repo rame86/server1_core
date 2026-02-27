@@ -15,7 +15,7 @@ import com.example.member.entity.Member;
 import com.example.member.entity.SocialAccount;
 import com.example.member.repository.MemberRepository;
 import com.example.member.repository.SocialAccountRepository;
-import com.example.security.JwtTokenProvider;
+import com.example.security.tokenProvider.JwtTokenProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.servlet.http.HttpServletResponse;
