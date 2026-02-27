@@ -164,10 +164,11 @@ public class MemberService {
 	
 	// 로그 아웃
 	public void logout(String token) {
-		String redisKey = "TOKEN:" + token;
+		String memberId = jwtTokenProvider.getSubject(token);
+		String redisKey = "AUTH:MEMBER:" + memberId;
 		if(Boolean.TRUE.equals(redisTemplate.hasKey(redisKey))) {
 			redisTemplate.delete(redisKey);
-			log.info("---------> [로그아웃] Redis에서 토큰 삭제 완료: {}", token);
+			log.info("---------> [로그아웃] Redis에서 정보 삭제 완료(유저 ID: {})", memberId);
 		} else {
 			log.warn("---------> [로그아웃] 이미 만료되었거나 존재하지 않는 토큰입니다.");
 		}
