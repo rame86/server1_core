@@ -1,0 +1,7 @@
+POST http://localhost/msa/core/member/login
+Content-Type: application/json
+
+{
+    "email":"oksm1003@gmail.com",
+    "password":"minmin"
+}
