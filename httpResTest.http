@@ -1,10 +1,3 @@
-# POST http://localhost/msa/core/member/login
-# Content-Type: application/json
-
-# {"email":"oksm1003@gmail.com",
-# "password":"minmin"
-# }
-
 ### Res 서버 Gateway 통과 및 인증 테스트
 POST http://localhost/msa/res/reserve
 Content-Type: application/json

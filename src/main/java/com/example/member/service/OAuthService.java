@@ -82,9 +82,12 @@ public class OAuthService {
 		log.info("---------> [로그인 성공] JWT 발급: {}", member.getEmail());
 		String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
 		
+		// 키 생성 : AUTH:MEMBER:16
+		String redisKey = "AUTH:MEMBER:" + member.getMemberId();
+		
 		// 데이터를 JSON 구조로 만들기
 		Map<String, Object> userInfo = new HashMap<>();
-		userInfo.put("member_id", member.getMemberId());
+		userInfo.put("token", jwtToken);
 		userInfo.put("role", member.getRole());
 		
 		// Jackson ObjectMapper를 사용하여 Map을 JSON 문자열로 변환
@@ -93,19 +96,13 @@ public class OAuthService {
 		log.info("JSON으로 저장될 값: {}", jsonUserInfo);
 
 		// Redis에 저장
-	    redisTemplate.opsForValue().set("TOKEN:" + jwtToken, jsonUserInfo, Duration.ofHours(1));
+	    redisTemplate.opsForValue().set(redisKey, jsonUserInfo, Duration.ofHours(1));
 	    
-	    // JSON응답 생성
-	    response.setContentType("application/json;charset=UTF-8");
-	    response.setStatus(HttpServletResponse.SC_OK);
-	    
-	    // 리액트가 로컬스토리지에 바로 담을 수 있게 JSON 구조를 만듭니다.
-	    String jsonResponse = String.format(
-	        "{\"accessToken\":\"%s\", \"member_id\":%d, \"role\":\"%s\", \"email\":\"%s\"}",
-	        jwtToken, member.getMemberId(), member.getRole(), member.getEmail()
-	    );
+	    String redirectUrl = loginUrl + jwtToken 
+	    		+ "&member_id=" + member.getMemberId()
+	    		+ "&role=" + member.getRole();
 		
-	    response.getWriter().write(jsonResponse);
+	    response.sendRedirect(redirectUrl);
 	}
 
 	// 회원가입 페이지로 이동

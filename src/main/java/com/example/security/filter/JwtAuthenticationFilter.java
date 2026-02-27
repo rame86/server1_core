@@ -1,8 +1,11 @@
 package com.example.security.filter;
 
 import java.io.IOException;
+import java.util.List;
 
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.PatternMatchUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -22,11 +25,16 @@ import lombok.extern.slf4j.Slf4j;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	
 	private final JwtTokenProvider jwtTokenProvider;
-	private final StringRedisTemplate redisTemplate;
 
-    private static final String[] whiteList = {"/", "/event", "/member/**", "/dbtest", "/api/**","/test/**"};
+    private static final String[] whiteList = {
+    		"/", 
+    		"/event", 
+    		"/member/**", 
+    		"/dbtest", 
+    		"/api/**", 
+    		"/test/**"
+    };
 
-    
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, 
 			HttpServletResponse response, 
@@ -41,34 +49,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
         
+        // 토큰 추출
+        String token = jwtTokenProvider.resolveToken(request);
         try {
-        	
-        	// 헤더에서 토큰 추출
-        	log.info("---------> [AUTH] 인증 검사 시작: {}", requestURI);
-        	String authHeader = request.getHeader("Authorization");
-        	if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                throw new RuntimeException("토큰이 존재하지 않습니다.");
-            }
-        	
-        	// 토큰 유효성 검사
-        	String token = authHeader.substring(7);
-        	if(!jwtTokenProvider.validateToken(token)) {
-        		throw new RuntimeException("유효하지 않은 토큰입니다.");
+        	if(token != null && jwtTokenProvider.validateToken(token)) {
+        		String memberId = jwtTokenProvider.getSubject(token);
+        		String role = jwtTokenProvider.getRole(token);
+        		
+        		UsernamePasswordAuthenticationToken authentication =
+        				new UsernamePasswordAuthenticationToken(memberId, null, 
+        						List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+        		
+        		SecurityContextHolder.getContext().setAuthentication(authentication);
+        		log.info("---------> [AUTH] Lua 검증 완료 신뢰, 내부 인증 객체 생성 완료: {}", memberId);
         	}
-        	
-        	// Redis에 토큰이 살아있는지 확인
-        	String redisKey = "TOKEN:" + token;
-        	String userInfo = redisTemplate.opsForValue().get(redisKey);
-        	if(userInfo == null) {
-        		log.error("---------> [AUTH] Redis에 토큰이 없음 (만료되었거나 로그아웃됨)");
-        		throw new RuntimeException("로그아웃되었거나 만료된 세션입니다.");
-        	}
-        	
-        	// Redis에 값이 있다면 확인 가능
-        	log.info("---------> [AUTH] Redis 확인 완료: {}", userInfo);
-        	log.info("---------> [인증성공] 유저 정보: {}", userInfo);
         	filterChain.doFilter(request, response);
-        	
         } catch (Exception e) {
         	log.error("---------> [AUTH] 인증 실패: {}", e.getMessage());
         	
