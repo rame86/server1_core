@@ -41,7 +41,6 @@ public class OAuthService {
 	private String loginUrl;	
 
     public void memberLogin(OAuthUserInfo userInfo, HttpServletResponse response) throws IOException {
-    	
 		// 소셜계정으로 가입된 이력이 있는지 확인하기
 		Optional<SocialAccount> socialOpt = socialAccountRepository.findByProviderAndProviderId(userInfo.getProvider(), userInfo.getProviderId());
 		// 소셜로 가입/연동된 적이 있음
@@ -64,7 +63,6 @@ public class OAuthService {
 		
 		// 신규회원
 		redirectSignup(userInfo, response);
-    	
     }
 
 	// 소셜 계정 연동
