@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.PatternMatchUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.example.security.JwtTokenProvider;
+import com.example.security.tokenProvider.JwtTokenProvider;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -23,7 +23,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	
 	private final JwtTokenProvider jwtTokenProvider;
 	private final StringRedisTemplate redisTemplate;
-    private static final String[] whiteList = {"/", "/event", "/msa/core/member/**", "/dbtest", "/msa/core/api/login/**"};
+
+    private static final String[] whiteList = {"/", "/event", "/member/**", "/dbtest", "/api/**","/test/**"};
+
     
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, 

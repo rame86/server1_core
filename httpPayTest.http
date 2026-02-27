@@ -1,0 +1,7 @@
+POST http://localhost/msa/core/api/test/pay-request
+Content-Type: application/json
+
+{
+  "reservationId": "RESV-20260226",
+  "amount": 150000
+}
