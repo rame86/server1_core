@@ -122,10 +122,13 @@ public class MemberService {
 		log.info("---------> [로그인 성공] JWT 발급: {}", member.getEmail());
     	String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
     	
+    	String redisKey = "AUTH:MEMBER:" + member.getMemberId();
+    	
     	// 데이터를 JSON 구조로 만들기
     	Map<String, Object> userInfo = new HashMap<>();
-    	userInfo.put("member_id", member.getMemberId());
-    	userInfo.put("role", member.getRole());
+    	userInfo.put("token", jwtToken);
+		userInfo.put("role", member.getRole());
+		userInfo.put("last_login", java.time.LocalDateTime.now().toString());
     	
     	try {
     		// Jackson ObjectMapper를 사용하여 Map을 JSON 문자열로 변환
@@ -134,7 +137,7 @@ public class MemberService {
         	log.info("JSON으로 저장될 값: {}", jsonUserInfo);
         	
         	// Redis에 저장
-    	    redisTemplate.opsForValue().set("TOKEN:" + jwtToken, jsonUserInfo, Duration.ofHours(1));
+    	    redisTemplate.opsForValue().set(redisKey, jsonUserInfo, Duration.ofHours(1));
     	} catch(Exception e) {
     		log.error("Redis 저장용 JSON 변환 실패", e);
     	}
@@ -158,6 +161,17 @@ public class MemberService {
 		}
 		
 		return loginResponse(member, "로그인 성공!");
+	}
+	
+	// 로그 아웃
+	public void logout(String token) {
+		String redisKey = "TOKEN:" + token;
+		if(Boolean.TRUE.equals(redisTemplate.hasKey(redisKey))) {
+			redisTemplate.delete(redisKey);
+			log.info("---------> [로그아웃] Redis에서 토큰 삭제 완료: {}", token);
+		} else {
+			log.warn("---------> [로그아웃] 이미 만료되었거나 존재하지 않는 토큰입니다.");
+		}
 	}
 
 }
