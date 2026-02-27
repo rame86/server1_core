@@ -20,49 +20,41 @@ package com.example.test.controller;
 ` 게시글삭제		/board/deleteBoard?seq=글번호		/board/글번호		DELETE
 */
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.test.dto.TestDto;
-import com.example.test.service.TestService;
-
 @RestController
+@RequestMapping("/api/test")
 public class TestController {
 
-    @Autowired
-    private TestService testService;
+    private final RabbitTemplate rabbitTemplate;
+    
+    // pay 서비스의 RabbitMQConfig와 동일한 Exchange 및 Routing Key 지정
+    private static final String EXCHANGE_NAME = "msa.direct.exchange";
+    private static final String ROUTING_KEY = "pay.request";
 
-    // 1. 모든 모드에서 접근 가능해야 하는 경로 (/, /event)
-    @GetMapping("/")
-    public String mainPage() {
-        return "Main Page: 접근 성공!";
+    public TestController(RabbitTemplate rabbitTemplate) {
+        this.rabbitTemplate = rabbitTemplate;
     }
 
-    @GetMapping("/event")
-    public String eventPage() {
-        return "Event Page: 누구나 볼 수 있습니다.";
+    // 테스트용 DTO (pay 서비스의 PaymentRequestDto 필드와 매핑)
+    public record PaymentRequestDto(String reservationId, Long amount) {}
+
+    @PostMapping("/pay-request")
+    public ResponseEntity<String> sendPaymentRequest(@RequestBody PaymentRequestDto requestDto) {
+        try {
+            // 지정된 Exchange로 Routing Key를 포함하여 메시지 발행
+            rabbitTemplate.convertAndSend(EXCHANGE_NAME, ROUTING_KEY, requestDto);
+            return ResponseEntity.ok("결제 요청 메시지 큐 전송 성공: " + requestDto.reservationId());
+        } catch (Exception e) {
+            // RabbitMQ 브로커 연결 실패 등 예외 처리
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("메시지 큐 전송 실패: " + e.getMessage());
+        }
     }
-
-    // 2. 인증이 필요한 경로 (보안 모드 확인용)
-    @GetMapping("/api/private")
-    public Map<String, String> privateApi() {
-        Map<String, String> response = new HashMap<>();
-        response.put("status", "Success");
-        response.put("message", "인증된 사용자만 볼 수 있는 데이터입니다.");
-        return response;
-    }
-
-    // -------------------------------------------------------------
-
-    @GetMapping("/dbtest")
-    public List<TestDto> getTestList() {
-        // 비즈니스 로직 호출 및 데이터 반환
-        return testService.getAllTestData();
-    }
-
 }
