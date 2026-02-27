@@ -1,96 +1,113 @@
 package com.example.board.controller;
 
-import com.example.board.service.BoardService;
 import com.example.board.dto.BoardDTO;
+import com.example.board.service.BoardService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.ArrayList;
+import java.util.Map;
+import java.util.Objects;
 
-/**
- * 게시판 기능을 담당하는 REST 컨트롤러
- * 최신 트렌드인 생성자 주입(Lombok)과 명확한 JSON 응답 구조를 적용했습니다.
- */
 @Slf4j
 @RestController
-@RequestMapping("/api/board")
+@RequestMapping("/msa/core/api/board")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.OPTIONS})
+@CrossOrigin(origins = "http://localhost:3000")
 public class BoardController {
 
     private final BoardService boardService;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
 
     /**
-     * 카테고리별 게시글 목록 조회
-     * GET http://localhost:8080/api/board/posts
-     * 만약 404가 뜨면 로그를 확인하여 http://localhost:8080/api/core/api/board/posts 로 시도하세요.
+     * 게시글 목록 조회 (카테고리별 캐싱 고려)
      */
     @GetMapping("/posts")
-    public ResponseEntity<List<BoardDTO>> getList(@RequestParam(name = "category", defaultValue = "전체") String category) {
-        log.info("====> [GET] 게시글 목록 조회 시작 (카테고리: {})", category);
+    public List<BoardDTO> getList(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestParam(defaultValue = "전체") String category) {
         
-        try {
-            List<BoardDTO> list = boardService.getBoardList(category);
-            
-            // 데이터가 null이거나 비어있어도 브라우저에서 []가 보이도록 처리하여 
-            // '404'나 'Whitelabel Error' 페이지가 뜨는 것을 방지합니다.
-            if (list == null) {
-                list = new ArrayList<>();
+        List<BoardDTO> list = boardService.getBoardList(category);
+        BoardDTO loginUser = getLoginUserInfo(authHeader);
+
+        for (BoardDTO post : list) {
+            if (post.getAuthorName() == null || post.getAuthorName().isBlank()) {
+                post.setAuthorName("사용자");
             }
-            
-            log.info("====> 조회 결과: {} 건의 데이터 반환", list.size());
-            return ResponseEntity.ok(list); 
-        } catch (Exception e) {
-            log.error("====> [에러] 데이터 조회 중 예외 발생: ", e);
-            // 에러 시에도 빈 배열을 반환하여 프론트엔드 중단 방지
-            return ResponseEntity.internalServerError().body(new ArrayList<>());
+
+            // 본인 작성글 식별 및 제목 강조
+            if (loginUser != null && Objects.equals(post.getMemberId(), loginUser.getMemberId())) {
+                post.setTitle("[내 글] " + post.getTitle());
+                post.setAuthorName(loginUser.getAuthorName());
+            }
         }
+        return list;
     }
 
     /**
-     * 게시글 상세 조회
-     * GET http://localhost:8080/api/board/{id}
+     * 게시글 저장 로직
+     * 405 Method Not Allowed 방지를 위해 @PostMapping("/posts") 명시
      */
-    @GetMapping("/{id}")
-    public ResponseEntity<BoardDTO> getDetail(@PathVariable("id") Long id) {
-        log.info("====> [GET] 게시글 상세 조회 (ID: {})", id);
-        
+    @PostMapping("/posts") 
+    public ResponseEntity<?> write(@RequestBody BoardDTO boardDTO, 
+                                 @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            BoardDTO detail = boardService.getBoardDetail(id);
-            if (detail == null) {
-                log.warn("====> 해당 ID({})의 게시글을 찾을 수 없습니다.", id);
-                return ResponseEntity.notFound().build();
+            // Redis 세션에서 로그인 정보 획득
+            BoardDTO loginUser = getLoginUserInfo(authHeader);
+            
+            if (loginUser == null) {
+                log.warn("미인증 사용자의 글쓰기 시도");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인이 필요한 서비스입니다.");
             }
-            return ResponseEntity.ok(detail);
-        } catch (Exception e) {
-            log.error("====> 상세 조회 중 에러: ", e);
-            return ResponseEntity.internalServerError().build();
-        }
-    }
 
-    /**
-     * 게시글 작성
-     * POST http://localhost:8080/api/board
-     */
-    @PostMapping
-    public ResponseEntity<?> write(@RequestBody BoardDTO boardDTO) {
-        log.info("====> [POST] 게시글 작성 요청 (제목: {})", boardDTO.getTitle());
-        
-        // 데이터 정합성 검사: 제목이 없으면 400 에러 반환
-        if (boardDTO.getTitle() == null || boardDTO.getTitle().trim().isEmpty()) {
-            return ResponseEntity.badRequest().body("{\"error\": \"제목은 필수 입력 항목입니다.\"}");
-        }
-
-        try {
+            // DTO에 인증된 정보 강제 주입 (보안 강화)
+            boardDTO.setMemberId(loginUser.getMemberId());
+            boardDTO.setAuthorName(loginUser.getAuthorName());
+            boardDTO.setAuthorRole(loginUser.getAuthorRole());
+            
+            // 서비스 호출 및 DB 저장
             boardService.writeBoard(boardDTO);
-            // 성공 시 JSON 객체로 메시지 전달 (프론트엔드 처리 용이성)
-            return ResponseEntity.status(201).body("{\"message\": \"Success\"}");
+            
+            // 등록 성공 시 특정 카테고리의 Redis 캐시를 비우는 로직이 Service에 포함되어야 함
+            log.info("글 등록 완료: {}", boardDTO.getTitle());
+            return ResponseEntity.status(HttpStatus.CREATED).body("등록되었습니다.");
+            
         } catch (Exception e) {
-            log.error("====> 게시글 작성 중 에러: ", e);
-            return ResponseEntity.internalServerError().body("{\"error\": \"Server Error\"}");
+            log.error("글 작성 오류: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("서버 오류가 발생했습니다.");
         }
+    }
+
+    /**
+     * Redis 기반 토큰 검증 및 사용자 정보 추출 (MSA 공통 로직)
+     */
+    private BoardDTO getLoginUserInfo(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) return null;
+        
+        try {
+            String token = authHeader.substring(7);
+            // Auth 서비스에서 저장한 Redis 키 "TOKEN:{jwt}" 조회
+            String redisValue = redisTemplate.opsForValue().get("TOKEN:" + token);
+            
+            if (redisValue != null) {
+                Map<String, Object> map = objectMapper.readValue(redisValue, Map.class);
+                
+                BoardDTO user = new BoardDTO();
+                user.setMemberId(Long.parseLong(String.valueOf(map.get("member_id"))));
+                user.setAuthorName(String.valueOf(map.get("name")));
+                user.setAuthorRole(String.valueOf(map.get("role")));
+                
+                return user;
+            }
+        } catch (Exception e) {
+            log.error("Redis 세션 파싱 에러: {}", e.getMessage());
+        }
+        return null;
     }
 }
