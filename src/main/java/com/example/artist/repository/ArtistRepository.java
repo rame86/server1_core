@@ -8,4 +8,5 @@ import com.example.artist.entity.Artist;
 
 public interface ArtistRepository extends JpaRepository<Artist, Long> {
 	List<Artist> findAllByOrderByMemberCreatedAtDesc();
+	Artist findByMemberId(Long artistId);
 }

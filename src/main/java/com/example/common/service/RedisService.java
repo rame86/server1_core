@@ -31,6 +31,7 @@ public class RedisService {
 
         try{
             RedisMemberDTO dto = objectMapper.readValue(json, RedisMemberDTO.class);
+            dto.setMemberId(Long.valueOf(memberId));
             return Optional.of(dto);
         } catch(JsonProcessingException e) {
             log.error("JSON 파싱 에러! memberId: {}", memberId, e);
