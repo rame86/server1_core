@@ -1,6 +1,7 @@
 package com.example.member.service;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,7 +39,10 @@ public class OAuthService {
 	private String signUpUrl;
 	
 	@Value("${login.user.url}")
-	private String loginUrl;	
+	private String loginUrl;
+	
+	@Value("${pay.url}")
+	private String paymentUrl;
 
     public void memberLogin(OAuthUserInfo userInfo, HttpServletResponse response) throws IOException {
 		// 소셜계정으로 가입된 이력이 있는지 확인하기
@@ -79,6 +83,9 @@ public class OAuthService {
 	private void loginUser(Member member, HttpServletResponse response) throws IOException {
 		log.info("---------> [로그인 성공] JWT 발급: {}", member.getEmail());
 		String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
+		
+		BigDecimal balance = BigDecimal.ZERO;
+		String urlWithParam = paymentUrl + member.getMemberId();
 		
 		// 키 생성 : AUTH:MEMBER:16
 		String redisKey = "AUTH:MEMBER:" + member.getMemberId();

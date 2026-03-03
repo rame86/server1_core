@@ -5,9 +5,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import com.example.member.dto.MemberSignupRequest;
 import com.example.member.entity.Member;
@@ -20,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
 
 @Transactional
 @Slf4j
@@ -33,6 +36,10 @@ public class MemberService {
 	private final JwtTokenProvider jwtTokenProvider;
 	private final StringRedisTemplate redisTemplate;
 	private final MailSenderService mailSenderService;
+	private final WebClient webClient;
+	
+	@Value("${pay.url}")
+	private String paymentUrl;
 	
 	// 회원가입 및 소셜 연동
 	public Map<String, Object> registerMember(MemberSignupRequest dto) {
@@ -121,31 +128,48 @@ public class MemberService {
 	public Map<String, Object> loginResponse(Member member, String message) {
 		log.info("---------> [로그인 성공] JWT 발급: {}", member.getEmail());
     	String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
-    	
     	String redisKey = "AUTH:MEMBER:" + member.getMemberId();
+    	String urlWithParam = paymentUrl + member.getMemberId();
+    	log.info(urlWithParam);
+    	
+    	Long balance = webClient.get()
+    			.uri(paymentUrl + member.getMemberId())
+    			.retrieve()
+    			.bodyToMono(Long.class) // 바로 Long으로 받기
+                .onErrorResume(e -> {
+                    log.error("Payment 서버 조회 실패! ID: {}", member.getMemberId());
+                    return Mono.just(0L); // 에러 발생 시 0L 반환
+                })
+                .block();
     	
     	// 데이터를 JSON 구조로 만들기
-    	Map<String, Object> userInfo = new HashMap<>();
+    	Map<String, String> userInfo = new HashMap<>();
     	userInfo.put("token", jwtToken);
 		userInfo.put("role", member.getRole());
+		userInfo.put("balance", String.valueOf(balance));
     	
-    	try {
-    		// Jackson ObjectMapper를 사용하여 Map을 JSON 문자열로 변환
-        	ObjectMapper objectMapper = new ObjectMapper();
-        	String jsonUserInfo = objectMapper.writeValueAsString(userInfo);
-        	log.info("JSON으로 저장될 값: {}", jsonUserInfo);
-        	
-        	// Redis에 저장
-    	    redisTemplate.opsForValue().set(redisKey, jsonUserInfo, Duration.ofHours(1));
-    	} catch(Exception e) {
-    		log.error("Redis 저장용 JSON 변환 실패", e);
-    	}
+//    	try {
+//    		// Jackson ObjectMapper를 사용하여 Map을 JSON 문자열로 변환
+//        	ObjectMapper objectMapper = new ObjectMapper();
+//        	String jsonUserInfo = objectMapper.writeValueAsString(userInfo);
+//        	log.info("JSON으로 저장될 값: {}", jsonUserInfo);
+//        	
+//        	// Redis에 저장
+//    	    redisTemplate.opsForValue().set(redisKey, jsonUserInfo, Duration.ofHours(1));
+//    	} catch(Exception e) {
+//    		log.error("Redis 저장용 JSON 변환 실패", e);
+//    	}
+		
+    	// Redis에 저장
+    	redisTemplate.opsForHash().putAll(redisKey, userInfo);
+    	redisTemplate.expire(redisKey, Duration.ofHours(1));
     	
     	return Map.of(
     		"message", message,
             "token", jwtToken,
             "member_id", member.getMemberId(),
             "role", member.getRole(),
+            "payment", Map.of("balance", balance),
             "redirectUrl", "/"
     	);
 	}

@@ -11,4 +11,5 @@ public class RedisMemberDTO {
     private String role;
     private String token;
     private Long memberId;
+    private Long balance;
 }
