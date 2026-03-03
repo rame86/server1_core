@@ -24,13 +24,53 @@
         ORDER BY created_at DESC
     </select>
 
-    <insert id="insert">
-        INSERT INTO board.board (category, title, content, member_id, is_artist_post)
-        VALUES (#{category}, #{title}, #{content}, #{memberId}, #{isArtistPost})
+    <select id="findById" parameterType="long" resultType="com.example.board.dto.BoardDTO">
+        SELECT 
+            board_id        AS boardId,
+            category,
+            title,
+            content,
+            member_id       AS memberId,
+            view_count      AS viewCount,
+            like_count      AS likeCount,
+            comment_count   AS commentCount,
+            is_artist_post  AS isArtistPost,
+            created_at      AS createdAt,
+            updated_at      AS updatedAt
+        FROM board.board
+        WHERE board_id = #{id}
+    </select>
+
+    <insert id="insert" parameterType="com.example.board.dto.BoardDTO">
+        INSERT INTO board.board (
+            category,
+            title,
+            content,
+            member_id,
+            is_artist_post,
+            view_count,
+            like_count,
+            comment_count,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{category},
+            #{title},
+            #{content},
+            #{memberId},
+            #{isArtistPost},
+            0,
+            0,
+            0,
+            NOW(),
+            NOW()
+        )
     </insert>
 
-    <select id="findById" resultType="com.example.board.dto.BoardDTO">
-        SELECT * FROM board.board WHERE board_id = #{id}
-    </select>
+    <update id="incrementViewCount" parameterType="long">
+        UPDATE board.board
+        SET view_count = view_count + 1
+        WHERE board_id = #{id}
+    </update>
 
 </mapper>

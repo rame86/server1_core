@@ -31,7 +31,7 @@ public class BoardService {
      */
     @Transactional
     public BoardDTO getBoardDetail(Long id) {
-        // 1. 조회수 증가
+       try { // 1. 조회수 증가
         boardMapper.incrementViewCount(id);
         
         // 2. 게시글 조회 및 예외 처리
@@ -41,6 +41,11 @@ public class BoardService {
         }
         
         return board;
+    } catch (Exception e) {
+            // 콘솔에서 구체적인 에러 원인을 확인하기 위함
+            System.err.println("====> 상세조회 중 에러 발생: " + e.getMessage());
+            throw e; 
+        }
     }
 
     /**
