@@ -17,7 +17,6 @@ import com.example.member.entity.SocialAccount;
 import com.example.member.repository.MemberRepository;
 import com.example.member.repository.SocialAccountRepository;
 import com.example.security.tokenProvider.JwtTokenProvider;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -129,18 +128,14 @@ public class MemberService {
 		log.info("---------> [로그인 성공] JWT 발급: {}", member.getEmail());
     	String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
     	String redisKey = "AUTH:MEMBER:" + member.getMemberId();
-    	String urlWithParam = paymentUrl + member.getMemberId();
-    	log.info(urlWithParam);
-    	
     	Long balance = webClient.get()
     			.uri(paymentUrl + member.getMemberId())
     			.retrieve()
-    			.bodyToMono(Long.class) // 바로 Long으로 받기
+    			.bodyToMono(Long.class)
                 .onErrorResume(e -> {
                     log.error("Payment 서버 조회 실패! ID: {}", member.getMemberId());
-                    return Mono.just(0L); // 에러 발생 시 0L 반환
-                })
-                .block();
+                    return Mono.just(0L);
+                }).block();
     	
     	// 데이터를 JSON 구조로 만들기
     	Map<String, String> userInfo = new HashMap<>();
