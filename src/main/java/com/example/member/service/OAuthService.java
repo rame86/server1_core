@@ -1,7 +1,6 @@
 package com.example.member.service;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -10,6 +9,7 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import com.example.member.dto.OAuthUserInfo;
 import com.example.member.entity.Member;
@@ -17,12 +17,12 @@ import com.example.member.entity.SocialAccount;
 import com.example.member.repository.MemberRepository;
 import com.example.member.repository.SocialAccountRepository;
 import com.example.security.tokenProvider.JwtTokenProvider;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
 
 @Transactional
 @Slf4j
@@ -34,6 +34,7 @@ public class OAuthService {
     private final JwtTokenProvider jwtTokenProvider;
 	private final SocialAccountRepository socialAccountRepository;
 	private final StringRedisTemplate redisTemplate;
+	private final WebClient webClient;
     
 	@Value("${sign.up.url}")
 	private String signUpUrl;
@@ -84,24 +85,32 @@ public class OAuthService {
 		log.info("---------> [로그인 성공] JWT 발급: {}", member.getEmail());
 		String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
 		
-		BigDecimal balance = BigDecimal.ZERO;
-		String urlWithParam = paymentUrl + member.getMemberId();
+		Long balance = webClient.get()
+				.uri(paymentUrl + member.getMemberId())
+				.retrieve()
+				.bodyToMono(Long.class)
+				.onErrorResume(e -> {
+					log.error("Payment 서버 조회 실패! ID: {}", member.getMemberId());
+                    return Mono.just(0L);
+				}).block();
 		
 		// 키 생성 : AUTH:MEMBER:16
 		String redisKey = "AUTH:MEMBER:" + member.getMemberId();
 		
 		// 데이터를 JSON 구조로 만들기
-		Map<String, Object> userInfo = new HashMap<>();
+		Map<String, String> userInfo = new HashMap<>();
 		userInfo.put("token", jwtToken);
 		userInfo.put("role", member.getRole());
+		userInfo.put("balance", String.valueOf(balance));
 		
-		// Jackson ObjectMapper를 사용하여 Map을 JSON 문자열로 변환
-		ObjectMapper objectMapper = new ObjectMapper();
-		String jsonUserInfo = objectMapper.writeValueAsString(userInfo);
-		log.info("JSON으로 저장될 값: {}", jsonUserInfo);
+//		// Jackson ObjectMapper를 사용하여 Map을 JSON 문자열로 변환
+//		ObjectMapper objectMapper = new ObjectMapper();
+//		String jsonUserInfo = objectMapper.writeValueAsString(userInfo);
+//		log.info("JSON으로 저장될 값: {}", jsonUserInfo);
 
 		// Redis에 저장
-	    redisTemplate.opsForValue().set(redisKey, jsonUserInfo, Duration.ofHours(1));
+	    redisTemplate.opsForHash().putAll(redisKey, userInfo);
+	    redisTemplate.expire(redisKey, Duration.ofHours(1));
 	    
 	    String redirectUrl = loginUrl + jwtToken 
 	    		+ "&member_id=" + member.getMemberId()
