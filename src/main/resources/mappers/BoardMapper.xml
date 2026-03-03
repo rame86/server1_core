@@ -13,7 +13,7 @@
             view_count AS viewCount,
             like_count AS likeCount,
             comment_count AS commentCount,
-            is_artist_post AS isArtistPost,
+            is_artist_post AS artistPost,
             created_at AS createdAt
         FROM board.board
         <where>
@@ -34,7 +34,7 @@
             view_count      AS viewCount,
             like_count      AS likeCount,
             comment_count   AS commentCount,
-            is_artist_post  AS isArtistPost,
+            is_artist_post  AS artistPost,
             created_at      AS createdAt,
             updated_at      AS updatedAt
         FROM board.board
@@ -43,34 +43,16 @@
 
     <insert id="insert" parameterType="com.example.board.dto.BoardDTO">
         INSERT INTO board.board (
-            category,
-            title,
-            content,
-            member_id,
-            is_artist_post,
-            view_count,
-            like_count,
-            comment_count,
-            created_at,
-            updated_at
+            category, title, content, member_id, is_artist_post,
+            view_count, like_count, comment_count, created_at, updated_at
         ) VALUES (
-            #{category},
-            #{title},
-            #{content},
-            #{memberId},
-            #{isArtistPost},
-            0,
-            0,
-            0,
-            NOW(),
-            NOW()
+            #{category}, #{title}, #{content}, #{memberId}, #{artistPost},
+            0, 0, 0, NOW(), NOW()
         )
     </insert>
 
     <update id="incrementViewCount" parameterType="long">
-        UPDATE board.board
-        SET view_count = view_count + 1
-        WHERE board_id = #{id}
+        UPDATE board.board SET view_count = view_count + 1 WHERE board_id = #{id}
     </update>
 
 </mapper>
