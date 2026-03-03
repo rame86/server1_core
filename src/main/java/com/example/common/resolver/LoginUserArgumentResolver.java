@@ -1,8 +1,8 @@
 package com.example.common.resolver;
 
-import com.example.board.dto.RedisMemberDTO;
-import com.example.board.service.RedisService;
 import com.example.common.annotation.LoginUser;
+import com.example.common.service.RedisService;
+import com.example.member.dto.RedisMemberDTO;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.MethodParameter;

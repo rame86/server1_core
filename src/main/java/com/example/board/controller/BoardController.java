@@ -1,9 +1,9 @@
 package com.example.board.controller;
 
 import com.example.common.annotation.LoginUser;
+import com.example.member.dto.RedisMemberDTO;
 import com.example.board.service.BoardService;
 import com.example.board.dto.BoardDTO;
-import com.example.board.dto.RedisMemberDTO;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +23,7 @@ public class BoardController {
     // 게시글 보기
     @GetMapping("/list")
     public ResponseEntity<?> getBoardList(@LoginUser RedisMemberDTO user, 
-        @RequestParam(defaultValue = "전체") String category) {
+        @RequestParam(name = "category", defaultValue = "전체") String category) {
         return ResponseEntity.ok(boardService.getBoardList(category));
     }
 

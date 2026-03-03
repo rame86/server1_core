@@ -1,11 +1,11 @@
-package com.example.board.service;
+package com.example.common.service;
 
 import java.util.Optional;
 
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import com.example.board.dto.RedisMemberDTO;
+import com.example.member.dto.RedisMemberDTO;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
