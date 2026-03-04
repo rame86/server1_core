@@ -6,11 +6,13 @@ import com.example.board.dto.BoardDTO;
 import com.example.board.entity.Board;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class BoardService {
@@ -18,35 +20,43 @@ public class BoardService {
     private final BoardMapper boardMapper;
     private final BoardRepository boardRepository;
 
+<<<<<<< HEAD
     // 게시글 보기
     public List<Board> getBoardList(String category, Long artistId) {
         if (category == null || category.equals("전체") || category.isEmpty()) {
             return boardRepository.findAllByOrderByCreatedAtDesc();
         }
         return boardRepository.findByCategoryOrderByCreatedAtDesc(category);
+=======
+    //게시글 목록 조회
+
+    @Transactional(readOnly = true)
+    public List<BoardDTO> getBoardList(String category) {
+        String searchCategory = (category == null || category.isEmpty()) ? "전체" : category;
+        return boardMapper.findAll(searchCategory);
+>>>>>>> e847ef1 (3.4)
     }
 
-    /**
-     * 게시글 상세 조회 및 조회수 증가
-     */
+    // 게시글 상세 조회 및 조회수 증가
     @Transactional
     public BoardDTO getBoardDetail(Long id) {
-       try { // 1. 조회수 증가
-        boardMapper.incrementViewCount(id);
-        
-        // 2. 게시글 조회 및 예외 처리
+       // 1. 게시글 존재 여부 확인 및 조회
         BoardDTO board = boardMapper.findById(id);
+        
         if (board == null) {
-            throw new IllegalArgumentException("존재하지 않는 게시글입니다. ID: " + id);
+            log.error("====> [Error] 게시글을 찾을 수 없음 ID: {}", id);
+            return null; // Controller에서 404 처리를 위해 null 반환
+        }
+        // 2. 조회수 증가 (조회 성공 시에만)
+        try {
+            boardMapper.incrementViewCount(id);
+            board.setViewCount(board.getViewCount() + 1); // 반영된 결과 DTO에 세팅
+        } catch (Exception e) {
+            log.warn("====> [Warn] 조회수 증가 실패: {}", e.getMessage());
         }
         
         return board;
-    } catch (Exception e) {
-            // 콘솔에서 구체적인 에러 원인을 확인하기 위함
-            System.err.println("====> 상세조회 중 에러 발생: " + e.getMessage());
-            throw e; 
-        }
-    }
+     }
 
     /**
      * 게시글 작성
