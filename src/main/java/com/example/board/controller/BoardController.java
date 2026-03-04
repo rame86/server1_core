@@ -23,9 +23,10 @@ public class BoardController {
     // 게시글 보기
     @GetMapping("/list")
     public ResponseEntity<?> getBoardList(@LoginUser RedisMemberDTO user, 
-        @RequestParam(name = "category", defaultValue = "전체") String category) {
+        @RequestParam(name = "category", defaultValue = "전체") String category,
+        @RequestParam(name = "artistId", required = false) Long artistId) {
     	log.info("-----> [BOARD LIST] 요청 카테고리: {}", category);
-        return ResponseEntity.ok(boardService.getBoardList(category));
+        return ResponseEntity.ok(boardService.getBoardList(category, artistId));
     }
 
     /**

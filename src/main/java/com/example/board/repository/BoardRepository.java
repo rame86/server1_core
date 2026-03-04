@@ -11,4 +11,5 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
     
     // 2. 특정 카테고리를 선택했을 때용 (카테고리 조건 + 최신순 정렬)
     List<Board> findByCategoryOrderByCreatedAtDesc(String category);
+    List<Board> findByCategoryAndArtistIdOrderByCreatedAtDesc(String category, Long artistId);
 }

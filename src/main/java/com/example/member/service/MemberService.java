@@ -125,9 +125,17 @@ public class MemberService {
 		
 	// 로그인 성공 시 토큰 발급 및 redis 저장
 	public Map<String, Object> loginResponse(Member member, String message) {
-		log.info("---------> [로그인 성공] JWT 발급: {}", member.getEmail());
+		log.info("---------> [로그인 성공] JWT 및 리프레시 토큰 발급: {}", member.getEmail());
+		
+		// 토큰 2개 생성
     	String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
-    	String redisKey = "AUTH:MEMBER:" + member.getMemberId();
+    	String refreshToken = jwtTokenProvider.refreshToken(member.getMemberId(), member.getRole());
+    	
+    	// Redis용 키 설정
+    	String redisKey = "AUTH:MEMBER:" + member.getMemberId(); // 유저 상세 정보용 (Hash)
+    	String refreshKey = "AUTH:REFRESH:" + member.getMemberId(); // 리프레시 토큰 전용 (String)
+    	
+    	// 결제 정보 조회 (WebClient)
     	Long balance = webClient.get()
     			.uri(paymentUrl + member.getMemberId())
     			.retrieve()
@@ -137,36 +145,53 @@ public class MemberService {
                     return Mono.just(0L);
                 }).block();
     	
-    	// 데이터를 JSON 구조로 만들기
+    	// Redis 유저 정보 Hash 저장 (token 포함)
     	Map<String, String> userInfo = new HashMap<>();
     	userInfo.put("token", jwtToken);
 		userInfo.put("role", member.getRole());
 		userInfo.put("balance", String.valueOf(balance));
-    	
-//    	try {
-//    		// Jackson ObjectMapper를 사용하여 Map을 JSON 문자열로 변환
-//        	ObjectMapper objectMapper = new ObjectMapper();
-//        	String jsonUserInfo = objectMapper.writeValueAsString(userInfo);
-//        	log.info("JSON으로 저장될 값: {}", jsonUserInfo);
-//        	
-//        	// Redis에 저장
-//    	    redisTemplate.opsForValue().set(redisKey, jsonUserInfo, Duration.ofHours(1));
-//    	} catch(Exception e) {
-//    		log.error("Redis 저장용 JSON 변환 실패", e);
-//    	}
-		
-    	// Redis에 저장
+    			
     	redisTemplate.opsForHash().putAll(redisKey, userInfo);
     	redisTemplate.expire(redisKey, Duration.ofHours(1));
     	
+    	// Redis 리프레시 토큰 저장
+    	redisTemplate.opsForValue().set(refreshKey, refreshToken, Duration.ofDays(14));
+    	
     	return Map.of(
     		"message", message,
-            "token", jwtToken,
+            "token", jwtToken, // 클라이언트는 이걸로 API 호출
+            "refreshToken", refreshToken, // 클라이언트는 이걸 저장해뒀다가 만료 시 사용
             "member_id", member.getMemberId(),
             "role", member.getRole(),
-            "payment", Map.of("balance", balance),
-            "redirectUrl", "/"
+            "payment", Map.of("balance", balance)
     	);
+	}
+	
+	// 리프레시 토큰
+	public Map<String, Object> refreshToken(String refreshToken) {
+		// 1. refresh 토큰이 유효한지 확인
+		if(!jwtTokenProvider.validateToken(refreshToken)) {
+			throw new IllegalArgumentException("리프레시 토큰이 만료되었습니다. 다시 로그인해주세요.");
+		}
+		
+		// 2. 토큰에서 유저 id 추출
+		String memberId = jwtTokenProvider.getSubject(refreshToken);
+		
+		// 3. redis에 저장된 refresh토큰과 일치하는지 확인
+		String redisKey = "AUTH:REFRESH:" + memberId;
+		String savedToken = redisTemplate.opsForValue().get(redisKey);
+		
+		if(savedToken == null || !savedToken.equals(refreshToken)) {
+			throw new IllegalArgumentException("유효하지 않은 리프레시 토큰입니다.");
+		}
+		
+		// 4. 최신 유저 정보 조회
+		Member member = memberRepository.findById(Long.parseLong(memberId))
+				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+		
+		// 5. 기존 loginResponse를 사용해 토큰 재발급하기
+		log.info("---------> [토큰 재발급] 유저 ID: {} 의 새로운 토큰을 발급합니다.", memberId);
+		return loginResponse(member, "토큰 재발급 성공");
 	}
 	
 	// 일반 로그인
@@ -183,13 +208,27 @@ public class MemberService {
 	
 	// 로그 아웃
 	public void logout(String token) {
+		// 토큰에서 memberId추출
 		String memberId = jwtTokenProvider.getSubject(token);
+		
+		// 삭제할 키 정의
 		String redisKey = "AUTH:MEMBER:" + memberId;
+		String refreshKey = "AUTH:REFRESH:" + memberId;
+		
+		// 유저 정보 삭제
 		if(Boolean.TRUE.equals(redisTemplate.hasKey(redisKey))) {
 			redisTemplate.delete(redisKey);
 			log.info("---------> [로그아웃] Redis에서 정보 삭제 완료(유저 ID: {})", memberId);
 		} else {
 			log.warn("---------> [로그아웃] 이미 만료되었거나 존재하지 않는 토큰입니다.");
+		}
+		
+		// 리프레시 토큰 삭제
+		if(Boolean.TRUE.equals(redisTemplate.hasKey(refreshKey))) {
+			redisTemplate.delete(refreshKey);
+			log.info("---------> [로그아웃] Redis 리프레시 토큰 삭제 완료 (ID: {})", memberId);
+		} else {
+			log.warn("---------> [로그아웃] 리프레시 토큰이 이미 없거나 만료되었습니다.");
 		}
 	}
 

@@ -70,5 +70,15 @@ public class MemberController {
 		}
 		return ResponseEntity.badRequest().body(Map.of("message", "토큰이 없습니다."));
 	}
+	
+	// 리프레시 토큰
+//	@PostMapping("/refresh")
+//	public ResponseEntity<?> refresh(@RequestBody Map<String, String> request){
+//		try {
+//			String refreshToken = request.get("refreshToken");
+//		} catch (IllegalArgumentException e) {
+//			return ResponseEntity.status(401).body(Map.of("message", e.getMessage()));
+//		}
+//	}
 
 }

@@ -17,21 +17,20 @@ import jakarta.servlet.http.HttpServletRequest;
 public class JwtTokenProvider {
 	
 	private final SecretKey key;
-    private final long validityInMilliseconds = 3600000; // 1시간
+	private final long accessTokenValidity = 1000L * 60 * 60; // 1시간
+    private final long refreshTokenValidity = 1000L * 60 * 60 * 24 * 14; // 14일 (2주)
     
     public JwtTokenProvider(@Value("${jwt.secret}") String secretKey) {
     	this.key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     }
     
     // 토큰 생성
-    public String createToken(Long member_id, String role) {
-    	// Claims생성(토큰에 담을 정보)
+    private String buildToken(Long member_id, String role, long validityTime) {
     	Claims claims = Jwts.claims().setSubject(String.valueOf(member_id));
     	claims.put("role", role);
-    	
-    	// 시간 생성
+
     	Date now = new Date();
-    	Date validity = new Date(now.getTime() + validityInMilliseconds);
+    	Date validity = new Date(now.getTime() + validityTime);
     	
     	return Jwts.builder()
     			.setClaims(claims)
@@ -39,6 +38,16 @@ public class JwtTokenProvider {
     			.setExpiration(validity)
     			.signWith(key)
     			.compact();
+    }
+    
+    // 기본 토큰
+    public String createToken(Long member_id, String role) {
+    	return buildToken(member_id, role, accessTokenValidity);
+    }
+    
+    // 리프래시 토큰
+    public String refreshToken(Long member_id, String role) {
+    	return buildToken(member_id, role, refreshTokenValidity);
     }
     
     // 토큰이 유효한지 검증
