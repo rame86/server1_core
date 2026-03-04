@@ -161,9 +161,9 @@ public class MemberService {
     	redisTemplate.opsForValue().set(refreshKey, refreshToken, Duration.ofDays(14));
     	
     	// 리프레시 토큰을 보안 쿠키에 담기
-    	ResponseCookie cookie = ResponseCookie.from("refreshKey", refreshKey)
+    	ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
     			.httpOnly(true) // 자바스크립트로 접근 불가 (XSS 방어)
-    			.secure(true) // HTTPS에서만 작동 (로컬 테스트 시 false로 설정 가능)
+    			.secure(false) // HTTPS에서만 작동 (로컬 테스트 시 false로 설정 가능)
     			.path("/") // 모든 경로에서 쿠키 사용 가능
     			.maxAge(14 * 24 * 60 * 60) // 14일 유지
     			.sameSite("Lax") // CSRF 공격 방지
@@ -220,7 +220,7 @@ public class MemberService {
 	}
 	
 	// 로그 아웃
-	public void logout(String token) {
+	public void logout(String token, HttpServletResponse response) {
 		// 토큰에서 memberId추출
 		String memberId = jwtTokenProvider.getSubject(token);
 		
@@ -243,6 +243,17 @@ public class MemberService {
 		} else {
 			log.warn("---------> [로그아웃] 리프레시 토큰이 이미 없거나 만료되었습니다.");
 		}
+		
+		// 쿠키에서 리프레시토큰 삭제
+		ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
+				.httpOnly(true)
+	            .secure(false)
+	            .path("/")
+	            .maxAge(0)
+	            .sameSite("Lax")
+	            .build();
+		response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+		log.info("---------> [로그아웃] 브라우저 쿠키 삭제 명령 전송 완료");
 	}
 
 }

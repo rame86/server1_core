@@ -65,10 +65,10 @@ public class MemberController {
 	
 	// 로그아웃
 	@PostMapping("/logout")
-	public ResponseEntity<?> logout(HttpServletRequest request) {
+	public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
 		String token = jwtTokenProvider.resolveToken(request);
 		if(token != null) {
-			memberService.logout(token);
+			memberService.logout(token, response);
 			return ResponseEntity.ok(Map.of("message", "로그아웃 성공!"));
 		}
 		return ResponseEntity.badRequest().body(Map.of("message", "토큰이 없습니다."));
