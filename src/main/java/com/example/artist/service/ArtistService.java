@@ -12,7 +12,7 @@ import com.example.artist.entity.Artist;
 import com.example.artist.entity.Follow;
 import com.example.artist.repository.ArtistRepository;
 import com.example.artist.repository.FollowRepository;
-import com.example.member.entity.Member;
+import com.example.member.domain.Member;
 import com.example.member.repository.MemberRepository;
 
 import jakarta.transaction.Transactional;

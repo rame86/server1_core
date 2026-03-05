@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.example.artist.entity.Artist;
 import com.example.artist.entity.Follow;
-import com.example.member.entity.Member;
+import com.example.member.domain.Member;
 
 public interface FollowRepository extends JpaRepository<Follow, Long>{
 	// 아티스트별 팔로워 수

@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.member.dto.OAuthUserInfo;
-import com.example.member.service.OAuthProvider;
 import com.example.member.service.OAuthService;
+import com.example.member.service.provider.OAuthProvider;
 
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -55,7 +55,7 @@ public class OAuthController {
 		OAuthUserInfo userInfo = oAuthProvider.getSocialUserInfo(code, state);
 		
 		// 2. 서비스에 유저 정보를 던져서 "로그인 데이터"를 받아옴
-		Map<String, Object> result = oauthService.memberLogin(userInfo);
+		Map<String, Object> result = oauthService.memberLogin(userInfo, response);
 		
 		// 3. 서비스 결과에 따라 리다이렉트 결정
 		if("signup".equals(result.get("status"))) {

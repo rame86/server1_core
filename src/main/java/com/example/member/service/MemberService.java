@@ -7,17 +7,20 @@ import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.example.member.domain.Member;
+import com.example.member.domain.SocialAccount;
 import com.example.member.dto.MemberSignupRequest;
-import com.example.member.entity.Member;
-import com.example.member.entity.SocialAccount;
 import com.example.member.repository.MemberRepository;
 import com.example.member.repository.SocialAccountRepository;
 import com.example.security.tokenProvider.JwtTokenProvider;
 
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +44,7 @@ public class MemberService {
 	private String paymentUrl;
 	
 	// 회원가입 및 소셜 연동
-	public Map<String, Object> registerMember(MemberSignupRequest dto) {
+	public Map<String, Object> registerMember(MemberSignupRequest dto, HttpServletResponse response) {
 		// 인증번호 검증
 		if(!mailSenderService.verifyCode(dto.getEmail(), dto.getAuthCode())) {
 			throw new IllegalArgumentException("인증번호가 일치하지 않거나 만료되었습니다.");
@@ -60,7 +63,7 @@ public class MemberService {
 		// 인증 완료 후 Redis 키 삭제
 		mailSenderService.deleteVerificationCode(dto.getEmail());
 		
-		return loginResponse(member, "회원가입 및 처리가 완료되었습니다."); 
+		return loginResponse(member, "회원가입 및 처리가 완료되었습니다.", response); 
 	}
 	
 	// 이미 있는 계정일 경우
@@ -124,7 +127,7 @@ public class MemberService {
 	}
 		
 	// 로그인 성공 시 토큰 발급 및 redis 저장
-	public Map<String, Object> loginResponse(Member member, String message) {
+	public Map<String, Object> loginResponse(Member member, String message, HttpServletResponse response) {
 		log.info("---------> [로그인 성공] JWT 및 리프레시 토큰 발급: {}", member.getEmail());
 		
 		// 토큰 2개 생성
@@ -157,10 +160,20 @@ public class MemberService {
     	// Redis 리프레시 토큰 저장
     	redisTemplate.opsForValue().set(refreshKey, refreshToken, Duration.ofDays(14));
     	
+    	// 리프레시 토큰을 보안 쿠키에 담기
+    	ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
+    			.httpOnly(true) // 자바스크립트로 접근 불가 (XSS 방어)
+    			.secure(false) // HTTPS에서만 작동 (로컬 테스트 시 false로 설정 가능)
+    			.path("/") // 모든 경로에서 쿠키 사용 가능
+    			.maxAge(14 * 24 * 60 * 60) // 14일 유지
+    			.sameSite("Lax") // CSRF 공격 방지
+    			.build();
+    	response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    	
+    	// 로컬 스토리지에 담을 정보들
     	return Map.of(
     		"message", message,
             "token", jwtToken, // 클라이언트는 이걸로 API 호출
-            "refreshToken", refreshToken, // 클라이언트는 이걸 저장해뒀다가 만료 시 사용
             "member_id", member.getMemberId(),
             "role", member.getRole(),
             "payment", Map.of("balance", balance)
@@ -168,7 +181,7 @@ public class MemberService {
 	}
 	
 	// 리프레시 토큰
-	public Map<String, Object> refreshToken(String refreshToken) {
+	public Map<String, Object> refreshToken(String refreshToken, HttpServletResponse response) {
 		// 1. refresh 토큰이 유효한지 확인
 		if(!jwtTokenProvider.validateToken(refreshToken)) {
 			throw new IllegalArgumentException("리프레시 토큰이 만료되었습니다. 다시 로그인해주세요.");
@@ -191,11 +204,11 @@ public class MemberService {
 		
 		// 5. 기존 loginResponse를 사용해 토큰 재발급하기
 		log.info("---------> [토큰 재발급] 유저 ID: {} 의 새로운 토큰을 발급합니다.", memberId);
-		return loginResponse(member, "토큰 재발급 성공");
+		return loginResponse(member, "토큰 재발급 성공", response);
 	}
 	
 	// 일반 로그인
-	public Map<String, Object> login(String email, String password) {
+	public Map<String, Object> login(String email, String password, HttpServletResponse response) {
 		Member member = memberRepository.findByEmail(email)
 				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 계정입니다."));
 		
@@ -203,11 +216,11 @@ public class MemberService {
 			throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
 		}
 		
-		return loginResponse(member, "로그인 성공!");
+		return loginResponse(member, "로그인 성공!", response);
 	}
 	
 	// 로그 아웃
-	public void logout(String token) {
+	public void logout(String token, HttpServletResponse response) {
 		// 토큰에서 memberId추출
 		String memberId = jwtTokenProvider.getSubject(token);
 		
@@ -230,6 +243,17 @@ public class MemberService {
 		} else {
 			log.warn("---------> [로그아웃] 리프레시 토큰이 이미 없거나 만료되었습니다.");
 		}
+		
+		// 쿠키에서 리프레시토큰 삭제
+		ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
+				.httpOnly(true)
+	            .secure(false)
+	            .path("/")
+	            .maxAge(0)
+	            .sameSite("Lax")
+	            .build();
+		response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+		log.info("---------> [로그아웃] 브라우저 쿠키 삭제 명령 전송 완료");
 	}
 
 }

@@ -3,6 +3,7 @@ package com.example.member.controller;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,6 +16,7 @@ import com.example.member.service.MemberService;
 import com.example.security.tokenProvider.JwtTokenProvider;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,18 +43,19 @@ public class MemberController {
 	
 	// 회원 가입
 	@PostMapping("/signup")
-	public ResponseEntity<?> signup(@RequestBody MemberSignupRequest dto) {
-		Map<String, Object> result = memberService.registerMember(dto);
+	public ResponseEntity<?> signup(@RequestBody MemberSignupRequest dto, HttpServletResponse response) {
+		Map<String, Object> result = memberService.registerMember(dto, response);
 		return ResponseEntity.ok(result);
 	}
 	
 	// 로그인
 	@PostMapping("/login")
-	public ResponseEntity<?> login(@RequestBody Map<String, String> loginData) {
+	public ResponseEntity<?> login(@RequestBody Map<String, String> loginData, HttpServletResponse response) {
 		try {
 			Map<String, Object> result = memberService.login(
 				loginData.get("email"), 
-				loginData.get("password")
+				loginData.get("password"),
+				response
 			);
 			return ResponseEntity.ok(result);
 		} catch (IllegalArgumentException e) {
@@ -62,23 +65,27 @@ public class MemberController {
 	
 	// 로그아웃
 	@PostMapping("/logout")
-	public ResponseEntity<?> logout(HttpServletRequest request) {
+	public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
 		String token = jwtTokenProvider.resolveToken(request);
 		if(token != null) {
-			memberService.logout(token);
+			memberService.logout(token, response);
 			return ResponseEntity.ok(Map.of("message", "로그아웃 성공!"));
 		}
 		return ResponseEntity.badRequest().body(Map.of("message", "토큰이 없습니다."));
 	}
 	
 	// 리프레시 토큰
-//	@PostMapping("/refresh")
-//	public ResponseEntity<?> refresh(@RequestBody Map<String, String> request){
-//		try {
-//			String refreshToken = request.get("refreshToken");
-//		} catch (IllegalArgumentException e) {
-//			return ResponseEntity.status(401).body(Map.of("message", e.getMessage()));
-//		}
-//	}
+	@PostMapping("/refresh")
+	public ResponseEntity<?> refresh(@CookieValue(name = "refreshToken") String refreshToken,
+			HttpServletResponse response) {
+		if(refreshToken == null) return ResponseEntity.status(401).body(Map.of("message", "다시 로그인해주세요."));
+		try {
+	        // 서비스에서 재발급 로직 수행
+	        Map<String, Object> result = memberService.refreshToken(refreshToken, response);
+	        return ResponseEntity.ok(result);
+	    } catch (IllegalArgumentException e) {
+	        return ResponseEntity.status(401).body(Map.of("message", e.getMessage()));
+	    }
+	}
 
 }

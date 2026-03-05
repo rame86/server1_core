@@ -5,12 +5,13 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
+import com.example.member.domain.Member;
+import com.example.member.domain.SocialAccount;
 import com.example.member.dto.OAuthUserInfo;
-import com.example.member.entity.Member;
-import com.example.member.entity.SocialAccount;
 import com.example.member.repository.MemberRepository;
 import com.example.member.repository.SocialAccountRepository;
 
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,12 +26,12 @@ public class OAuthService {
 	private final MemberRepository memberRepository;
 	private final SocialAccountRepository socialAccountRepository;
 
-    public Map<String, Object> memberLogin(OAuthUserInfo userInfo) {
+    public Map<String, Object> memberLogin(OAuthUserInfo userInfo, HttpServletResponse response) {
 		// 소셜계정으로 가입된 이력이 있는지 확인하기
 		Optional<SocialAccount> socialOpt = socialAccountRepository.findByProviderAndProviderId(userInfo.getProvider(), userInfo.getProviderId());
 		// 소셜로 가입/연동된 적이 있음
 		if(socialOpt.isPresent()) {
-			return memberService.loginResponse(socialOpt.get().getMember(), "소셜 로그인 성공");
+			return memberService.loginResponse(socialOpt.get().getMember(), "소셜 로그인 성공", response);
 		}
 
 		if(userInfo.getEmail() != null && !userInfo.getEmail().trim().isEmpty()) {
@@ -40,7 +41,7 @@ public class OAuthService {
 				// 이메일이 있지만 해당 소셜 계정은 없을때
 				Member member = memberOpt.get();
 				linkSocialAccount(member, userInfo);
-				return memberService.loginResponse(member, "연동 성공");
+				return memberService.loginResponse(member, "연동 성공", response);
 			}
 		}
 		
