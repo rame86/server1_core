@@ -26,27 +26,29 @@ import lombok.Setter;
 @AllArgsConstructor // 모든 필드를 다 때려 넣는 생성자
 @Builder
 public class Board {
+	
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long boardId; // int8 -> Long
+    private Long boardId;
 
-    private String category; // varchar -> String
+    private String category;
     private String title;
     
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    private Long memberId; // int8 -> Long
-
-    private Integer likeCount; // int4 -> Integer
+    private Long memberId;
+    private Long artistId;
+    private Integer likeCount;
     private Integer commentCount;
     private Integer viewCount;
 
     private boolean isArtistPost; // bool -> boolean
 
     @CreationTimestamp // insert 시 자동 시간 입력
-    private OffsetDateTime createdAt; // timestamptz -> OffsetDateTime
+    private OffsetDateTime createdAt;
 
     @UpdateTimestamp // update 시 자동 시간 입력
     private OffsetDateTime updatedAt;
+    
 }

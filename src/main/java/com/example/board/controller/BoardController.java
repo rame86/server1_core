@@ -23,31 +23,34 @@ public class BoardController {
     // 게시글 보기
     @GetMapping("/list")
     public ResponseEntity<?> getBoardList(@LoginUser RedisMemberDTO user, 
-        @RequestParam(name = "category", defaultValue = "전체") String category) {
+        @RequestParam(name = "category", defaultValue = "전체") String category,
+        @RequestParam(name = "artistId", required = false) Long artistId) {
     	log.info("-----> [BOARD LIST] 요청 카테고리: {}", category);
-        return ResponseEntity.ok(boardService.getBoardList(category));
+        return ResponseEntity.ok(boardService.getBoardList(category, artistId));
     }
 
     /**
      * 게시글 상세 조회
      */
     @GetMapping("/{id}")
-    public ResponseEntity<BoardDTO> getDetail(@PathVariable("id") Long id) {
+    public ResponseEntity<?> getDetail(@PathVariable("id") Long id) {
         log.info("====> [GET] 게시글 상세 조회 (ID: {})", id);
         
         try {
             BoardDTO detail = boardService.getBoardDetail(id);
             if (detail == null) {
-                log.warn("====> 해당 ID({})의 게시글을 찾을 수 없습니다.", id);
-                return ResponseEntity.notFound().build();
+                return ResponseEntity.status(404).body("{\"error\": \"게시글을 찾을 수 없습니다.\"}");
             }
             return ResponseEntity.ok(detail);
         } catch (Exception e) {
-            log.error("====> 상세 조회 중 에러: ", e);
-            return ResponseEntity.internalServerError().build();
+            // 서버 콘솔에 에러의 구체적인 원인을 찍습니다.
+            log.error("====> 상세 조회 중 에러 발생: {}", e.getMessage());
+            e.printStackTrace(); 
+            
+            // 프론트엔드에서 어떤 에러인지 알 수 있도록 메시지를 담아 보냅니다.
+            return ResponseEntity.status(500).body("{\"error\": \"서버 내부 에러: " + e.getMessage() + "\"}");
         }
     }
-
     /**
      * 게시글 작성
      */

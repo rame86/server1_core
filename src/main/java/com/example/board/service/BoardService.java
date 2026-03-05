@@ -19,7 +19,7 @@ public class BoardService {
     private final BoardRepository boardRepository;
 
     // 게시글 보기
-    public List<Board> getBoardList(String category) {
+    public List<Board> getBoardList(String category, Long artistId) {
         if (category == null || category.equals("전체") || category.isEmpty()) {
             return boardRepository.findAllByOrderByCreatedAtDesc();
         }
