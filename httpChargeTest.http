@@ -1,9 +1,9 @@
 
 POST http://localhost/msa/pay/payment/charge
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxNiIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzcyNjkwMjEyLCJleHAiOjE3NzI2OTM4MTJ9.CeTwbxBFp-WbajutevIBEr-WOi-5U0eDseVtrE9bezwFZHp1PlAMY7Vx9FoVnKlY
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxNiIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzcyNzAzNzAyLCJleHAiOjE3NzI3MDczMDJ9.dVO0ubFh0WRbsUfk5T13qD5WoZU336NIvOEvY6E9CqPgIdjqo59cfo16QVoM6SGE
 
 {
   "payType": "kakao_pay",
-  "chargeAmount": 55000
+  "chargeAmount": 150000000
 }
