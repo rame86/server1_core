@@ -47,30 +47,8 @@ public class BoardController {
         }
     }
 
-    // 게시글 작성  [  POST /board/write ]
+     // 게시글 작성 [ POST /board/write ]
     @PostMapping("/write")
-    public ResponseEntity<?> getDetail(@PathVariable("id") Long id) {
-        log.info("====> [GET] 게시글 상세 조회 (ID: {})", id);
-        
-        try {
-            BoardDTO detail = boardService.getBoardDetail(id);
-            if (detail == null) {
-                return ResponseEntity.status(404).body("{\"error\": \"게시글을 찾을 수 없습니다.\"}");
-            }
-            return ResponseEntity.ok(detail);
-        } catch (Exception e) {
-            // 서버 콘솔에 에러의 구체적인 원인을 찍습니다.
-            log.error("====> 상세 조회 중 에러 발생: {}", e.getMessage());
-            e.printStackTrace(); 
-            
-            // 프론트엔드에서 어떤 에러인지 알 수 있도록 메시지를 담아 보냅니다.
-            return ResponseEntity.status(500).body("{\"error\": \"서버 내부 에러: " + e.getMessage() + "\"}");
-        }
-    }
-    /**
-     * 게시글 작성
-     */
-    @PostMapping
     public ResponseEntity<?> write(@RequestBody BoardDTO boardDTO) {
         log.info("====> [MSA Board] 게시글 작성 호출: {}", boardDTO.getTitle());
         try {
