@@ -1,5 +1,8 @@
 package com.example.test.controller;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /*
 [Restful 방식]
 	의미	 	http 메소드
@@ -23,6 +26,7 @@ package com.example.test.controller;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -56,5 +60,17 @@ public class TestController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("메시지 큐 전송 실패: " + e.getMessage());
         }
+    }
+    
+    @GetMapping("/push")
+    public String pushTest() {
+        Map<String, String> message = new HashMap<>();
+        message.put("artist", "뉴진스");
+        message.put("title", "새로운 포스트가 올라왔어요! 확인해보세요.");
+        
+        // 서버 3가 기다리는 'notification.artist' 키로 던지기!
+        rabbitTemplate.convertAndSend("amq.topic", "notification.artist", message);
+        
+        return "알림 메시지를 RabbitMQ로 던졌습니다!";
     }
 }
