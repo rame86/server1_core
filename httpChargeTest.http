@@ -1,10 +1,9 @@
 
-POST http://localhost:8082/reserve
+POST http://localhost/msa/pay/payment/charge
 Content-Type: application/json
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxNiIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzcyNjkwMjEyLCJleHAiOjE3NzI2OTM4MTJ9.CeTwbxBFp-WbajutevIBEr-WOi-5U0eDseVtrE9bezwFZHp1PlAMY7Vx9FoVnKlY
 
 {
-  "event_id": 2,
-  "ticket_count": 1,
-  "member_id": 16
-} 
+  "payType": "kakao_pay",
+  "chargeAmount": 55000
+}

@@ -1,4 +1,4 @@
-package com.example.member.service;
+package com.example.member.service.provider;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;

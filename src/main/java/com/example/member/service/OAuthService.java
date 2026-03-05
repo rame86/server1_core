@@ -5,9 +5,9 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
+import com.example.member.domain.Member;
+import com.example.member.domain.SocialAccount;
 import com.example.member.dto.OAuthUserInfo;
-import com.example.member.entity.Member;
-import com.example.member.entity.SocialAccount;
 import com.example.member.repository.MemberRepository;
 import com.example.member.repository.SocialAccountRepository;
 

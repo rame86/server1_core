@@ -13,9 +13,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.example.member.domain.Member;
+import com.example.member.domain.SocialAccount;
 import com.example.member.dto.MemberSignupRequest;
-import com.example.member.entity.Member;
-import com.example.member.entity.SocialAccount;
 import com.example.member.repository.MemberRepository;
 import com.example.member.repository.SocialAccountRepository;
 import com.example.security.tokenProvider.JwtTokenProvider;

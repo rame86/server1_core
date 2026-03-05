@@ -1,0 +1,9 @@
+
+POST http://localhost/msa/res/refund
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxNiIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzcyNjc0NzM1LCJleHAiOjE3NzI2NzgzMzV9.fu55Q1xjKeOJGFTPND9BUXhOf9tVhkEYZzE90O3zKoNzxVewstRXNs40yhaBU4Vf
+
+{
+  "ticket_code": "TKT-99326",
+  "member_id": 16
+}

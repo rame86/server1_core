@@ -1,4 +1,4 @@
-package com.example.member.entity;
+package com.example.member.domain;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;

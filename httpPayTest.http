@@ -1,4 +1,4 @@
 
-GET http://localhost/msa/pay/payment
+GET http://localhost/msa/pay/wallet/getall
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxNiIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzcyMTc2ODQxLCJleHAiOjE3NzIxODA0NDF9.Q2S2E-RZCUS6BBQrPZPuz4yvabtWy7y_tPvgBctx2q_C4oqnhKDSphIhwz6mz9Hk
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxNiIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzcyNjkwMTIyLCJleHAiOjE3NzI2OTM3MjJ9.8MDm1_MvBtGoGHZjjUv_FZ_0-wYnO_vWNm7KuIDqunIKD5x7RWGXz16uWG6vSto4

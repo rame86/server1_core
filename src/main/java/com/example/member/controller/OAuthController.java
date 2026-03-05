@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.member.dto.OAuthUserInfo;
-import com.example.member.service.OAuthProvider;
 import com.example.member.service.OAuthService;
+import com.example.member.service.provider.OAuthProvider;
 
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
