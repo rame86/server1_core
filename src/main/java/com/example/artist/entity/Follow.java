@@ -2,7 +2,7 @@ package com.example.artist.entity;
 
 import java.time.LocalDateTime;
 
-import com.example.member.entity.Member;
+import com.example.member.domain.Member;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;

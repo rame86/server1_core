@@ -1,4 +1,4 @@
-package com.example.member.service;
+package com.example.member.service.provider;
 
 import com.example.member.dto.OAuthUserInfo;
 
