@@ -79,7 +79,7 @@ public class ArtistService {
 				.orderId(orderId)
 				.memberId(memberId)
 				.amount(amount)
-				.type("PAYMENT")
+				.type("DONATION")
 				.eventTitle(artistId + "번 아티스트 후원")
 				.replyRoutingKey("artist.payment.reply")
 				.build();
