@@ -1,16 +1,20 @@
 package com.example.artist.controller;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.artist.dto.ArtistResponse;
+import com.example.artist.dto.DonationRequset;
+import com.example.artist.dto.PaymentRequestDTO;
 import com.example.artist.service.ArtistService;
 import com.example.board.service.BoardService;
 import com.example.common.annotation.LoginUser;
@@ -56,4 +60,17 @@ public class ArtistController {
         // 만약 아티스트별 필터링이 반드시 필요하다면 BoardService에 artistId를 받는 로직을 추가해야 합니다.
         return ResponseEntity.ok(boardService.getBoardList(category));
     }
+    
+    // 후원 테스트
+    @PostMapping("/donate")
+    public ResponseEntity<String> donate(@LoginUser RedisMemberDTO user, @RequestBody DonationRequset req) {
+    	log.info("현재 로그인한 유저의 잔액: {}", user.getBalance());
+    	if(BigDecimal.valueOf(user.getBalance()).compareTo(req.getAmount()) < 0) {
+    		return ResponseEntity.badRequest().body("잔액이 부족합니다.");
+    	}
+    	
+    	String orderId = artistService.donateToArtist(user.getMemberId(), req.getArtistId(), req.getAmount());
+    	return ResponseEntity.ok("후원 요청 완료! 주문번호: " + orderId);
+    }
+    
 }

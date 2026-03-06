@@ -1,13 +1,17 @@
 package com.example.artist.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
 import com.example.artist.dto.ArtistResponse;
+import com.example.artist.dto.PaymentRequestDTO;
 import com.example.artist.entity.Artist;
 import com.example.artist.entity.Follow;
 import com.example.artist.repository.ArtistRepository;
@@ -27,6 +31,7 @@ public class ArtistService {
 	private final ArtistRepository artistRepository;
 	private final FollowRepository followRepository;
 	private final MemberRepository memberRepository;
+	private final RabbitTemplate rabbitTemplate;
 	
 	@Transactional
 	public List<ArtistResponse> getAllArtist(){
@@ -64,4 +69,26 @@ public class ArtistService {
 			return "FOLLOW_SUCCESS";
 		}
 	}
+	
+	public String donateToArtist(Long memberId, Long artistId, BigDecimal amount) {
+		// 주문번호 생성
+		String orderId = "DONO-" + UUID.randomUUID().toString().substring(0, 8);
+		
+		// DTO 조립
+		PaymentRequestDTO requestDTO = PaymentRequestDTO.builder()
+				.orderId(orderId)
+				.memberId(memberId)
+				.amount(amount)
+				.type("DONATION")
+				.eventTitle(artistId + "번 아티스트 후원")
+				.replyRoutingKey("artist.payment.reply")
+				.build();
+		
+		// rabbitMQ로 메시지 전송
+		rabbitTemplate.convertAndSend("msa.direct.exchange", "pay.request", requestDTO);
+		log.info("-----> [도네이션 요청 전송] 주문번호: {}, 아티스트: {}", orderId, artistId);
+		
+		return orderId;
+	}
+	
 }
