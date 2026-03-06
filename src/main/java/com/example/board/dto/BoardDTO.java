@@ -32,6 +32,10 @@ public class BoardDTO {
     // UI 제어용 필드 (Jackson이 boolean 필드를 처리할 때 artistPost로 매핑함)
     private boolean artistPost; 
     
+    // 파일 관련 필드 추가
+    private String originalFileName;
+    private String storedFilePath; //파일저장 경로
+    
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 
