@@ -34,13 +34,16 @@ public class BoardController {
         return (memberIdStr != null) ? Long.parseLong(memberIdStr) : null;
     }
 
-    // 게시글 작성: 파일 업로드 포함
+    /**
+     * 게시글 작성: 파일 업로드 및 Redis 인증 포함
+     */
     @PostMapping(consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<?> write(
             @RequestHeader("Authorization") String token,
             @RequestPart("board") BoardDTO boardDTO,
             @RequestPart(value = "file", required = false) MultipartFile file) {
 
+        log.info("====> [MSA Board] 게시글 작성 호출: {}", boardDTO.getTitle());
         try {
             Long memberId = getMemberIdFromToken(token);
             if (memberId == null) {
@@ -52,16 +55,20 @@ public class BoardController {
 
             return ResponseEntity.status(201).body(Map.of("message", "Success"));
         } catch (Exception e) {
-            log.error("===> 게시글 작성 실패: ", e);
+            log.error("====> [Error] 게시글 작성 실패: ", e);
             return ResponseEntity.internalServerError().body(Map.of("message", "게시글 작성 중 오류가 발생했습니다."));
         }
     }
 
-    // 게시글 수정: 본인 확인 필수
+    /**
+     * 게시글 수정: 본인 확인(memberId) 필수
+     */
     @PutMapping("/update")
     public ResponseEntity<?> update(
             @RequestHeader("Authorization") String token,
             @RequestBody BoardDTO boardDTO) {
+        
+        log.info("====> [MSA Board] 게시글 수정 호출 id: {}", boardDTO.getBoardId());
         try {
             Long memberId = getMemberIdFromToken(token);
             if (memberId == null) return ResponseEntity.status(401).body(Map.of("message", "Invalid Token"));
@@ -70,19 +77,23 @@ public class BoardController {
             boardService.updateBoard(boardDTO, memberId);
             return ResponseEntity.ok(Map.of("message", "Update Success"));
         } catch (IllegalStateException e) {
-            // 본인이 아니거나 게시글이 없는 경우
+            log.error("====> [Error] 수정 권한 없음: {}", e.getMessage());
             return ResponseEntity.status(403).body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
-            log.error("===> 수정 실패: ", e);
+            log.error("====> [Error] 수정 실패: ", e);
             return ResponseEntity.internalServerError().body(Map.of("message", "Update Failed"));
         }
     }
 
-    // 게시글 삭제: 본인 확인 필수
+    /**
+     * 게시글 삭제: 본인 확인(memberId) 필수
+     */
     @DeleteMapping("/{id}")
     public ResponseEntity<?> delete(
             @RequestHeader("Authorization") String token, 
             @PathVariable("id") Long id) {
+        
+        log.info("====> [MSA Board] 게시글 삭제 호출 id: {}", id);
         try {
             Long memberId = getMemberIdFromToken(token);
             if (memberId == null) return ResponseEntity.status(401).body(Map.of("message", "Invalid Token"));
@@ -90,33 +101,41 @@ public class BoardController {
             boardService.deleteBoard(id, memberId);
             return ResponseEntity.ok(Map.of("message", "Delete Success"));
         } catch (IllegalStateException e) {
+            log.error("====> [Error] 삭제 권한 없음: {}", e.getMessage());
             return ResponseEntity.status(403).body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
-            log.error("===> 삭제 실패: ", e);
+            log.error("====> [Error] 삭제 실패: ", e);
             return ResponseEntity.internalServerError().body(Map.of("message", "Delete Failed"));
         }
     }
 
-    // 게시글 전체 조회
+    /**
+     * 게시글 전체 조회 (카테고리 필터)
+     */
     @GetMapping("/list")
     public ResponseEntity<List<BoardDTO>> getList(@RequestParam(name = "category", defaultValue = "전체") String category) {
+        log.info("====> [MSA Board] 목록 조회 호출: {}", category);
         try {
-            return ResponseEntity.ok(boardService.getBoardList(category));
+            List<BoardDTO> list = boardService.getBoardList(category);
+            return ResponseEntity.ok(list != null ? list : new ArrayList<>());
         } catch (Exception e) {
-            log.error("===> 목록 조회 실패: ", e);
+            log.error("====> [Error] 목록 조회 실패: ", e);
             return ResponseEntity.ok(new ArrayList<>());
         }
     }
 
-    // 게시글 상세 조회
+    /**
+     * 게시글 상세 조회
+     */
     @GetMapping("/{id}")
     public ResponseEntity<BoardDTO> getDetail(@PathVariable("id") Long id) {
+        log.info("====> [MSA Board] 상세 조회 호출 ID: {}", id);
         try {
             BoardDTO detail = boardService.getBoardDetail(id);
             if (detail == null) return ResponseEntity.notFound().build();
             return ResponseEntity.ok(detail);
         } catch (Exception e) {
-            log.error("===> 상세 조회 실패: ", e);
+            log.error("====> [Error] 상세 조회 실패: ", e);
             return ResponseEntity.internalServerError().build();
         }
     }
