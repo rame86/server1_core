@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.artist.dto.ArtistResponse;
 import com.example.artist.dto.DonationRequset;
-import com.example.artist.dto.PaymentRequestDTO;
 import com.example.artist.service.ArtistService;
 import com.example.board.service.BoardService;
 import com.example.common.annotation.LoginUser;
@@ -68,7 +67,7 @@ public class ArtistController {
     	if(BigDecimal.valueOf(user.getBalance()).compareTo(req.getAmount()) < 0) {
     		return ResponseEntity.badRequest().body("잔액이 부족합니다.");
     	}
-    	
+    	log.info("artistService 호출");
     	String orderId = artistService.donateToArtist(user.getMemberId(), req.getArtistId(), req.getAmount());
     	return ResponseEntity.ok("후원 요청 완료! 주문번호: " + orderId);
     }

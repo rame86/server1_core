@@ -20,6 +20,7 @@ public class PaymentRequestDTO {
     private BigDecimal amount;
     private String type;
     private String eventTitle;
+    private Long artistId;
 
     // 요청한 서비스가 응답받길 원하는 라우팅 키
     // 이거 진짜진짜 중요하다고...ㅠ

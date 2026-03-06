@@ -10,16 +10,12 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RabbitMQConfig {
-	
-	public static final String REPLY_QUEUE_NAME = "artist.payment.reply.queue";
-	public static final String REPLY_ROUTING_KEY = "artist.payment.reply";
 	public static final String EXCHANGE_NAME = "msa.direct.exchange";
+	    
+	public static final String REPLY_ROUTING_KEY = "artist.payment.reply";
+	
+    public static final String REPLY_QUEUE_NAME = "artist.payment.reply.queue";
     
-    // 메시지 발행 시 객체를 JSON 포맷으로 변환
-    @Bean
-    public Jackson2JsonMessageConverter messageConverter() {
-        return new Jackson2JsonMessageConverter();
-    }
     
     @Bean
     public DirectExchange exchange() {
@@ -34,6 +30,12 @@ public class RabbitMQConfig {
     @Bean
     public Binding replyBinding(Queue replyQueue, DirectExchange exchange) {
     	return BindingBuilder.bind(replyQueue).to(exchange).with(REPLY_ROUTING_KEY);
+    }
+ 
+    // 메시지 발행 시 객체를 JSON 포맷으로 변환
+    @Bean
+    public Jackson2JsonMessageConverter messageConverter() {
+        return new Jackson2JsonMessageConverter();
     }
     
 }

@@ -73,6 +73,7 @@ public class ArtistService {
 	public String donateToArtist(Long memberId, Long artistId, BigDecimal amount) {
 		// 주문번호 생성
 		String orderId = "DONO-" + UUID.randomUUID().toString().substring(0, 8);
+		log.info("[ 도네이션 주문 번호 ] -" + orderId.toString());
 		
 		// DTO 조립
 		PaymentRequestDTO requestDTO = PaymentRequestDTO.builder()
@@ -81,9 +82,10 @@ public class ArtistService {
 				.amount(amount)
 				.type("DONATION")
 				.eventTitle(artistId + "번 아티스트 후원")
+				.artistId(artistId)
 				.replyRoutingKey("artist.payment.reply")
 				.build();
-		
+		log.info("[ MQ DTO 내용 ] -" + requestDTO.toString());
 		// rabbitMQ로 메시지 전송
 		rabbitTemplate.convertAndSend("msa.direct.exchange", "pay.request", requestDTO);
 		log.info("-----> [도네이션 요청 전송] 주문번호: {}, 아티스트: {}", orderId, artistId);
