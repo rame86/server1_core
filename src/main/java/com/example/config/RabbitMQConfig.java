@@ -13,10 +13,15 @@ public class RabbitMQConfig {
 	
 	public static final String EXCHANGE_NAME = "msa.direct.exchange";
 	
+	// 결제관련
 	public static final String PAY_ROUTING_KEY = "pay.request";
-	
 	public static final String ARTIST_ROUTING_KEY = "artist.res.pay";
     public static final String ARTIST_RESPONSE_QUEUE_NAME = "artist.res.pay.queue";
+    
+    // 이벤트관련
+    // 2서버로가 던질 때 사용하는 키
+    public static final String EVENT_ROUTING_KEY="event.res.core";
+    public static final String EVENT_RES_QUEUE_NAME="event.res.core.queue";
     
     @Bean
     public DirectExchange exchange() {
