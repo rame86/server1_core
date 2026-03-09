@@ -21,6 +21,7 @@ public class RabbitMQConfig {
     
     // 이벤트관련
     public static final String EVENT_REQ_ROUTING_KEY= "admin.event.request";
+    public static final String EVENT_REQ_QUEUE_NAME = "admin.event.request.queue";
     public static final String EVENT_RES_ROUTING_KEY="event.res.core";
     public static final String EVENT_RES_QUEUE_NAME="event.res.core.queue";
     
@@ -46,6 +47,16 @@ public class RabbitMQConfig {
     }
     
     // 이벤트 관련
+    @Bean
+    public Queue eventRequestQueue() {
+        return new Queue(EVENT_REQ_QUEUE_NAME, true);
+    }
+    
+    @Bean
+    public Binding eventRequestBinding(@Qualifier("eventRequestQueue") Queue queue, DirectExchange exchange) {
+        return BindingBuilder.bind(queue).to(exchange).with(EVENT_REQ_ROUTING_KEY);
+    }
+    
     @Bean
     public Queue eventReplyQueue() {
     	return new Queue(EVENT_RES_QUEUE_NAME, true);
