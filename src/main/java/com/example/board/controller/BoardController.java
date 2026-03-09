@@ -37,7 +37,7 @@ public class BoardController {
     /**
      * 게시글 작성: 파일 업로드 및 Redis 인증 포함
      */
-    @PostMapping(consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+    @PutMapping(value="/write", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<?> write(
             @RequestHeader("Authorization") String token,
             @RequestPart("board") BoardDTO boardDTO,
