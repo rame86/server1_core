@@ -20,7 +20,7 @@ public class AdminEventListener {
 	
 	private final RabbitTemplate rabbitTemplate;
 	
-	@RabbitListener(queues = RabbitMQConfig.EVENT_RES_QUEUE_NAME)
+	@RabbitListener(queues = RabbitMQConfig.EVENT_REQ_QUEUE_NAME)
 	public void handleEventResult(EventResultDTO dto) {
 		log.info("=====> [1서버] 2서버로부터 신청서 도착: {}", dto);
 		
