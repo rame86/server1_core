@@ -1,0 +1,8 @@
+POST http://localhost/msa/core/artist/donate
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxNiIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzcyNzc0ODAzLCJleHAiOjE3NzI3Nzg0MDN9.EOJhvd22NLzrsHnyXywjMghjl4wqGPotJ6ui-bruXpVQcktbQHcZVxOSTEvhLK_g
+
+{
+    "artistId": 50,
+    "amount": 10000
+}

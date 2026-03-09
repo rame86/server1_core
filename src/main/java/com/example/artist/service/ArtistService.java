@@ -7,19 +7,23 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.artist.dto.ArtistResponse;
 import com.example.artist.dto.PaymentRequestDTO;
 import com.example.artist.entity.Artist;
+import com.example.artist.entity.Donation;
 import com.example.artist.entity.Follow;
+import com.example.artist.entity.constant.DonationStatus;
+import com.example.artist.messaging.producer.ArtistEventProducer;
 import com.example.artist.repository.ArtistRepository;
+import com.example.artist.repository.DonationRepository;
 import com.example.artist.repository.FollowRepository;
+import com.example.config.RabbitMQConfig;
 import com.example.member.domain.Member;
 import com.example.member.repository.MemberRepository;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -31,7 +35,8 @@ public class ArtistService {
 	private final ArtistRepository artistRepository;
 	private final FollowRepository followRepository;
 	private final MemberRepository memberRepository;
-	private final RabbitTemplate rabbitTemplate;
+	private final ArtistEventProducer artistEventProducer;
+	private final DonationRepository donationRepository;
 	
 	@Transactional
 	public List<ArtistResponse> getAllArtist(){
@@ -70,24 +75,38 @@ public class ArtistService {
 		}
 	}
 	
+	@Transactional
 	public String donateToArtist(Long memberId, Long artistId, BigDecimal amount) {
+		
 		// 주문번호 생성
 		String orderId = "DONO-" + UUID.randomUUID().toString().substring(0, 8);
 		
-		// DTO 조립
+		// entity에 먼저 저장
+		Donation donation = Donation.builder()
+				.orderId(orderId)
+				.memberId(memberId)
+				.artistId(artistId)
+				.amount(amount)
+				.status(DonationStatus.READY)
+				.build();
+		donationRepository.save(donation);
+		
+		// DTO 조립, MQ로 전송
 		PaymentRequestDTO requestDTO = PaymentRequestDTO.builder()
 				.orderId(orderId)
 				.memberId(memberId)
 				.amount(amount)
 				.type("DONATION")
 				.eventTitle(artistId + "번 아티스트 후원")
-				.replyRoutingKey("artist.payment.reply")
+				.artistId(artistId)
+				.replyRoutingKey(RabbitMQConfig.PAY_RES_ROUTING_KEY)
 				.build();
+		artistEventProducer.sendPaymentRequest(requestDTO);
 		
-		// rabbitMQ로 메시지 전송
-		rabbitTemplate.convertAndSend("msa.direct.exchange", "pay.request", requestDTO);
-		log.info("-----> [도네이션 요청 전송] 주문번호: {}, 아티스트: {}", orderId, artistId);
+		// status를 진행중으로 바꿔주기
+		donation.processing();
 		
+		log.info("-----> [도네이션 요청 완료] 주문번호: {}", orderId);
 		return orderId;
 	}
 	
