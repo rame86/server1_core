@@ -20,7 +20,7 @@ public class ArtistEventListener {
 	private final DonationRepository donationRepository;
 
 	// pay로부터 처리 결과를 수신
-	@RabbitListener(queues = RabbitMQConfig.ARTIST_RESPONSE_QUEUE_NAME)
+	@RabbitListener(queues = RabbitMQConfig.PAY_RES_QUEUE_NAME)
 	@Transactional
 	public void handlePaymentResult(PaymentResponseDTO response) {
 		log.info("=====> [Artist 서버 수신] 주문번호: {}, 상태: {}, 메시지: {}", 

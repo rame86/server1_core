@@ -20,7 +20,7 @@ public class ArtistEventProducer {
 		log.info(">>>> [MQ 전송] 주문번호: {}", request.getOrderId());
 		rabbitTemplate.convertAndSend(
 				RabbitMQConfig.EXCHANGE_NAME,
-				RabbitMQConfig.PAY_ROUTING_KEY,
+				RabbitMQConfig.PAY_REQ_ROUTING_KEY,
 				request);
 	}
 	

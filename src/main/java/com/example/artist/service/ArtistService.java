@@ -7,8 +7,8 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.artist.dto.ArtistResponse;
 import com.example.artist.dto.PaymentRequestDTO;
@@ -24,7 +24,6 @@ import com.example.config.RabbitMQConfig;
 import com.example.member.domain.Member;
 import com.example.member.repository.MemberRepository;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -100,7 +99,7 @@ public class ArtistService {
 				.type("DONATION")
 				.eventTitle(artistId + "번 아티스트 후원")
 				.artistId(artistId)
-				.replyRoutingKey(RabbitMQConfig.ARTIST_ROUTING_KEY)
+				.replyRoutingKey(RabbitMQConfig.PAY_RES_ROUTING_KEY)
 				.build();
 		artistEventProducer.sendPaymentRequest(requestDTO);
 		
