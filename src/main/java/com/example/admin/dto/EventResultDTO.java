@@ -18,5 +18,5 @@ public class EventResultDTO {
     private String status;
     private String eventTitle;
     private String rejectionReason;
-    private String created_at;
+    private String createdAt;
 }
