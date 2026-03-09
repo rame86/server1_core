@@ -80,6 +80,7 @@ public class ArtistService {
 		
 		// 주문번호 생성
 		String orderId = "DONO-" + UUID.randomUUID().toString().substring(0, 8);
+		log.info("[ 도네이션 주문 번호 ] -" + orderId.toString());
 		
 		// entity에 먼저 저장
 		Donation donation = Donation.builder()
@@ -99,12 +100,7 @@ public class ArtistService {
 				.type("DONATION")
 				.eventTitle(artistId + "번 아티스트 후원")
 				.artistId(artistId)
-				.replyRoutingKey(RabbitMQConfig.PAY_RES_ROUTING_KEY)
-				.build();
-		artistEventProducer.sendPaymentRequest(requestDTO);
-		
-		// status를 진행중으로 바꿔주기
-		donation.processing();
+
 		
 		log.info("-----> [도네이션 요청 완료] 주문번호: {}", orderId);
 		return orderId;
