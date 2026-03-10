@@ -16,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -46,13 +47,8 @@ public class BoardController {
             @RequestPart("request") BoardCreateRequest request,
             @RequestPart(value = "file", required = false) MultipartFile file) throws IOException {
 
-        // 401 에러 방지를 위한 유저 검증 추가
-    if (loginUser == null) {
-        log.error("====> [작성 실패] 인증 정보가 없습니다.");
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-        log.info("====> [게시글 작성] MemberID: {}, 파일유무: {}", 
-                loginUser.getMemberId(), (file != null && !file.isEmpty()));
+       if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        
         BoardResponseDTO response = boardService.writeBoard(request, file, loginUser.getMemberId());
         return ResponseEntity.ok(response);
     }
@@ -63,18 +59,13 @@ public class BoardController {
         @LoginUser RedisMemberDTO loginUser,
         @PathVariable(name = "id") Long id) {
 
-        if (loginUser == null) {
-            log.error("====> [삭제 실패] 인증 정보가 없습니다.");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        log.info("===> 게시글 삭제요청: ID ={}, 요청자 ={}, 권한 ={}",
-                id, loginUser.getMemberId(), loginUser.getRole());
+        if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 
         BoardResponseDTO response = boardService.deleteBoard(id, loginUser.getMemberId(), loginUser.getRole());
         return ResponseEntity.ok(response);
     }
 
+    
     // 5. 게시글 수정
     @PutMapping(value = "/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<BoardResponseDTO> update(
@@ -83,18 +74,34 @@ public class BoardController {
         @RequestPart("request") BoardCreateRequest request,
         @RequestPart(value = "file", required = false) MultipartFile file) throws Exception {
 
-        // 로그인 유저 검증 추가
-        if (loginUser == null) {
-            log.error("====> [수정 실패] 인증 정보가 없습니다.");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        log.info("===> 게시글 수정요청: ID ={}, 요청자 ={}, 권한 ={}", 
-                id, loginUser.getMemberId(), loginUser.getRole());
+       if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
                 
-        // 서비스 호출
         BoardResponseDTO response = boardService.updateBoard(id, request, file, loginUser.getMemberId(), loginUser.getRole());
-
         return ResponseEntity.ok(response);
+    }
+
+    // 6. 하트 클릭 (좋아요 토글)
+    @PostMapping("/{id}/like")
+    public ResponseEntity<Integer> toggleLike(
+            @LoginUser RedisMemberDTO loginUser,
+            @PathVariable(name = "id") Long id) {
+        if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        
+        int updatedLikeCount = boardService.toggleLike(id, loginUser.getMemberId());
+        return ResponseEntity.ok(updatedLikeCount);
+    }
+
+    // 7. 댓글 작성
+    @PostMapping("/{id}/comment")
+    public ResponseEntity<Void> addComment(
+            @LoginUser RedisMemberDTO loginUser,
+            @PathVariable(name = "id") Long id,
+            @RequestBody Map<String, String> payload) { // JSON의 "content" 필드를 안전하게 받기 위함
+        if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        
+        String content = payload.get("content");
+        // 댓글 저장 후 업데이트된 총 댓글 수를 반환
+        int updatedCommentCount = boardService.addComment(id, loginUser.getMemberId(), content);
+        return ResponseEntity.ok(updatedCommentCount);
     }
 }
