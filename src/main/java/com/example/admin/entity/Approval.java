@@ -38,6 +38,8 @@ public class Approval {
 	private String contentJson;
 	
 	private Long artistId; // 신청자 ID
+	private Long adminId; //관리자 ID
+	private String rejectionReason; // 거절 사유
 	
 	@CreationTimestamp
 	private LocalDateTime createdAt;

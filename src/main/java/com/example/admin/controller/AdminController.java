@@ -1,6 +1,5 @@
 package com.example.admin.controller;
 
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -10,7 +9,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.ShopResultDTO;
 import com.example.admin.service.AdminService;
+import com.example.common.annotation.LoginUser;
 import com.example.config.RabbitMQConfig;
+import com.example.member.dto.RedisMemberDTO;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,44 +22,20 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class AdminController {
 	
-	private final RabbitTemplate rabbitTemplate;
 	private final AdminService adminService;
 	
 	@PostMapping("/event/confirm")
-	public ResponseEntity<String> confirmEvent(@RequestBody EventResultDTO dto) {
+	public ResponseEntity<String> confirmEvent(@RequestBody EventResultDTO dto, @LoginUser RedisMemberDTO user) {
 		log.info("=====> [1서버 관리자] 결정 전송 요청: {}", dto);
-		try {
-			// DB에 상태 업데이트하기
-			adminService.updateApprovalStatus(dto.getApprovalId(), dto.getStatus());
-			
-			// 2서버로 쏘기
-			rabbitTemplate.convertAndSend(
-					RabbitMQConfig.EXCHANGE_NAME, 
-					RabbitMQConfig.EVENT_RES_ROUTING_KEY, 
-					dto);
-			log.info("=====> [1서버] 2서버로 메시지 전송 성공!");
-			return ResponseEntity.ok("2서버로 결정 사항을 전달했습니다: " + dto.getStatus());
-		} catch(Exception e) {
-			log.error("=====> [1서버] 메시지 전송 실패: {}", e.getMessage());
-			return ResponseEntity.internalServerError().body("전송 중 오류 발생: " + e.getMessage());
-		}
+		adminService.processApproval(dto, RabbitMQConfig.EVENT_RES_ROUTING_KEY, user.getMemberId());
+		return ResponseEntity.ok("EVENT 처리 완료");
 	}
 	
 	@PostMapping("/shop/confirm")
-	public ResponseEntity<String> confirmShop(@RequestBody ShopResultDTO dto) {
+	public ResponseEntity<String> confirmShop(@RequestBody ShopResultDTO dto, @LoginUser RedisMemberDTO user) {
 		log.info("=====> [1서버 관리자] 결정 전송 요청: {}", dto);
-		try {
-			adminService.updateApprovalStatus(dto.getApprovalId(), dto.getStatus());
-			rabbitTemplate.convertAndSend(
-					RabbitMQConfig.EXCHANGE_NAME, 
-					RabbitMQConfig.SHOP_RES_ROUTING_KEY, 
-					dto);
-			log.info("=====> [1서버] 2서버로 메시지 전송 성공!");
-			return ResponseEntity.ok("2서버로 결정 사항을 전달했습니다: " + dto.getStatus());
-		} catch(Exception e) {
-			log.error("=====> [1서버] 메시지 전송 실패: {}", e.getMessage());
-			return ResponseEntity.internalServerError().body("전송 중 오류 발생: " + e.getMessage());
-		}
+		adminService.processApproval(dto, RabbitMQConfig.SHOP_RES_ROUTING_KEY, user.getMemberId());
+		return ResponseEntity.ok("SHOP 처리 완료");
 	}
 	
 }
