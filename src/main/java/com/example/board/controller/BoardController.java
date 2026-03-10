@@ -65,7 +65,6 @@ public class BoardController {
         return ResponseEntity.ok(response);
     }
 
-    
     // 5. 게시글 수정
     @PutMapping(value = "/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<BoardResponseDTO> update(
@@ -93,14 +92,14 @@ public class BoardController {
 
     // 7. 댓글 작성
     @PostMapping("/{id}/comment")
-    public ResponseEntity<Void> addComment(
+    public ResponseEntity<Integer> addComment(
             @LoginUser RedisMemberDTO loginUser,
             @PathVariable(name = "id") Long id,
-            @RequestBody Map<String, String> payload) { // JSON의 "content" 필드를 안전하게 받기 위함
+            @RequestBody Map<String, String> payload) { 
         if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         
         String content = payload.get("content");
-        // 댓글 저장 후 업데이트된 총 댓글 수를 반환
+        // [수정 포인트] 서비스의 반환 타입이 int여야 에러가 나지 않습니다.
         int updatedCommentCount = boardService.addComment(id, loginUser.getMemberId(), content);
         return ResponseEntity.ok(updatedCommentCount);
     }
