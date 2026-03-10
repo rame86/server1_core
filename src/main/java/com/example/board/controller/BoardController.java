@@ -51,7 +51,8 @@ public class BoardController {
         log.error("====> [작성 실패] 인증 정보가 없습니다.");
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
-        log.info("====> 게시글 작성 요청: MemberID = {}", loginUser.getMemberId());
+        log.info("====> [게시글 작성] MemberID: {}, 파일유무: {}", 
+                loginUser.getMemberId(), (file != null && !file.isEmpty()));
         BoardResponseDTO response = boardService.writeBoard(request, file, loginUser.getMemberId());
         return ResponseEntity.ok(response);
     }
