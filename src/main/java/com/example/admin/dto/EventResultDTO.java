@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.ToString;
 
 @Getter
@@ -18,6 +19,10 @@ public class EventResultDTO implements ApprovalDTO {
 	@JsonAlias("approvalId")
 	@JsonProperty("eventId")
     private Long approvalId; // eventID
+	
+	public void setApprovalId(Long approvalId) {
+        this.approvalId = approvalId;
+    }
 	
     private Long requesterId; // 신청자ID
     private String status;

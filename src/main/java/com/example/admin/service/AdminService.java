@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.admin.dto.AdminEventListDTO;
 import com.example.admin.dto.ApprovalDTO;
+import com.example.admin.dto.EventResultDTO;
 import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
 import com.example.config.RabbitMQConfig;
@@ -30,20 +31,14 @@ public class AdminService {
 	
 	@Transactional
 	public void processApproval(ApprovalDTO dto, String routingKey, Long adminId) {		
-		updateApprovalStatus(dto, adminId);
-		rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, routingKey, dto);
-		
-		log.info("=====> [1서버] 처리 완료: ApprovalId={}, Status={}, RoutingKey={}", 
-				dto.getApprovalId(), dto.getStatus(), routingKey);
-		try {
-			log.info("=====> [진짜 나가는 모양]: {}", new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(dto));
-		} catch (JsonProcessingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		Long eventId = updateApprovalStatus(dto, adminId);
+		if(dto instanceof EventResultDTO eventResultDto) {
+			eventResultDto.setApprovalId(eventId);
 		}
+		rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, routingKey, dto);
 	}
 	
-	private void updateApprovalStatus(ApprovalDTO dto, Long adminId) {
+	private Long updateApprovalStatus(ApprovalDTO dto, Long adminId) {
 		Approval approval = approvalRepository.findById(dto.getApprovalId())
 				.orElseThrow(() -> new RuntimeException("해당 신청 건을 찾을 수 없습니다."));
 		
@@ -54,6 +49,8 @@ public class AdminService {
 		if("REJECTED".equals(dto.getStatus())) {
 			approval.setRejectionReason(dto.getRejectionReason());
 		}
+		
+		return approval.getTargetId();
 	}
 	
 	@Transactional(readOnly = true)
