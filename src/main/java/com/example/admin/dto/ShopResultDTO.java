@@ -11,7 +11,7 @@ import lombok.ToString;
 @AllArgsConstructor
 @Builder
 @ToString
-public class ShopResultDTO {
+public class ShopResultDTO implements ApprovalDTO {
 	
     private Long approvalId; // 승인요청 ID
     private Long goodsId; // 굿즈상품 ID
