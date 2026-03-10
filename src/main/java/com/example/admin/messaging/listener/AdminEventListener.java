@@ -1,5 +1,6 @@
 package com.example.admin.messaging.listener;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -42,6 +43,7 @@ public class AdminEventListener {
 		try {
 			// DTO 객체를 JSON 문자열로 변환
 			String jsonContent = objectMapper.writeValueAsString(dto);
+			EventResultDTO eventDto = (dto instanceof EventResultDTO) ? (EventResultDTO) dto : null;
 			
 			Approval approval = Approval.builder()
 					.category(category)
@@ -50,8 +52,12 @@ public class AdminEventListener {
 					.status("PENDING")
 					.contentJson(jsonContent)
 					.artistId(requesterId)
-					.build();
-			
+					.eventStartDate(eventDto != null && eventDto.getEventStartDate() != null 
+		                    ? LocalDateTime.parse(eventDto.getEventStartDate()) : null)
+		            .location(eventDto != null ? eventDto.getLocation() : null)
+		            .price(eventDto != null ? eventDto.getPrice() : null)
+		            .build();
+							
 			approvalRepositroy.save(approval);
 			log.info("=====> [1서버 DB] {} 신청 데이터 저장 완료!", category);
 			
@@ -62,7 +68,7 @@ public class AdminEventListener {
 	}
 	
 	private void sendAdminNotification(String title, Long requesterId, String category) {
-		String typeName = category.equals("EVENT") ? "SHOPT" : "PAY";
+		String typeName = category.equals("EVENT") ? "EVENT" : "SHOP";
 		String adminMessage = "새로운 " + typeName + " [" + title + "] 신청이 들어왔습니다.";
 		
 		Map<String, String> message = new HashMap<>();

@@ -1,5 +1,7 @@
 package com.example.admin.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -12,10 +14,14 @@ import lombok.ToString;
 @Builder
 @ToString
 public class EventResultDTO implements ApprovalDTO {
-    private Long approvalId; // 신청ID
+	@JsonProperty("eventId")
+    private Long approvalId; // eventID
     private Long requesterId; // 신청자ID
     private String status;
     private String eventTitle;
     private String rejectionReason;
     private String createdAt;
+    private String eventStartDate; // 이벤트 시작일
+    private String location; // 장소
+    private Long price; // 금액
 }
