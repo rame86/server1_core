@@ -1,11 +1,15 @@
 package com.example.admin.controller;
 
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.admin.dto.AdminEventListDTO;
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.ShopResultDTO;
 import com.example.admin.service.AdminService;
@@ -36,6 +40,13 @@ public class AdminController {
 		log.info("=====> [1서버 관리자] 결정 전송 요청: {}", dto);
 		adminService.processApproval(dto, RabbitMQConfig.SHOP_RES_ROUTING_KEY, user.getMemberId());
 		return ResponseEntity.ok("SHOP 처리 완료");
+	}
+	
+	@GetMapping("/event/list")
+	public ResponseEntity<List<AdminEventListDTO>> getEventList(){
+		log.info("=====> [1서버 관리자] 전체 이벤트 리스트 조회 요청");
+		List<AdminEventListDTO> list = adminService.getAllEvents();
+		return ResponseEntity.ok(list);
 	}
 	
 }
