@@ -32,7 +32,12 @@ public class Approval {
 	private String category;  // EVNET, SHOTP, PAY 등
 	private Long targetId; // 2서버의 원본 데이터ID
 	private String title;
-	private String status; // PENDING, CONFIRMED, REJECTED
+	private String status; // PENDING, CONFIRMED, FAILED(거절)
+	private String location;
+	private Long price;
+	
+	@Column(name = "event_start_date")
+    private LocalDateTime eventStartDate;
 	
 	@Column(columnDefinition = "TEXT")
 	private String contentJson;

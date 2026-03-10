@@ -16,7 +16,8 @@ public class BoardDTO {
     private String content;
     
     // 작성자 식별자
-    private Long memberId;      
+    private Long memberId;     
+    private Long artistId;
     private String authorId;    // 필요한 경우 사용 (로그인 ID 등)
     
     // UI 노출용 실제 데이터 필드
