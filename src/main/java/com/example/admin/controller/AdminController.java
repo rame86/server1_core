@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.ShopResultDTO;
+import com.example.admin.service.AdminService;
 import com.example.config.RabbitMQConfig;
 
 import lombok.RequiredArgsConstructor;
@@ -21,11 +22,16 @@ import lombok.extern.slf4j.Slf4j;
 public class AdminController {
 	
 	private final RabbitTemplate rabbitTemplate;
+	private final AdminService adminService;
 	
 	@PostMapping("/event/confirm")
 	public ResponseEntity<String> confirmEvent(@RequestBody EventResultDTO dto) {
 		log.info("=====> [1서버 관리자] 결정 전송 요청: {}", dto);
 		try {
+			// DB에 상태 업데이트하기
+			adminService.updateApprovalStatus(dto.getApprovalId(), dto.getStatus());
+			
+			// 2서버로 쏘기
 			rabbitTemplate.convertAndSend(
 					RabbitMQConfig.EXCHANGE_NAME, 
 					RabbitMQConfig.EVENT_RES_ROUTING_KEY, 
@@ -42,6 +48,7 @@ public class AdminController {
 	public ResponseEntity<String> confirmShop(@RequestBody ShopResultDTO dto) {
 		log.info("=====> [1서버 관리자] 결정 전송 요청: {}", dto);
 		try {
+			adminService.updateApprovalStatus(dto.getApprovalId(), dto.getStatus());
 			rabbitTemplate.convertAndSend(
 					RabbitMQConfig.EXCHANGE_NAME, 
 					RabbitMQConfig.SHOP_RES_ROUTING_KEY, 

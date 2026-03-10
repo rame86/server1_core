@@ -29,22 +29,13 @@ public class AdminEventListener {
 	@RabbitListener(queues = RabbitMQConfig.EVENT_REQ_QUEUE_NAME)
 	public void handleEventResult(EventResultDTO dto) {
 		log.info("=====> [1서버] 2서버로부터 신청서 도착: {}", dto);
-		saveToApproval(dto, "EVENT", dto.getRequesterId(), dto.getEventTitle(), dto.getRequesterId());
+		saveToApproval(dto, "EVENT", dto.getApprovalId(), dto.getEventTitle(), dto.getRequesterId());
 	}
 	
 	@RabbitListener(queues = RabbitMQConfig.SHOP_REQ_QUEUE_NAME)
 	public void handleShopRequest(ShopResultDTO dto) {
 		log.info("=====> [1서버] 2서버로부터 신청서 도착: {}", dto);
-		
-		String adminMessage = "새로운 굿즈 [" + dto.getGoodsType() + "] 신청이 들어왔습니다. 검토해주세요!";
-		
-		Map<String, String> message = new HashMap<>();
-		message.put("type", "SHOP_NEW_REQUEST");
-		message.put("requesterId", String.valueOf(dto.getRequesterId()));
-		message.put("message", adminMessage);
-		message.put("createdAt", dto.getCreatedAt());
-		
-		rabbitTemplate.convertAndSend("amq.topic", "notification.admin", message);
+		saveToApproval(dto, "SHOP", dto.getApprovalId(), dto.getGoodsType(), dto.getRequesterId());
 	}
 	
 	private void saveToApproval(Object dto, String category, Long targetId, String title, Long requesterId) {
