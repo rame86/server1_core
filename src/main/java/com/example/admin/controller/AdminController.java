@@ -48,6 +48,7 @@ public class AdminController {
 	public ResponseEntity<String> confirmShop(@RequestBody ShopResultDTO dto) {
 		log.info("=====> [1서버 관리자] 결정 전송 요청: {}", dto);
 		try {
+			adminService.updateApprovalStatus(dto.getApprovalId(), dto.getStatus());
 			rabbitTemplate.convertAndSend(
 					RabbitMQConfig.EXCHANGE_NAME, 
 					RabbitMQConfig.SHOP_RES_ROUTING_KEY, 
