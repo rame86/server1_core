@@ -16,7 +16,8 @@ public class BoardDTO {
     private String content;
     
     // 작성자 식별자
-    private Long memberId;      
+    private Long memberId;     
+    private Long artistId;
     private String authorId;    // 필요한 경우 사용 (로그인 ID 등)
     
     // UI 노출용 실제 데이터 필드
@@ -38,6 +39,10 @@ public class BoardDTO {
     
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
+
+    // MSA 응답 처리를 위한 핵심 필드
+    private String replyRoutingKey; // 응답을 받을 라우팅 키 (예: "board.create.res")
+    private String type;            // 요청 타입 (예: "GENERAL", "NOTICE", "PAID")
 
     /**
      * Role 정보를 바탕으로 아티스트 여부를 자동으로 판단하는 편의 메서드

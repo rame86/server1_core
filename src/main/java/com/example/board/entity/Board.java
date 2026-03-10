@@ -1,32 +1,19 @@
 package com.example.board.entity;
 
 import java.time.OffsetDateTime;
-
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import jakarta.persistence.*;
+import lombok.*;
 
 @Entity
 @Table(name="board", schema = "board")
 @Getter
 @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED) // 빈 생성자 외부로부터 보호
-@AllArgsConstructor // 모든 필드를 다 때려 넣는 생성자
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 @Builder
 public class Board {
-	
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long boardId;
@@ -37,18 +24,38 @@ public class Board {
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    private Long memberId;
-    private Long artistId;
-    private Integer likeCount;
-    private Integer commentCount;
-    private Integer viewCount;
+    private Long memberId;   
+    private Long artistId;   
+    
+    @Builder.Default
+    private Integer viewCount = 0;
+    @Builder.Default
+    private Integer likeCount = 0;
+    @Builder.Default
+    private Integer commentCount = 0;
 
-    private boolean isArtistPost; // bool -> boolean
+    private boolean isArtistPost;
 
-    @CreationTimestamp // insert 시 자동 시간 입력
+    private String originalFileName;
+    private String storedFilePath;
+
+    @CreationTimestamp
+    @Column(updatable = false)
     private OffsetDateTime createdAt;
 
-    @UpdateTimestamp // update 시 자동 시간 입력
+    @UpdateTimestamp
     private OffsetDateTime updatedAt;
     
+    // 비즈니스 로직: 조회수 증가
+    public void incrementViewCount() {
+        if (this.viewCount == null) this.viewCount = 0;
+        this.viewCount++;
+    }
+
+    // 비즈니스 로직: 게시글 수정
+    public void update(String title, String content, String category) {
+        this.title = title;
+        this.content = content;
+        this.category = category;
+    }
 }
