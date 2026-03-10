@@ -12,9 +12,9 @@ import lombok.ToString;
 @Builder
 @ToString
 public class EventResultDTO {
-    private Long approvalId;
-    private Long eventId;
-    private Long requesterId;
+    private Long approvalId; // 신청ID
+    private Long requesterId; // 신청자ID
+    private Long adminId;
     private String status;
     private String eventTitle;
     private String rejectionReason;
