@@ -40,6 +40,7 @@ public class AdminService {
 		Approval approval = approvalRepository.findById(dto.getApprovalId())
 				.orElseThrow(() -> new RuntimeException("해당 신청 건을 찾을 수 없습니다."));
 		
+		approval.setTargetId(dto.getApprovalId());
 		approval.setStatus(dto.getStatus());
 		approval.setAdminId(adminId);
 		approval.setProcessedAt(LocalDateTime.now());
