@@ -25,9 +25,10 @@ public class JwtTokenProvider {
     }
     
     // 토큰 생성
-    private String buildToken(Long member_id, String role, long validityTime) {
+    private String buildToken(Long member_id, String role, String name, long validityTime) {
     	Claims claims = Jwts.claims().setSubject(String.valueOf(member_id));
     	claims.put("role", role);
+    	claims.put("name", name);
 
     	Date now = new Date();
     	Date validity = new Date(now.getTime() + validityTime);
@@ -41,13 +42,13 @@ public class JwtTokenProvider {
     }
     
     // 기본 토큰
-    public String createToken(Long member_id, String role) {
-    	return buildToken(member_id, role, accessTokenValidity);
+    public String createToken(Long member_id, String role, String name) {
+    	return buildToken(member_id, role, name, accessTokenValidity);
     }
     
     // 리프래시 토큰
-    public String refreshToken(Long member_id, String role) {
-    	return buildToken(member_id, role, refreshTokenValidity);
+    public String refreshToken(Long member_id, String role, String name) {
+    	return buildToken(member_id, role, name, refreshTokenValidity);
     }
     
     // 토큰이 유효한지 검증
