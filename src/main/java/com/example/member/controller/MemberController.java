@@ -49,7 +49,7 @@ public class MemberController {
 	}
 	
 	// 로그인
-	@PostMapping("/login")
+	@PostMapping(value = "/login", produces = "application/json; charset=UTF-8")
 	public ResponseEntity<?> login(@RequestBody Map<String, String> loginData, HttpServletResponse response) {
 		try {
 			Map<String, Object> result = memberService.login(
@@ -57,6 +57,8 @@ public class MemberController {
 				loginData.get("password"),
 				response
 			);
+
+			log.info("Controller 전송 직전 데이터 check - name: {}", result.get("name"));
 			return ResponseEntity.ok(result);
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
