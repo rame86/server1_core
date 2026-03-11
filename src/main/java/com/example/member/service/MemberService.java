@@ -130,9 +130,9 @@ public class MemberService {
 	public Map<String, Object> loginResponse(Member member, String message, HttpServletResponse response) {
 		log.info("---------> [로그인 성공] JWT 및 리프레시 토큰 발급: {}", member.getEmail());
 		
-		// 토큰 2개 생성
-    	String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
-    	String refreshToken = jwtTokenProvider.refreshToken(member.getMemberId(), member.getRole());
+    	// 토큰 2개 생성
+    	String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole(), member.getName());
+    	String refreshToken = jwtTokenProvider.refreshToken(member.getMemberId(), member.getRole(), member.getName());
     	
     	// Redis용 키 설정
     	String redisKey = "AUTH:MEMBER:" + member.getMemberId(); // 유저 상세 정보용 (Hash)
