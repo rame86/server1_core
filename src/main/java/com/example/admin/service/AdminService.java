@@ -3,14 +3,18 @@ package com.example.admin.service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Arrays;      // 추가 필요
+import java.util.Collections; // 추가 필요
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 import com.example.admin.dto.AdminEventListDTO;
 import com.example.admin.dto.ApprovalDTO;
+import com.example.admin.dto.ReportBoardDTO;
 import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
 import com.example.config.RabbitMQConfig;
@@ -26,7 +30,32 @@ public class AdminService {
 	private final ApprovalRepository approvalRepository;
 	private final RabbitTemplate rabbitTemplate;
 	private final StringRedisTemplate redisTemplate;
-	
+	private final RestTemplate restTemplate = new RestTemplate(); // 외부 호출용 도구
+
+	// 추가
+	public List<ReportBoardDTO> getBoardReports() {
+        // Board 서비스의 API 엔드포인트
+        String url = "http://localhost:8080/board/admin/reports";
+        
+        try {
+            log.info("-----> [AdminService] Board 서비스(Core)에 신고 내역 요청 중...");
+            
+            // RestTemplate을 사용하여 GET 요청을 보내고 배열 형태로 응답을 받음
+            ReportBoardDTO[] response = restTemplate.getForObject(url, ReportBoardDTO[].class);
+            
+            if (response != null) {
+                log.info("-----> [AdminService] 신고 내역 수신 성공: {}건", response.length);
+                return Arrays.asList(response);
+            }
+            return Collections.emptyList();
+            
+        } catch (Exception e) {
+            log.error("-----> [AdminService] Board 서비스 호출 실패: {}", e.getMessage());
+            // 서비스 호출 실패 시 빈 리스트 반환 (시스템 중단 방지)
+            return Collections.emptyList
+			();
+        }
+    }
 	@Transactional
 	public void processApproval(ApprovalDTO dto, String routingKey, Long adminId) {		
 		updateApprovalStatus(dto, adminId);

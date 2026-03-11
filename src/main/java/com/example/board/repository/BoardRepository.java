@@ -8,4 +8,5 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
     List<Board> findAllByOrderByCreatedAtDesc();
     List<Board> findByCategoryOrderByCreatedAtDesc(String category);
     List<Board> findByCategoryAndArtistIdOrderByCreatedAtDesc(String category, Long artistId);
+
 }

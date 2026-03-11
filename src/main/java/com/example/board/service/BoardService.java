@@ -6,9 +6,12 @@ import com.example.board.dto.BoardResponseDTO;
 import com.example.board.entity.Board;
 import com.example.board.entity.Comment;
 import com.example.board.entity.LikeBoard;
+import com.example.board.entity.ReportBoard;
 import com.example.board.repository.BoardRepository;
 import com.example.board.repository.CommentRepository;
 import com.example.board.repository.LikeRepository;
+import com.example.board.repository.ReportRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,9 +30,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class BoardService {
 
-    private final BoardRepository boardRepository;
     private final LikeRepository likeRepository;
     private final CommentRepository commentRepository;
+    private final BoardRepository boardRepository;     // 조회용 (기존 필드)
+    private final ReportRepository reportRepository;   // 저장용 (새로 추가)
 
     @Value("${file.upload.dir}")
     private String uploadDir;
@@ -107,14 +111,18 @@ public class BoardService {
             throw new IllegalStateException("수정 권한이 없습니다.");
         }
 
-        // 엔티티 update 메서드 호출 
+        // 텍스트 정보 업데이트
         board.update(request.getTitle(), request.getContent(), request.getCategory());
-
+        // 파일 처리 로직
         if (file != null && !file.isEmpty()) {
             deletePhysicalFile(board.getStoredFilePath()); // 기존 파일 물리적 삭제
             String originalFileName = file.getOriginalFilename();
             String storedFilePath = saveFile(file); // 새 파일 저장 및 폴더 생성 체크
             board.updateFile(originalFileName, storedFilePath);
+        }else if (request.getFileDeleted() != null && request.getFileDeleted()) {
+            // [추가된 로직] 사용자가 파일을 삭제하고 싶다고 명시한 경우 (DTO에 필드 추가 필요)
+            deletePhysicalFile(board.getStoredFilePath());
+            board.updateFile(null, null); // DB 정보를 NULL로 변경
         }
 
         return BoardResponseDTO.builder().boardId(id).status("SUCCESS").message("수정되었습니다.").build();
@@ -159,7 +167,39 @@ public class BoardService {
         throw new IllegalArgumentException("게시글이 존재하지 않습니다.");
     }
     return commentRepository.findByBoardIdOrderByCreatedAtDesc(boardId);
+    }
+
+    // 게시글 신고
+    @Transactional
+    public String reportBoard(Long boardId, Long memberId, String reason){
+       log.info("-----> [신고 서비스 시작] 게시글: {}, 신고자: {}, 사유: {}", boardId, memberId, reason);
+
+        // 1. 중복 신고 체크 (ReportRepository 사용)
+        if (reportRepository.existsByBoardIdAndMemberId(boardId, memberId)) {
+            log.warn("-----> [신고 실패] 이미 신고된 게시글입니다.");
+            return "ALREADY_REPORTED";
+        }
+        // 2. 엔티티 생성 및 저장
+    try {
+        ReportBoard report = ReportBoard.builder()
+                .boardId(boardId)
+                .memberId(memberId)
+                .reason(reason != null ? reason : "사유 없음") // 사유가 null일 경우 대비
+                .build();
+        
+        reportRepository.save(report);
+        log.info("-----> [신고 저장 완료] DB 확인 필요");
+        return "SUCCESS";
+    } catch (Exception e) {
+        log.error("-----> [신고 저장 에러] 원인: {}", e.getMessage());
+        throw e; // 예외를 던져야 트랜잭션이 롤백되거나 에러 로그가 남습니다.
+    }
 }
+
+    // 신고리스트
+    public List<ReportBoard> getReportList(){
+        return reportRepository.findAllByOrderByCreatedAtDesc();
+    }
 
     // --- 내부 헬퍼 메서드 (중복 제거 및 가독성 향상) ---
 
@@ -201,7 +241,7 @@ public class BoardService {
                 .originalFileName(board.getOriginalFileName())
                 .storedFilePath(board.getStoredFilePath())
                 .createdAt(board.getCreatedAt())
-                .updatedAt(board.getUpdatedAt()) // DTO에 수정날짜 매핑 추가
+                .updatedAt(board.getUpdatedAt()) 
                 .build();
     }
 }

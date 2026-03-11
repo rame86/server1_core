@@ -6,6 +6,8 @@ import com.example.board.dto.BoardCreateRequest;
 import com.example.board.dto.BoardResponseDTO;
 import com.example.board.dto.CommentRequestDTO;
 import com.example.board.entity.Comment;
+import com.example.board.entity.ReportBoard;
+import com.example.board.repository.ReportRepository;
 import com.example.common.annotation.LoginUser;
 import com.example.member.dto.RedisMemberDTO;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 
 
-
 @Slf4j
 @RestController
 @RequestMapping("/board")
@@ -29,6 +30,7 @@ import java.util.Map;
 public class BoardController {
 
     private final BoardService boardService;
+    private final ReportRepository reportRepository;
 
     // 게시글 목록 조회
     @GetMapping("/list")
@@ -111,9 +113,35 @@ public class BoardController {
             @LoginUser RedisMemberDTO loginUser,
             @PathVariable(name = "id") Long id) {
 
-        if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        
+        if (loginUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         int updatedLikeCount = boardService.toggleLike(id, loginUser.getMemberId());
         return ResponseEntity.ok(updatedLikeCount);
     }
+    @PostMapping("/{id}/report")
+    public ResponseEntity<String> reportBoard(
+            @LoginUser RedisMemberDTO loginUser,
+            @PathVariable(name = "id") Long id,
+            @RequestBody Map<String, String> body) { // JSON으로 사유를 받음
+
+        if (loginUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        String reason = body.get("reason");
+        String result = boardService.reportBoard(id, loginUser.getMemberId(), reason);
+
+        if ("ALREADY_REPORTED".equals(result)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("이미 신고한 게시글입니다.");
+        }
+
+        return ResponseEntity.ok("신고가 접수되었습니다.");
+    }
+        // Board 서버의 관리자용 신고 목록 API
+        @GetMapping("/admin/reports")
+        public ResponseEntity<List<ReportBoard>> getAdminReportList() {
+    // DB 대신 빈 리스트를 반환해봅니다.
+    // 만약 이렇게 했을 때 포스트맨에 [] 가 잘 나오면 코드는 멀쩡하고 DB가 문제인 거예요!
+    return ResponseEntity.ok(new java.util.ArrayList<>()); 
+}
 }
