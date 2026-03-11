@@ -34,7 +34,7 @@ public class BoardService {
     @Value("${file.upload.dir}")
     private String uploadDir;
 
-    // 1. 목록 조회
+    // 전체 조회
     @Transactional(readOnly = true)
     public List<BoardDTO> getBoardList(String category) {
         String searchCategory = (category == null || category.isEmpty() || "전체".equals(category)) ? "전체" : category;
@@ -44,29 +44,26 @@ public class BoardService {
         return boards.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
-    // 2. 상세 조회
+    // 상세 조회
     @Transactional
     public BoardDTO getBoardDetail(Long id) {
         Board board = boardRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("게시글이 없습니다. ID: " + id));
-        board.setViewCount(board.getViewCount() + 1);
+        
+        // 엔티티의 비즈니스 로직 호출 (조회수 증가)
+        board.incrementViewCount();
         return convertToDTO(board);
     }
 
-    // 3. 작성 (BoardCreateRequest 사용)
+    // 게시글 작성
     @Transactional
     public BoardResponseDTO writeBoard(BoardCreateRequest request, MultipartFile file, Long memberId) throws IOException {
         String originalFileName = null;
         String storedFilePath = null;
 
         if (file != null && !file.isEmpty()) {
-            File folder = new File(uploadDir);
-            if (!folder.exists()) folder.mkdirs();
-
             originalFileName = file.getOriginalFilename();
-            String storedFileName = UUID.randomUUID().toString() + "_" + originalFileName;
-            storedFilePath = uploadDir + (uploadDir.endsWith("/") || uploadDir.endsWith("\\") ? "" : File.separator) + storedFileName;
-            file.transferTo(new File(storedFilePath));
+            storedFilePath = saveFile(file); // 여기서 폴더 생성 및 저장을 처리합니다.
         }
 
         Board board = Board.builder()
@@ -76,33 +73,31 @@ public class BoardService {
                 .memberId(memberId)
                 .originalFileName(originalFileName)
                 .storedFilePath(storedFilePath)
-                .viewCount(0).likeCount(0).commentCount(0)
                 .build();
 
         boardRepository.save(board);
         return BoardResponseDTO.builder().boardId(board.getBoardId()).status("SUCCESS").build();
     }
 
-    // 4. 삭제 (반환 타입 BoardResponseDTO로 일치)
+    // 게시글 삭제
     @Transactional
     public BoardResponseDTO deleteBoard(Long id, Long memberId, String role) {
         Board board = boardRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("삭제할 게시글이 없습니다."));
 
+        // 401/403 방지를 위한 권한 체크 로그
+        log.info("Delete Attempt - Board MemberId: {}, Request MemberId: {}, Role: {}", board.getMemberId(), memberId, role);
+        
         if (!board.getMemberId().equals(memberId) && !"ADMIN".equals(role)) {
             throw new IllegalStateException("삭제 권한이 없습니다.");
         }
 
-        if (board.getStoredFilePath() != null) {
-            File file = new File(board.getStoredFilePath());
-            if (file.exists()) file.delete();
-        }
-
+        deletePhysicalFile(board.getStoredFilePath());
         boardRepository.delete(board);
         return BoardResponseDTO.builder().boardId(id).status("SUCCESS").message("삭제되었습니다.").build();
     }
 
-    // 5. 수정 (파라미터 5개 버전으로 일치)
+    // 게시글 수정
     @Transactional
     public BoardResponseDTO updateBoard(Long id, BoardCreateRequest request, MultipartFile file, Long memberId, String role) throws IOException {
         Board board = boardRepository.findById(id)
@@ -112,46 +107,85 @@ public class BoardService {
             throw new IllegalStateException("수정 권한이 없습니다.");
         }
 
-        board.setTitle(request.getTitle());
-        board.setContent(request.getContent());
-        board.setCategory(request.getCategory());
+        // 엔티티 update 메서드 호출 
+        board.update(request.getTitle(), request.getContent(), request.getCategory());
 
         if (file != null && !file.isEmpty()) {
-            if (board.getStoredFilePath() != null) {
-                File oldFile = new File(board.getStoredFilePath());
-                if (oldFile.exists()) oldFile.delete();
-            }
+            deletePhysicalFile(board.getStoredFilePath()); // 기존 파일 물리적 삭제
             String originalFileName = file.getOriginalFilename();
-            String storedFileName = UUID.randomUUID().toString() + "_" + originalFileName;
-            String storedFilePath = uploadDir + (uploadDir.endsWith("/") ? "" : File.separator) + storedFileName;
-            file.transferTo(new File(storedFilePath));
-            board.setOriginalFileName(originalFileName);
-            board.setStoredFilePath(storedFilePath);
+            String storedFilePath = saveFile(file); // 새 파일 저장 및 폴더 생성 체크
+            board.updateFile(originalFileName, storedFilePath);
         }
 
         return BoardResponseDTO.builder().boardId(id).status("SUCCESS").message("수정되었습니다.").build();
     }
 
-    // 6. 좋아요 & 7. 댓글 (이미 일치함)
+    // 좋아요 
     @Transactional
-    public int toggleLike(Long boardId, Long memberId) {
+   public int toggleLike(Long boardId, Long memberId) {
         Board board = boardRepository.findById(boardId).orElseThrow();
         if (likeRepository.existsByBoardIdAndMemberId(boardId, memberId)) {
             likeRepository.deleteByBoardIdAndMemberId(boardId, memberId);
-            board.setLikeCount(Math.max(0, board.getLikeCount() - 1));
+            // 직접 setLikeCount 하지 않고 엔티티 메서드 호출
+            board.updateLikeCount(false); 
         } else {
             likeRepository.save(LikeBoard.builder().boardId(boardId).memberId(memberId).build());
-            board.setLikeCount(board.getLikeCount() + 1);
+            // 직접 setLikeCount 하지 않고 엔티티 메서드 호출
+            board.updateLikeCount(true); 
         }
         return board.getLikeCount();
     }
 
+    // 게시글 댓글 작성 
     @Transactional
     public int addComment(Long boardId, Long memberId, String content) {
-        Board board = boardRepository.findById(boardId).orElseThrow();
-        commentRepository.save(Comment.builder().boardId(boardId).memberId(memberId).content(content).build());
-        board.setCommentCount(board.getCommentCount() + 1);
+        Board board = boardRepository.findById(boardId)
+        .orElseThrow(()-> new IllegalArgumentException("게시글이 없습니다."));
+        commentRepository.save(Comment.builder()
+                         .boardId(boardId)
+                         .memberId(memberId)
+                         .content(content)
+                         .build());
+        // 댓글 수 증가
+        board.updateCommentCount(true); 
         return board.getCommentCount();
+    }
+
+    // 댓글 목록 조회
+    @Transactional(readOnly = true)
+    public List<Comment> getComments(Long boardId) {
+       // 게시글 존재 여부 먼저 확인 (선택 사항)
+    if (!boardRepository.existsById(boardId)) {
+        throw new IllegalArgumentException("게시글이 존재하지 않습니다.");
+    }
+    return commentRepository.findByBoardIdOrderByCreatedAtDesc(boardId);
+}
+
+    // --- 내부 헬퍼 메서드 (중복 제거 및 가독성 향상) ---
+
+    // 파일 저장 로직 (폴더 생성 포함)
+    private String saveFile(MultipartFile file) throws IOException {
+        File folder = new File(uploadDir);
+        if (!folder.exists()) {
+            folder.mkdirs(); // 기존에 있던 폴더 생성 로직을 여기로 모았습니다.
+        }
+
+        String originalFileName = file.getOriginalFilename();
+        String storedFileName = UUID.randomUUID().toString() + "_" + originalFileName;
+        String storedFilePath = uploadDir + (uploadDir.endsWith(File.separator) ? "" : File.separator) + storedFileName;
+        
+        file.transferTo(new File(storedFilePath));
+        return storedFilePath;
+    }
+
+    // 물리적 파일 삭제 로직
+    private void deletePhysicalFile(String filePath) {
+        if (filePath != null) {
+            File file = new File(filePath);
+            if (file.exists()) {
+                file.delete();
+            }
+        }
     }
 
     private BoardDTO convertToDTO(Board board) {
@@ -167,6 +201,7 @@ public class BoardService {
                 .originalFileName(board.getOriginalFileName())
                 .storedFilePath(board.getStoredFilePath())
                 .createdAt(board.getCreatedAt())
+                .updatedAt(board.getUpdatedAt()) // DTO에 수정날짜 매핑 추가
                 .build();
     }
 }
