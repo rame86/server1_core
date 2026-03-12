@@ -3,13 +3,17 @@ package com.example.board.service;
 import com.example.board.dto.BoardCreateRequest;
 import com.example.board.dto.BoardDTO;
 import com.example.board.dto.BoardResponseDTO;
+import com.example.board.dto.CommentResponseDTO;
+import com.example.board.dto.ReportBoardDTO; // 추가
 import com.example.board.entity.Board;
 import com.example.board.entity.Comment;
 import com.example.board.entity.LikeBoard;
-import com.example.board.entity.ReportBoard;
+import com.example.board.entity.ReportComment;
+import com.example.board.entity.BoardReport;
 import com.example.board.repository.BoardRepository;
 import com.example.board.repository.CommentRepository;
 import com.example.board.repository.LikeRepository;
+import com.example.board.repository.ReportCommentRepository;
 import com.example.board.repository.ReportRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -34,6 +38,7 @@ public class BoardService {
     private final CommentRepository commentRepository;
     private final BoardRepository boardRepository;     // 조회용 (기존 필드)
     private final ReportRepository reportRepository;   // 저장용 (새로 추가)
+    private final ReportCommentRepository reportCommentRepository; // 댓글 신고용 레포지토리 추가
 
     @Value("${file.upload.dir}")
     private String uploadDir;
@@ -42,19 +47,17 @@ public class BoardService {
     @Transactional(readOnly = true)
     public List<BoardDTO> getBoardList(String category) {
         String searchCategory = (category == null || category.isEmpty() || "전체".equals(category)) ? "전체" : category;
-        List<Board> boards = "전체".equals(searchCategory) 
-                ? boardRepository.findAllByOrderByCreatedAtDesc() 
-                : boardRepository.findByCategoryOrderByCreatedAtDesc(searchCategory);
+        List<Board> boards = "전체".equals(searchCategory) ?
+        // 2. [수정 로직] hidden이 false인 데이터만 조회함
+            boardRepository.findByHiddenFalseOrderByCreatedAtDesc() : 
+            boardRepository.findByCategoryAndHiddenFalseOrderByCreatedAtDesc(searchCategory);
         return boards.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
     // 상세 조회
     @Transactional
     public BoardDTO getBoardDetail(Long id) {
-        Board board = boardRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("게시글이 없습니다. ID: " + id));
-        
-        // 엔티티의 비즈니스 로직 호출 (조회수 증가)
+        Board board = boardRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("게시글 없음"));
         board.incrementViewCount();
         return convertToDTO(board);
     }
@@ -62,22 +65,13 @@ public class BoardService {
     // 게시글 작성
     @Transactional
     public BoardResponseDTO writeBoard(BoardCreateRequest request, MultipartFile file, Long memberId) throws IOException {
-        String originalFileName = null;
-        String storedFilePath = null;
-
-        if (file != null && !file.isEmpty()) {
-            originalFileName = file.getOriginalFilename();
-            storedFilePath = saveFile(file); // 여기서 폴더 생성 및 저장을 처리합니다.
-        }
+        String originalFileName = (file != null && !file.isEmpty()) ? file.getOriginalFilename() : null;
+        String storedFilePath = (file != null && !file.isEmpty()) ? saveFile(file) : null;
 
         Board board = Board.builder()
-                .title(request.getTitle())
-                .content(request.getContent())
-                .category(request.getCategory())
-                .memberId(memberId)
-                .originalFileName(originalFileName)
-                .storedFilePath(storedFilePath)
-                .build();
+                .title(request.getTitle()).content(request.getContent())
+                .category(request.getCategory()).memberId(memberId)
+                .originalFileName(originalFileName).storedFilePath(storedFilePath).build();
 
         boardRepository.save(board);
         return BoardResponseDTO.builder().boardId(board.getBoardId()).status("SUCCESS").build();
@@ -110,7 +104,6 @@ public class BoardService {
         if (!board.getMemberId().equals(memberId) && !"ADMIN".equals(role)) {
             throw new IllegalStateException("수정 권한이 없습니다.");
         }
-
         // 텍스트 정보 업데이트
         board.update(request.getTitle(), request.getContent(), request.getCategory());
         // 파일 처리 로직
@@ -130,7 +123,7 @@ public class BoardService {
 
     // 좋아요 
     @Transactional
-   public int toggleLike(Long boardId, Long memberId) {
+    public int toggleLike(Long boardId, Long memberId) {
         Board board = boardRepository.findById(boardId).orElseThrow();
         if (likeRepository.existsByBoardIdAndMemberId(boardId, memberId)) {
             likeRepository.deleteByBoardIdAndMemberId(boardId, memberId);
@@ -148,7 +141,7 @@ public class BoardService {
     @Transactional
     public int addComment(Long boardId, Long memberId, String content) {
         Board board = boardRepository.findById(boardId)
-        .orElseThrow(()-> new IllegalArgumentException("게시글이 없습니다."));
+            .orElseThrow(()-> new IllegalArgumentException("게시글이 없습니다."));
         commentRepository.save(Comment.builder()
                          .boardId(boardId)
                          .memberId(memberId)
@@ -161,30 +154,32 @@ public class BoardService {
 
     // 댓글 목록 조회
     @Transactional(readOnly = true)
-    public List<Comment> getComments(Long boardId) {
-       // 게시글 존재 여부 먼저 확인 (선택 사항)
-    if (!boardRepository.existsById(boardId)) {
-        throw new IllegalArgumentException("게시글이 존재하지 않습니다.");
+   public List<CommentResponseDTO> getComments(Long boardId) {
+        if (!boardRepository.existsById(boardId)) throw new IllegalArgumentException("게시글 없음");
+        return commentRepository.findByBoardIdOrderByCreatedAtDesc(boardId)
+                .stream().map(CommentResponseDTO::from).toList();
     }
-    return commentRepository.findByBoardIdOrderByCreatedAtDesc(boardId);
-    }
-
     // 게시글 신고
     @Transactional
     public String reportBoard(Long boardId, Long memberId, String reason){
        log.info("-----> [신고 서비스 시작] 게시글: {}, 신고자: {}, 사유: {}", boardId, memberId, reason);
 
-        // 1. 중복 신고 체크 (ReportRepository 사용)
+        // 1. 게시글 존재 여부 확인 
+        if (!boardRepository.existsById(boardId)) {
+            throw new IllegalArgumentException("존재하지 않는 게시글입니다.");
+        }
+        // 2. 중복 신고 체크 (ReportRepository 사용)
         if (reportRepository.existsByBoardIdAndMemberId(boardId, memberId)) {
             log.warn("-----> [신고 실패] 이미 신고된 게시글입니다.");
             return "ALREADY_REPORTED";
         }
         // 2. 엔티티 생성 및 저장
     try {
-        ReportBoard report = ReportBoard.builder()
+        BoardReport report = BoardReport.builder()
                 .boardId(boardId)
                 .memberId(memberId)
                 .reason(reason != null ? reason : "사유 없음") // 사유가 null일 경우 대비
+                .status("PENDING")
                 .build();
         
         reportRepository.save(report);
@@ -195,12 +190,42 @@ public class BoardService {
         throw e; // 예외를 던져야 트랜잭션이 롤백되거나 에러 로그가 남습니다.
     }
 }
-
-    // 신고리스트
-    public List<ReportBoard> getReportList(){
-        return reportRepository.findAllByOrderByCreatedAtDesc();
+    @Transactional
+    public String reportComment(Long commentId, Long memberId, String reason) {
+        if (!commentRepository.existsById(commentId)) throw new IllegalArgumentException("댓글 없음");
+        if (reportCommentRepository.existsByCommentIdAndMemberId(commentId, memberId)) return "ALREADY_REPORTED";
+        reportCommentRepository.save(ReportComment.builder().commentId(commentId).memberId(memberId).reason(reason != null ? reason : "사유 없음").status("PENDING").build());
+        return "SUCCESS";
     }
 
+    // 게시글 신고 목록 조회
+    @Transactional(readOnly = true)
+    public List<ReportBoardDTO> getBoardReportList() {
+        return reportRepository.findAllByOrderByCreatedAtDesc().stream().map(this::convertToReportDTO).collect(Collectors.toList());
+    }
+
+    // 댓글 신고 목록 조회
+    @Transactional(readOnly = true)
+    public List<ReportComment> getCommentReportList() {
+        return reportCommentRepository.findAll();
+    }
+    // 게시글 신고 승인
+    @Transactional
+    public void approveReport(Long reportId) {
+        BoardReport report = reportRepository.findById(reportId).orElseThrow();
+        report.approve();
+        boardRepository.findById(report.getBoardId()).ifPresent(Board::hideBoard);
+    }
+
+    // 댓글 신고 승인
+    @Transactional
+    public void approveCommentReport(Long reportId) {
+        ReportComment report = reportCommentRepository.findById(reportId).orElseThrow();
+        report.approve();
+        // 댓글 엔티티에 hide()가 있다면 호출, 없다면 삭제 혹은 별도 처리 필요
+        commentRepository.findById(report.getCommentId()).ifPresent(c -> {
+        });
+    }
     // --- 내부 헬퍼 메서드 (중복 제거 및 가독성 향상) ---
 
     // 파일 저장 로직 (폴더 생성 포함)
@@ -222,26 +247,15 @@ public class BoardService {
     private void deletePhysicalFile(String filePath) {
         if (filePath != null) {
             File file = new File(filePath);
-            if (file.exists()) {
-                file.delete();
-            }
+            if (file.exists()) file.delete();
         }
     }
 
     private BoardDTO convertToDTO(Board board) {
-        return BoardDTO.builder()
-                .boardId(board.getBoardId())
-                .title(board.getTitle())
-                .content(board.getContent())
-                .category(board.getCategory())
-                .memberId(board.getMemberId())
-                .viewCount(board.getViewCount())
-                .likeCount(board.getLikeCount())
-                .commentCount(board.getCommentCount())
-                .originalFileName(board.getOriginalFileName())
-                .storedFilePath(board.getStoredFilePath())
-                .createdAt(board.getCreatedAt())
-                .updatedAt(board.getUpdatedAt()) 
-                .build();
+        return BoardDTO.builder().boardId(board.getBoardId()).title(board.getTitle()).content(board.getContent()).category(board.getCategory()).memberId(board.getMemberId()).viewCount(board.getViewCount()).likeCount(board.getLikeCount()).commentCount(board.getCommentCount()).originalFileName(board.getOriginalFileName()).storedFilePath(board.getStoredFilePath()).createdAt(board.getCreatedAt()).updatedAt(board.getUpdatedAt()).build();
+    }
+
+    private ReportBoardDTO convertToReportDTO(BoardReport report) {
+        return ReportBoardDTO.builder().reportId(report.getReportId()).boardId(report.getBoardId()).memberId(report.getMemberId()).reason(report.getReason()).status(report.getStatus()).createdAt(report.getCreatedAt()).build();
     }
 }

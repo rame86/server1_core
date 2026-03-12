@@ -5,8 +5,9 @@ import com.example.board.dto.BoardDTO;
 import com.example.board.dto.BoardCreateRequest;
 import com.example.board.dto.BoardResponseDTO;
 import com.example.board.dto.CommentRequestDTO;
+import com.example.board.dto.CommentResponseDTO;
 import com.example.board.entity.Comment;
-import com.example.board.entity.ReportBoard;
+import com.example.board.entity.BoardReport;
 import com.example.board.repository.ReportRepository;
 import com.example.common.annotation.LoginUser;
 import com.example.member.dto.RedisMemberDTO;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 
+
 @Slf4j
 @RestController
 @RequestMapping("/board")
@@ -30,7 +32,6 @@ import java.util.Map;
 public class BoardController {
 
     private final BoardService boardService;
-    private final ReportRepository reportRepository;
 
     // 게시글 목록 조회
     @GetMapping("/list")
@@ -102,10 +103,10 @@ public class BoardController {
     }
     // 댓글 목록 조회 
     @GetMapping("/{id}/comments")
-    public ResponseEntity<List<Comment>> getComment(@PathVariable(name = "id") Long boardId) {
-    List<Comment> comments = boardService.getComments(boardId);
-    return ResponseEntity.ok(comments);
-}
+   public ResponseEntity<List<CommentResponseDTO>> getComments(@PathVariable(name = "id") Long id) {
+        List<CommentResponseDTO> comments = boardService.getComments(id);
+        return ResponseEntity.ok(comments);
+    }
 
     // 하트 클릭 (좋아요 토글)
     @PostMapping("/{id}/like")
@@ -119,6 +120,8 @@ public class BoardController {
         int updatedLikeCount = boardService.toggleLike(id, loginUser.getMemberId());
         return ResponseEntity.ok(updatedLikeCount);
     }
+
+    // 게시글 신고
     @PostMapping("/{id}/report")
     public ResponseEntity<String> reportBoard(
             @LoginUser RedisMemberDTO loginUser,
@@ -137,11 +140,33 @@ public class BoardController {
 
         return ResponseEntity.ok("신고가 접수되었습니다.");
     }
-        // Board 서버의 관리자용 신고 목록 API
-        @GetMapping("/admin/reports")
-        public ResponseEntity<List<ReportBoard>> getAdminReportList() {
-    // DB 대신 빈 리스트를 반환해봅니다.
-    // 만약 이렇게 했을 때 포스트맨에 [] 가 잘 나오면 코드는 멀쩡하고 DB가 문제인 거예요!
-    return ResponseEntity.ok(new java.util.ArrayList<>()); 
-}
+       // [관리자] 게시글 신고 목록 조회
+    @GetMapping("/admin/reports/boards")
+    public ResponseEntity<?> getBoardReports(@LoginUser RedisMemberDTO loginUser) {
+        if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return ResponseEntity.ok(boardService.getBoardReportList());
+    }
+
+    // [관리자] 댓글 신고 목록 조회
+    @GetMapping("/admin/reports/comments")
+    public ResponseEntity<?> getCommentReports(@LoginUser RedisMemberDTO loginUser) {
+        if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return ResponseEntity.ok(boardService.getCommentReportList());
+    }
+
+    // [관리자] 게시글 신고 승인
+    @PutMapping("/admin/reports/boards/{reportId}/approve")
+    public ResponseEntity<String> approveBoardReport(@LoginUser RedisMemberDTO loginUser, @PathVariable(name = "reportId") Long reportId) {
+        if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        boardService.approveReport(reportId);
+        return ResponseEntity.ok("게시글 신고가 승인되었습니다.");
+    }
+
+    // [관리자] 댓글 신고 승인
+    @PutMapping("/admin/reports/comments/{reportId}/approve")
+    public ResponseEntity<String> approveCommentReport(@LoginUser RedisMemberDTO loginUser, @PathVariable(name = "reportId") Long reportId) {
+        if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        boardService.approveCommentReport(reportId);
+        return ResponseEntity.ok("댓글 신고가 승인되었습니다.");
+    }
 }
