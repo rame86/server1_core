@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "board", schema = "board") // DB 테이블 이름
+@Table(name = "board_report", schema = "board") // DB 테이블 이름
 public class BoardReport {
 
     @Id
