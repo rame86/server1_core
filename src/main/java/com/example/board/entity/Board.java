@@ -46,7 +46,7 @@ public class Board {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
     
-    @Column(name = "is_hidden", nullable = false)
+    @Column(name = "hidden", nullable = false)
     private boolean hidden = false;
 
     public void hideBoard(){
