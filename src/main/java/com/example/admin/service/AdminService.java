@@ -32,7 +32,7 @@ public class AdminService {
 	private final RabbitTemplate rabbitTemplate;
 	private final StringRedisTemplate redisTemplate;
 	private final PayClient payClient;
-	
+
 	@Transactional
 	public void processApproval(ApprovalDTO dto, String routingKey, Long adminId) {		
 		Long eventId = updateApprovalStatus(dto, adminId);
