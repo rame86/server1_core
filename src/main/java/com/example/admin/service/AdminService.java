@@ -1,6 +1,8 @@
 package com.example.admin.service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -9,13 +11,14 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.admin.client.PayClient;
 import com.example.admin.dto.AdminEventListDTO;
 import com.example.admin.dto.ApprovalDTO;
 import com.example.admin.dto.EventResultDTO;
+import com.example.admin.dto.SettlementDashboardResponse;
 import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
 import com.example.config.RabbitMQConfig;
-import com.fasterxml.jackson.core.JsonProcessingException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +31,7 @@ public class AdminService {
 	private final ApprovalRepository approvalRepository;
 	private final RabbitTemplate rabbitTemplate;
 	private final StringRedisTemplate redisTemplate;
+	private final PayClient payClient;
 	
 	@Transactional
 	public void processApproval(ApprovalDTO dto, String routingKey, Long adminId) {		
@@ -77,6 +81,13 @@ public class AdminService {
                     .stock(currentStock) // Redis 데이터 합체
                     .build();
 		}).collect(Collectors.toList());
+	}
+	
+	public SettlementDashboardResponse getDashboardData(String yearMonth) {
+		if(yearMonth == null || yearMonth.isBlank()) {
+			yearMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+		}
+		return payClient.getDashboardData(yearMonth);
 	}
 	
 }

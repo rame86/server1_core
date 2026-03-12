@@ -7,10 +7,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.admin.dto.AdminEventListDTO;
 import com.example.admin.dto.EventResultDTO;
+import com.example.admin.dto.SettlementDashboardResponse;
 import com.example.admin.dto.ShopResultDTO;
 import com.example.admin.service.AdminService;
 import com.example.common.annotation.LoginUser;
@@ -43,10 +45,17 @@ public class AdminController {
 	}
 	
 	@GetMapping("/event/list")
-	public ResponseEntity<List<AdminEventListDTO>> getEventList(){
+	public ResponseEntity<List<AdminEventListDTO>> getEventList() {
 		log.info("=====> [1서버 관리자] 전체 이벤트 리스트 조회 요청");
 		List<AdminEventListDTO> list = adminService.getAllEvents();
 		return ResponseEntity.ok(list);
+	}
+	
+	@GetMapping("/settlement/stats")
+	public ResponseEntity<SettlementDashboardResponse> getStats(@RequestParam(value = "yearMonth", required = false) String yearMonth) {
+		log.info("=====> [1서버 관리자] 통합 대시보드 데이터 요청 (기간: {})", yearMonth);
+		SettlementDashboardResponse response = adminService.getDashboardData(yearMonth);
+		return ResponseEntity.ok(response);
 	}
 	
 }
