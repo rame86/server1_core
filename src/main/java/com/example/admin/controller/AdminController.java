@@ -14,7 +14,7 @@ import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.ReportBoardDTO;
 import com.example.admin.dto.ShopResultDTO;
 import com.example.admin.service.AdminService;
-import com.example.board.entity.ReportBoard;
+import com.example.board.entity.BoardReport;
 import com.example.common.annotation.LoginUser;
 import com.example.config.RabbitMQConfig;
 import com.example.member.dto.RedisMemberDTO;
