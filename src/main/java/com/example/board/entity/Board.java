@@ -8,10 +8,7 @@ import lombok.*;
 
 @Entity
 @Table(name="board", schema = "board")
-@Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor
-@Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Board {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -46,13 +43,9 @@ public class Board {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
     
-    @Column(name = "hidden", nullable = false)
-    private boolean hidden = false;
-
-    public void hideBoard(){
-        this.hidden = true;
-    }
-
+    @Builder.Default
+    @Column(name = "status", nullable = false)
+    private String status = "ACTIVE"; // 기본값을 ACTIVE로 설정
 
     // --- view count ---
     public void incrementViewCount() {

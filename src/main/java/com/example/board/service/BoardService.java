@@ -48,9 +48,8 @@ public class BoardService {
     public List<BoardDTO> getBoardList(String category) {
         String searchCategory = (category == null || category.isEmpty() || "전체".equals(category)) ? "전체" : category;
         List<Board> boards = "전체".equals(searchCategory) ?
-        // 2. [수정 로직] hidden이 false인 데이터만 조회함
             boardRepository.findByHiddenFalseOrderByCreatedAtDesc() : 
-            boardRepository.findByCategoryAndHiddenFalseOrderByCreatedAtDesc(searchCategory);
+            boardRepository.findByCategoryAndHiddenFalseOrderByCreatedAtDesc(category);
         return boards.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
@@ -146,6 +145,7 @@ public class BoardService {
                          .boardId(boardId)
                          .memberId(memberId)
                          .content(content)
+                         .status("ACTIVE") // 초기 상태 설정
                          .build());
         // 댓글 수 증가
         board.updateCommentCount(true); 
@@ -159,91 +159,87 @@ public class BoardService {
         return commentRepository.findByBoardIdOrderByCreatedAtDesc(boardId)
                 .stream().map(CommentResponseDTO::from).toList();
     }
-    // 게시글 신고
+    /// 게시글 신고
     @Transactional
-    public String reportBoard(Long boardId, Long memberId, String reason){
-       log.info("-----> [신고 서비스 시작] 게시글: {}, 신고자: {}, 사유: {}", boardId, memberId, reason);
+    public String reportBoard(Long boardId, Long memberId, String reason) {
+        if (!boardRepository.existsById(boardId)) throw new IllegalArgumentException("존재하지 않는 게시글입니다.");
+        if (reportRepository.existsByBoardIdAndMemberId(boardId, memberId)) return "ALREADY_REPORTED";
 
-        // 1. 게시글 존재 여부 확인 
-        if (!boardRepository.existsById(boardId)) {
-            throw new IllegalArgumentException("존재하지 않는 게시글입니다.");
-        }
-        // 2. 중복 신고 체크 (ReportRepository 사용)
-        if (reportRepository.existsByBoardIdAndMemberId(boardId, memberId)) {
-            log.warn("-----> [신고 실패] 이미 신고된 게시글입니다.");
-            return "ALREADY_REPORTED";
-        }
-        // 2. 엔티티 생성 및 저장
-    try {
         BoardReport report = BoardReport.builder()
                 .boardId(boardId)
                 .memberId(memberId)
-                .reason(reason != null ? reason : "사유 없음") // 사유가 null일 경우 대비
+                .reason(reason != null ? reason : "사유 없음")
                 .status("PENDING")
                 .build();
         
         reportRepository.save(report);
-        log.info("-----> [신고 저장 완료] DB 확인 필요");
         return "SUCCESS";
-    } catch (Exception e) {
-        log.error("-----> [신고 저장 에러] 원인: {}", e.getMessage());
-        throw e; // 예외를 던져야 트랜잭션이 롤백되거나 에러 로그가 남습니다.
     }
-}
+
+    // 댓글 신고
     @Transactional
     public String reportComment(Long commentId, Long memberId, String reason) {
         if (!commentRepository.existsById(commentId)) throw new IllegalArgumentException("댓글 없음");
         if (reportCommentRepository.existsByCommentIdAndMemberId(commentId, memberId)) return "ALREADY_REPORTED";
-        reportCommentRepository.save(ReportComment.builder().commentId(commentId).memberId(memberId).reason(reason != null ? reason : "사유 없음").status("PENDING").build());
+        
+        reportCommentRepository.save(ReportComment.builder()
+                .commentId(commentId)
+                .memberId(memberId)
+                .reason(reason != null ? reason : "사유 없음")
+                .status("PENDING")
+                .build());
         return "SUCCESS";
     }
 
-    // 게시글 신고 목록 조회
+    // 신고 목록 조회들
     @Transactional(readOnly = true)
     public List<ReportBoardDTO> getBoardReportList() {
-        return reportRepository.findAllByOrderByCreatedAtDesc().stream().map(this::convertToReportDTO).collect(Collectors.toList());
+        return reportRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(this::convertToReportDTO).collect(Collectors.toList());
     }
 
-    // 댓글 신고 목록 조회
     @Transactional(readOnly = true)
     public List<ReportComment> getCommentReportList() {
         return reportCommentRepository.findAll();
     }
-    // 게시글 신고 승인
-    @Transactional
+
+    // 게시글 신고 승인 처리
     public void approveReport(Long reportId) {
-        BoardReport report = reportRepository.findById(reportId).orElseThrow();
-        report.approve();
-        boardRepository.findById(report.getBoardId()).ifPresent(Board::hideBoard);
+        // 1. 신고 내역 조회
+        BoardReport report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new RuntimeException("신고 내역을 찾을 수 없습니다."));
+        report.approve(); // 2. 신고 상태 변경
+        // 3. 대상 게시글 상태 변경 (숨김 처리)
+        Board board = boardRepository.findById(report.getBoardId())
+                .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
+        board.setStatus("HIDDEN"); // 관리자 승인 시 숨김
     }
 
-    // 댓글 신고 승인
-    @Transactional
+    // 댓글 신고 승인 처리
     public void approveCommentReport(Long reportId) {
-        ReportComment report = reportCommentRepository.findById(reportId).orElseThrow();
+        // 1. 댓글 신고 내역 조회
+        ReportComment report = reportCommentRepository.findById(reportId)
+                .orElseThrow(() -> new RuntimeException("댓글 신고 내역을 찾을 수 없습니다."));
+        // 2. 신고 상태 변경
         report.approve();
-        // 댓글 엔티티에 hide()가 있다면 호출, 없다면 삭제 혹은 별도 처리 필요
-        commentRepository.findById(report.getCommentId()).ifPresent(c -> {
-        });
+        // 3. 대상 댓글 상태 변경 (숨김 처리)
+        Comment comment = commentRepository.findById(report.getCommentId())
+                .orElseThrow(() -> new RuntimeException("댓글을 찾을 수 없습니다."));
+        comment.setStatus("HIDDEN");
     }
-    // --- 내부 헬퍼 메서드 (중복 제거 및 가독성 향상) ---
 
-    // 파일 저장 로직 (폴더 생성 포함)
+// --- 내부 헬퍼 메서드 ---
+
     private String saveFile(MultipartFile file) throws IOException {
         File folder = new File(uploadDir);
-        if (!folder.exists()) {
-            folder.mkdirs(); // 기존에 있던 폴더 생성 로직을 여기로 모았습니다.
-        }
+        if (!folder.exists()) folder.mkdirs();
 
-        String originalFileName = file.getOriginalFilename();
-        String storedFileName = UUID.randomUUID().toString() + "_" + originalFileName;
-        String storedFilePath = uploadDir + (uploadDir.endsWith(File.separator) ? "" : File.separator) + storedFileName;
-        
+        String storedFileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+        String storedFilePath = uploadDir + File.separator + storedFileName;
         file.transferTo(new File(storedFilePath));
         return storedFilePath;
     }
 
-    // 물리적 파일 삭제 로직
     private void deletePhysicalFile(String filePath) {
         if (filePath != null) {
             File file = new File(filePath);
@@ -252,10 +248,19 @@ public class BoardService {
     }
 
     private BoardDTO convertToDTO(Board board) {
-        return BoardDTO.builder().boardId(board.getBoardId()).title(board.getTitle()).content(board.getContent()).category(board.getCategory()).memberId(board.getMemberId()).viewCount(board.getViewCount()).likeCount(board.getLikeCount()).commentCount(board.getCommentCount()).originalFileName(board.getOriginalFileName()).storedFilePath(board.getStoredFilePath()).createdAt(board.getCreatedAt()).updatedAt(board.getUpdatedAt()).build();
+        return BoardDTO.builder()
+                .boardId(board.getBoardId()).title(board.getTitle())
+                .content(board.getContent()).category(board.getCategory())
+                .memberId(board.getMemberId()).viewCount(board.getViewCount())
+                .likeCount(board.getLikeCount()).commentCount(board.getCommentCount())
+                .originalFileName(board.getOriginalFileName()).storedFilePath(board.getStoredFilePath())
+                .createdAt(board.getCreatedAt()).updatedAt(board.getUpdatedAt()).build();
     }
 
     private ReportBoardDTO convertToReportDTO(BoardReport report) {
-        return ReportBoardDTO.builder().reportId(report.getReportId()).boardId(report.getBoardId()).memberId(report.getMemberId()).reason(report.getReason()).status(report.getStatus()).createdAt(report.getCreatedAt()).build();
+        return ReportBoardDTO.builder()
+                .reportId(report.getReportId()).boardId(report.getBoardId())
+                .memberId(report.getMemberId()).reason(report.getReason())
+                .status(report.getStatus()).createdAt(report.getCreatedAt()).build();
     }
 }

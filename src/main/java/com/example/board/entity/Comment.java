@@ -7,12 +7,9 @@ import java.time.OffsetDateTime;
 
 @Entity
 @Table(name="board_comment", schema = "board")
-@Getter @Setter @Builder
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Comment {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long commentId;
 
     private Long boardId;
@@ -23,4 +20,9 @@ public class Comment {
 
     @CreationTimestamp
     private OffsetDateTime createdAt;
+
+    @Builder.Default
+    @Column(name = "status", nullable = false)
+    private String status = "ACTIVE"; // 기본값을 ACTIVE로 설정
 }
+
