@@ -18,6 +18,8 @@ import com.example.board.repository.ReportRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,17 +41,27 @@ public class BoardService {
     private final BoardRepository boardRepository;     // 조회용 (기존 필드)
     private final ReportRepository reportRepository;   // 저장용 (새로 추가)
     private final ReportCommentRepository reportCommentRepository; // 댓글 신고용 레포지토리 추가
+    private final RabbitTemplate rabbitTemplate; // RabbitMQ 템플릿 주입
 
     @Value("${file.upload.dir}")
     private String uploadDir;
 
+    // RabbitMQ 리스너로부터 호출될 실제 승인 처리 로직
+    @Transactional
+    public void hideBoardByMessage(Long boardId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다. ID: " + boardId));
+        board.hideBoard(); // hidden = true
+        log.info("메시지 수신: 게시글 ID {} 가 숨김 처리되었습니다.", boardId);
+    }
+   
     // 전체 조회
     @Transactional(readOnly = true)
     public List<BoardDTO> getBoardList(String category) {
         String searchCategory = (category == null || category.isEmpty() || "전체".equals(category)) ? "전체" : category;
         List<Board> boards = "전체".equals(searchCategory) ?
-            boardRepository.findByHiddenFalseOrderByCreatedAtDesc() : 
-            boardRepository.findByCategoryAndHiddenFalseOrderByCreatedAtDesc(category);
+            boardRepository.findByStatusOrderByCreatedAtDesc("ACTIVE") : 
+            boardRepository.findByCategoryAndStatusOrderByCreatedAtDesc(category, "ACTIVE");
         return boards.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
@@ -159,7 +171,7 @@ public class BoardService {
         return commentRepository.findByBoardIdOrderByCreatedAtDesc(boardId)
                 .stream().map(CommentResponseDTO::from).toList();
     }
-    /// 게시글 신고
+    // 게시글 신고
     @Transactional
     public String reportBoard(Long boardId, Long memberId, String reason) {
         if (!boardRepository.existsById(boardId)) throw new IllegalArgumentException("존재하지 않는 게시글입니다.");
@@ -212,20 +224,26 @@ public class BoardService {
         // 3. 대상 게시글 상태 변경 (숨김 처리)
         Board board = boardRepository.findById(report.getBoardId())
                 .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
-        board.setStatus("HIDDEN"); // 관리자 승인 시 숨김
-    }
 
+        // 3. RabbitMQ로 메시지 전송 (이 부분이 "전화를 거는" 역할)
+        // exchange 이름과 routingKey는 설정하신 값에 맞춰주세요.
+        rabbitTemplate.convertAndSend("board.exchange", "board.hide", board.getBoardId());
+        
+        log.info("관리자 승인: 신고 ID {} 승인. RabbitMQ로 게시글 ID {} 숨김 요청 전송", reportId, board.getBoardId());
+    }
     // 댓글 신고 승인 처리
     public void approveCommentReport(Long reportId) {
-        // 1. 댓글 신고 내역 조회
         ReportComment report = reportCommentRepository.findById(reportId)
                 .orElseThrow(() -> new RuntimeException("댓글 신고 내역을 찾을 수 없습니다."));
-        // 2. 신고 상태 변경
+        
         report.approve();
-        // 3. 대상 댓글 상태 변경 (숨김 처리)
+
         Comment comment = commentRepository.findById(report.getCommentId())
                 .orElseThrow(() -> new RuntimeException("댓글을 찾을 수 없습니다."));
+        
+        // Comment 엔티티에도 status 필드나 hidden 필드가 있다면 그에 맞춰 수정
         comment.setStatus("HIDDEN");
+        log.info("관리자 승인: 댓글 신고 ID {} 승인 완료", reportId);
     }
 
 // --- 내부 헬퍼 메서드 ---
