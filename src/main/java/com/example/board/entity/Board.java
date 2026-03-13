@@ -47,7 +47,7 @@ public class Board {
     private OffsetDateTime updatedAt;
     
     @Builder.Default
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = false, length = 20)
     private String status = "ACTIVE"; // 기본값을 ACTIVE로 설정
 
     //status 필드를 "HIDDEN"으로 변경
