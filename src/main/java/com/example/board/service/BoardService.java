@@ -243,6 +243,7 @@ public class BoardService {
         
         // Comment 엔티티에도 status 필드나 hidden 필드가 있다면 그에 맞춰 수정
         comment.hideComment();
+        
         log.info("관리자 승인: 댓글 신고 ID {} 승인 완료", reportId);
     }
 
