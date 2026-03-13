@@ -30,17 +30,20 @@ public class Approval {
 	private Long approvalId;
 	
 	private String category;  // EVNET, SHOTP, PAY 등
-	private Long targetId; // 2서버의 원본 데이터ID
-	private String title;
+	private Long targetId; // 2서버의 PK
+	private String title; // 리스트에 보여줄 제목
 	private String status; // PENDING, CONFIRMED, FAILED(거절)
-	private String location;
-	private Long price;
+	
+	private String location; // 장소
+	private Long price; // 금액
+	private Integer stock; // 재고
+	private String imageUrl; // 썸네일(?)
 	
 	@Column(name = "event_start_date")
-    private LocalDateTime eventStartDate;
+    private LocalDateTime eventStartDate; //이벤트 시작일
 	
 	@Column(columnDefinition = "TEXT")
-	private String contentJson;
+	private String contentJson; // 위 필드를 제외한 나머지 상세 정보
 	
 	private Long artistId; // 신청자 ID
 	private Long adminId; //관리자 ID
@@ -48,7 +51,6 @@ public class Approval {
 	
 	@CreationTimestamp
 	private LocalDateTime createdAt;
-	
 	private LocalDateTime processedAt; // 승인, 거절 처리 일시
 
 }

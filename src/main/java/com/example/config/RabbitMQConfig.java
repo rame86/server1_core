@@ -41,6 +41,12 @@ public class RabbitMQConfig {
     public static final String BOARD_REPORT_APPROVE_QUEUE_NAME = "board.report.approve.queue";
     public static final String BOARD_REPORT_APPROVE_ROUTING_KEY = "board.report.approve.key";
     
+    // 환불 요청 관련
+    public static final String REFUND_REQ_ROUTING_KEY = "refund.req.core";
+    public static final String REFUND_REQ_QUEUE_NAME = "refund.req.core.queue";
+    public static final String REFUND_RES_ROUTING_KEY = "refund.res.core";
+    public static final String REFUND_RES_QUEUE_NAME = "refund.res.core.queue";
+    
     @Bean
     public DirectExchange exchange() {
         return new DirectExchange(EXCHANGE_NAME);
@@ -129,6 +135,27 @@ public class RabbitMQConfig {
     @Bean
     public Binding boardReplyBinding(@Qualifier("boardReplyQueue") Queue queue, DirectExchange exchange) {
         return BindingBuilder.bind(queue).to(exchange).with(BOARD_RES_ROUTING_KEY);
+    }
+    
+    // 환불 요청
+    @Bean
+    public Queue refundRequestQueue() {
+        return new Queue(REFUND_REQ_QUEUE_NAME, true);
+    }
+
+    @Bean
+    public Binding refundRequestBinding(@Qualifier("refundRequestQueue") Queue queue, DirectExchange exchange) {
+        return BindingBuilder.bind(queue).to(exchange).with(REFUND_REQ_ROUTING_KEY);
+    }
+    
+    @Bean
+    public Queue refundReplyQueue() {
+        return new Queue(REFUND_RES_QUEUE_NAME, true);
+    }
+
+    @Bean
+    public Binding refundReplyBinding(@Qualifier("refundReplyQueue") Queue queue, DirectExchange exchange) {
+        return BindingBuilder.bind(queue).to(exchange).with(REFUND_RES_ROUTING_KEY);
     }
  
     // 메시지 발행 시 객체를 JSON 포맷으로 변환
