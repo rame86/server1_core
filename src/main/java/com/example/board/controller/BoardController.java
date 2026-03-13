@@ -5,7 +5,10 @@ import com.example.board.dto.BoardDTO;
 import com.example.board.dto.BoardCreateRequest;
 import com.example.board.dto.BoardResponseDTO;
 import com.example.board.dto.CommentRequestDTO;
+import com.example.board.dto.CommentResponseDTO;
 import com.example.board.entity.Comment;
+import com.example.board.entity.BoardReport;
+import com.example.board.repository.ReportRepository;
 import com.example.common.annotation.LoginUser;
 import com.example.member.dto.RedisMemberDTO;
 import lombok.RequiredArgsConstructor;
@@ -100,10 +103,10 @@ public class BoardController {
     }
     // 댓글 목록 조회 
     @GetMapping("/{id}/comments")
-    public ResponseEntity<List<Comment>> getComment(@PathVariable(name = "id") Long boardId) {
-    List<Comment> comments = boardService.getComments(boardId);
-    return ResponseEntity.ok(comments);
-}
+   public ResponseEntity<List<CommentResponseDTO>> getComments(@PathVariable(name = "id") Long id) {
+        List<CommentResponseDTO> comments = boardService.getComments(id);
+        return ResponseEntity.ok(comments);
+    }
 
     // 하트 클릭 (좋아요 토글)
     @PostMapping("/{id}/like")
@@ -111,9 +114,59 @@ public class BoardController {
             @LoginUser RedisMemberDTO loginUser,
             @PathVariable(name = "id") Long id) {
 
-        if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        
+        if (loginUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         int updatedLikeCount = boardService.toggleLike(id, loginUser.getMemberId());
         return ResponseEntity.ok(updatedLikeCount);
+    }
+
+    // 게시글 신고
+    @PostMapping("/{id}/report")
+    public ResponseEntity<String> reportBoard(
+            @LoginUser RedisMemberDTO loginUser,
+            @PathVariable(name = "id") Long id,
+            @RequestBody Map<String, String> body) { // JSON으로 사유를 받음
+
+        if (loginUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        String reason = body.get("reason");
+        String result = boardService.reportBoard(id, loginUser.getMemberId(), reason);
+
+        if ("ALREADY_REPORTED".equals(result)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("이미 신고한 게시글입니다.");
+        }
+
+        return ResponseEntity.ok("신고가 접수되었습니다.");
+    }
+       // [관리자] 게시글 신고 목록 조회
+    @GetMapping("/admin/reports/boards")
+    public ResponseEntity<?> getBoardReports(@LoginUser RedisMemberDTO loginUser) {
+        if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return ResponseEntity.ok(boardService.getBoardReportList());
+    }
+
+    // [관리자] 댓글 신고 목록 조회
+    @GetMapping("/admin/reports/comments")
+    public ResponseEntity<?> getCommentReports(@LoginUser RedisMemberDTO loginUser) {
+        if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return ResponseEntity.ok(boardService.getCommentReportList());
+    }
+
+    // [관리자] 게시글 신고 승인
+    @PutMapping("/admin/reports/boards/{reportId}/approve")
+    public ResponseEntity<String> approveBoardReport(@LoginUser RedisMemberDTO loginUser, @PathVariable(name = "reportId") Long reportId) {
+        if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        boardService.approveReport(reportId);
+        return ResponseEntity.ok("게시글 신고가 승인되었습니다.");
+    }
+
+    // [관리자] 댓글 신고 승인
+    @PutMapping("/admin/reports/comments/{reportId}/approve")
+    public ResponseEntity<String> approveCommentReport(@LoginUser RedisMemberDTO loginUser, @PathVariable(name = "reportId") Long reportId) {
+        if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        boardService.approveCommentReport(reportId);
+        return ResponseEntity.ok("댓글 신고가 승인되었습니다.");
     }
 }

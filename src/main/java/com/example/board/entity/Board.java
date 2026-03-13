@@ -46,6 +46,14 @@ public class Board {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
     
+    @Column(name = "hidden", nullable = false)
+    private boolean hidden = false;
+
+    public void hideBoard(){
+        this.hidden = true;
+    }
+
+
     // --- view count ---
     public void incrementViewCount() {
         this.viewCount = (this.viewCount == null) ? 1 : this.viewCount + 1;

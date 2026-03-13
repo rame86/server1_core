@@ -30,6 +30,12 @@ public class RabbitMQConfig {
     public static final String SHOP_REQ_QUEUE_NAME = "shop.request.queue";
     public static final String SHOP_RES_ROUTING_KEY="shop.res.core";
     public static final String SHOP_RES_QUEUE_NAME="shop.res.core.queue";
+
+    // 게시판(Board) 관련 추가
+    public static final String BOARD_REQ_ROUTING_KEY = "admin.board.request";
+    public static final String BOARD_REQ_QUEUE_NAME = "admin.board.request.queue";
+    public static final String BOARD_RES_ROUTING_KEY = "board.res.core";
+    public static final String BOARD_RES_QUEUE_NAME = "board.res.core.queue";
     
     @Bean
     public DirectExchange exchange() {
@@ -87,6 +93,27 @@ public class RabbitMQConfig {
     @Bean
     public Binding shopReplyBinding(@Qualifier("shopReplyQueue") Queue queue, DirectExchange exchange) {
     	return BindingBuilder.bind(queue).to(exchange).with(SHOP_RES_ROUTING_KEY);
+    }
+
+    // 게시판(Board) 관련 Bean 추가
+    @Bean
+    public Queue boardRequestQueue() {
+        return new Queue(BOARD_REQ_QUEUE_NAME, true);
+    }
+
+    @Bean
+    public Binding boardRequestBinding(@Qualifier("boardRequestQueue") Queue queue, DirectExchange exchange) {
+        return BindingBuilder.bind(queue).to(exchange).with(BOARD_REQ_ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue boardReplyQueue() {
+        return new Queue(BOARD_RES_QUEUE_NAME, true);
+    }
+
+    @Bean
+    public Binding boardReplyBinding(@Qualifier("boardReplyQueue") Queue queue, DirectExchange exchange) {
+        return BindingBuilder.bind(queue).to(exchange).with(BOARD_RES_ROUTING_KEY);
     }
  
     // 메시지 발행 시 객체를 JSON 포맷으로 변환
