@@ -7,8 +7,11 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name="board", schema = "board")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(name = "board", schema = "board")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Builder
 public class Board {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -47,6 +50,11 @@ public class Board {
     @Column(name = "status", nullable = false)
     private String status = "ACTIVE"; // 기본값을 ACTIVE로 설정
 
+    //status 필드를 "HIDDEN"으로 변경
+    public void hideBoard() {
+        this.status = "HIDDEN";
+    }
+    
     // --- view count ---
     public void incrementViewCount() {
         this.viewCount = (this.viewCount == null) ? 1 : this.viewCount + 1;
