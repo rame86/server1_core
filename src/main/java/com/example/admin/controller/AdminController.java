@@ -11,10 +11,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.admin.dto.AdminEventListDTO;
+import com.example.admin.dto.AdminRefundResponseDTO;
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.ReportBoardDTO;
 import com.example.admin.dto.SettlementDashboardResponse;
 import com.example.admin.dto.ShopResultDTO;
+import com.example.admin.service.AdminRefundService;
 import com.example.admin.service.AdminService;
 import com.example.common.annotation.LoginUser;
 import com.example.config.RabbitMQConfig;
@@ -31,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 public class AdminController {
 	
 	private final AdminService adminService;
+	private final AdminRefundService adminRefundService;
 	
 	@PostMapping("/event/confirm")
 	public ResponseEntity<String> confirmEvent(@RequestBody EventResultDTO dto, @LoginUser RedisMemberDTO user) {
@@ -58,6 +61,14 @@ public class AdminController {
 		log.info("=====> [1서버 관리자] 통합 대시보드 데이터 요청 (기간: {})", yearMonth);
 		SettlementDashboardResponse response = adminService.getDashboardData(yearMonth);
 		return ResponseEntity.ok(response);
+	}
+	
+	@PostMapping("/refund")
+	public ResponseEntity<String> approveRefund(@RequestBody AdminRefundResponseDTO dto, @LoginUser RedisMemberDTO user) {
+		log.info("=====> [1서버 관리자] 결정 전송 요청: {}", dto);
+		if(user.getMemberId() != null) dto.setAdminId(user.getMemberId());
+		adminRefundService.approveRefund(dto);
+		return ResponseEntity.ok("REFUND 처리 완료");
 	}
 
 	// 게시글 신고 추가
