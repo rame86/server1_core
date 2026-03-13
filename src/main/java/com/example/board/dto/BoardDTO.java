@@ -14,6 +14,7 @@ public class BoardDTO {
     private String category;    
     private String title;
     private String content;
+    private String status;
     
     // 작성자 식별자
     private Long memberId;     

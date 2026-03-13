@@ -7,12 +7,12 @@ import java.time.OffsetDateTime;
 
 @Entity
 @Table(name="board_comment", schema = "board")
-@Getter @Setter @Builder
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor
+@Getter 
+@NoArgsConstructor(access = AccessLevel.PROTECTED) // 직접 생성을 막음
+@AllArgsConstructor 
+@Builder
 public class Comment {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long commentId;
 
     private Long boardId;
@@ -23,4 +23,15 @@ public class Comment {
 
     @CreationTimestamp
     private OffsetDateTime createdAt;
+
+    @Builder.Default
+    @Column(name = "status", nullable = false)
+    private String status = "ACTIVE"; // 기본값을 ACTIVE로 설정
+
+    // [추가] Board와 형식을 맞춘 상태 변경 메서드
+    public void hideComment() {
+        this.status = "HIDDEN";
+    }
+    
 }
+

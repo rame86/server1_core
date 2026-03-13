@@ -7,7 +7,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name="board", schema = "board")
+@Table(name = "board", schema = "board")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -46,14 +46,15 @@ public class Board {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
     
-    @Column(name = "hidden", nullable = false)
-    private boolean hidden = false;
+    @Builder.Default
+    @Column(name = "status", nullable = false, length = 20)
+    private String status = "ACTIVE"; // 기본값을 ACTIVE로 설정
 
-    public void hideBoard(){
-        this.hidden = true;
+    //status 필드를 "HIDDEN"으로 변경
+    public void hideBoard() {
+        this.status = "HIDDEN";
     }
-
-
+    
     // --- view count ---
     public void incrementViewCount() {
         this.viewCount = (this.viewCount == null) ? 1 : this.viewCount + 1;
