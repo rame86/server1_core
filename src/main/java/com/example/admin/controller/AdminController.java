@@ -20,6 +20,7 @@ import com.example.member.dto.RedisMemberDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+
 @Slf4j
 @RestController
 @RequestMapping("/admin")
@@ -43,7 +44,7 @@ public class AdminController {
 	}
 	
 	@GetMapping("/event/list")
-	public ResponseEntity<List<AdminEventListDTO>> getEventList(){
+	public ResponseEntity<List<AdminEventListDTO>> getEventList() {
 		log.info("=====> [1서버 관리자] 전체 이벤트 리스트 조회 요청");
 		List<AdminEventListDTO> list = adminService.getAllEvents();
 		return ResponseEntity.ok(list);

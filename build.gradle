@@ -4,6 +4,10 @@ plugins {
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
+ext {
+	set('springCloudVersion', "2025.0.1")
+}
+
 group = 'com.example'
 version = '0.0.1-SNAPSHOT'
 description = 'Demo project for Spring Boot'
@@ -68,6 +72,16 @@ dependencies {
     
     // WebClient 사용을 위한 WebFlux 의존성 추가
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    
+    // FeignClient 의존성 추가
+    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+}
+
+// Spring Cloud 전체 버전 관리 (BOM) 추가 - 매우 중요!
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
 }
 
 tasks.named('test') {
