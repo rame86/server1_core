@@ -54,11 +54,19 @@ public class AdminController {
 	}
 	
 	@GetMapping("/settlement/stats")
-	public ResponseEntity<SettlementDashboardResponse> getStats(@RequestParam(value = "yearMonth", required = false) String yearMonth) {
-		log.info("=====> [1서버 관리자] 통합 대시보드 데이터 요청 (기간: {})", yearMonth);
-		SettlementDashboardResponse response = adminService.getDashboardData(yearMonth);
-		return ResponseEntity.ok(response);
-	}
+	public ResponseEntity<SettlementDashboardResponse> getSettlementStats() {
+    log.info("=====> [core 서비스 관리자] 통합 대시보드 데이터 HTTP 요청 발생");
+    
+    // 1. RabbitMQ로 비동기 데이터 요청 전송 (return void)
+    adminService.requestDashboardData();
+    
+    // 2. 비동기 요청이므로 당장 데이터를 받을 수 없습니다. 
+    // 현재는 테스트 목적이므로 HTTP 요청을 정상 종료시키기 위해 빈 객체를 반환합니다.
+    // (실제 넘어오는 데이터는 아래 리스너의 콘솔 로그에서 확인)
+    SettlementDashboardResponse response = new SettlementDashboardResponse(null, null); 
+    
+    return ResponseEntity.ok(response);
+}
 
 	// 게시글 신고 추가
 	@GetMapping("/board/reports")
