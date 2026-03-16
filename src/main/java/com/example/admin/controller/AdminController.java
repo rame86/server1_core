@@ -27,65 +27,68 @@ import com.example.member.dto.RedisMemberDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-
 @Slf4j
 @RestController
 @RequestMapping("/admin")
 @RequiredArgsConstructor
 public class AdminController {
-	
+
 	private final AdminService adminService;
 	private final AdminRefundService adminRefundService;
-	
+
 	@PostMapping("/event/confirm")
 	public ResponseEntity<String> confirmEvent(@RequestBody EventResultDTO dto, @LoginUser RedisMemberDTO user) {
 		log.info("=====> [1서버 관리자] 결정 전송 요청: {}", dto);
 		adminService.processApproval(dto, RabbitMQConfig.EVENT_RES_ROUTING_KEY, user.getMemberId());
 		return ResponseEntity.ok("EVENT 처리 완료");
 	}
-	
+
 	@PostMapping("/shop/confirm")
 	public ResponseEntity<String> confirmShop(@RequestBody ShopResultDTO dto, @LoginUser RedisMemberDTO user) {
 		log.info("=====> [1서버 관리자] 결정 전송 요청: {}", dto);
 		adminService.processApproval(dto, RabbitMQConfig.SHOP_RES_ROUTING_KEY, user.getMemberId());
 		return ResponseEntity.ok("SHOP 처리 완료");
 	}
-	
+
 	@GetMapping("/event/list")
 	public ResponseEntity<List<AdminEventListDTO>> getEventList() {
 		log.info("=====> [1서버 관리자] 전체 이벤트 리스트 조회 요청");
 		List<AdminEventListDTO> list = adminService.getAllEvents();
 		return ResponseEntity.ok(list);
 	}
-	
+
 	@GetMapping("/settlement/stats")
 	public ResponseEntity<SettlementDashboardResponse> getSettlementStats() {
-    log.info("=====> [core 서비스 관리자] 통합 대시보드 데이터 HTTP 요청 발생");
-    
-    // 1. RabbitMQ로 비동기 데이터 요청 전송 (return void)
-    adminService.requestDashboardData();
-    
-    // 2. 비동기 요청이므로 당장 데이터를 받을 수 없습니다. 
-    // 현재는 테스트 목적이므로 HTTP 요청을 정상 종료시키기 위해 빈 객체를 반환합니다.
-    // (실제 넘어오는 데이터는 아래 리스너의 콘솔 로그에서 확인)
-    SettlementDashboardResponse response = new SettlementDashboardResponse(null, null); 
-    
-    return ResponseEntity.ok(response);
-}
-	public ResponseEntity<SettlementDashboardResponse> getStats(@RequestParam(value = "yearMonth", required = false) String yearMonth) {
-		log.info("=====> [1서버 관리자] 통합 대시보드 데이터 요청 (기간: {})", yearMonth);
-		SettlementDashboardResponse response = adminService.getDashboardData(yearMonth);
+		log.info("=====> [core 서비스 관리자] 통합 대시보드 데이터 HTTP 요청 발생");
+
+		// 1. RabbitMQ로 비동기 데이터 요청 전송 (return void)
+		adminService.requestDashboardData();
+
+		// 2. 비동기 요청이므로 당장 데이터를 받을 수 없습니다.
+		// 현재는 테스트 목적이므로 HTTP 요청을 정상 종료시키기 위해 빈 객체를 반환합니다.
+		// (실제 넘어오는 데이터는 아래 리스너의 콘솔 로그에서 확인)
+		SettlementDashboardResponse response = new SettlementDashboardResponse(null, null);
+
 		return ResponseEntity.ok(response);
 	}
-	
+
+	// public ResponseEntity<SettlementDashboardResponse> getStats(
+	// 		@RequestParam(value = "yearMonth", required = false) String yearMonth) {
+	// 	log.info("=====> [1서버 관리자] 통합 대시보드 데이터 요청 (기간: {})", yearMonth);
+	// 	SettlementDashboardResponse response = adminService.getDashboardData(yearMonth);
+	// 	return ResponseEntity.ok(response);
+	// }
+
 	@PostMapping("/refund")
-	public ResponseEntity<String> approveRefund(@RequestBody AdminRefundResponseDTO dto, @LoginUser RedisMemberDTO user) {
+	public ResponseEntity<String> approveRefund(@RequestBody AdminRefundResponseDTO dto,
+			@LoginUser RedisMemberDTO user) {
 		log.info("=====> [1서버 관리자] 결정 전송 요청: {}", dto);
-		if(user.getMemberId() != null) dto.setAdminId(user.getMemberId());
+		if (user.getMemberId() != null)
+			dto.setAdminId(user.getMemberId());
 		adminRefundService.approveRefund(dto);
 		return ResponseEntity.ok("REFUND 처리 완료");
 	}
-	
+
 	@GetMapping("/approval/artists")
 	public ResponseEntity<List<ArtistResultDTO>> getPendingArtist() {
 		List<ArtistResultDTO> pendingList = adminService.getPendingArtistList("ARTIST", "PENDING");
@@ -97,8 +100,8 @@ public class AdminController {
 	public ResponseEntity<List<ReportBoardDTO>> getBoardReportList(@LoginUser RedisMemberDTO user) {
 		log.info("=====> [1서버 관리자] 게시글 신고 리스트 조회 요청자: {}", user.getMemberId());
 		// 서비스에서 DTO 리스트를 반환하므로 타입을 맞춰줍니다.
-		List<ReportBoardDTO> list = adminService.getBoardReports(); 
+		List<ReportBoardDTO> list = adminService.getBoardReports();
 		return ResponseEntity.ok(list);
 	}
-	
+
 }
