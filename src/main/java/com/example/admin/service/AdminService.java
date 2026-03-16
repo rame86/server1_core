@@ -1,9 +1,11 @@
 package com.example.admin.service;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -11,17 +13,11 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate; // 추가 필요
 import org.springframework.data.redis.core.StringRedisTemplate; // 추가 필요
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 
-import com.example.admin.client.PayClient;
 import com.example.admin.dto.AdminEventListDTO;
 import com.example.admin.dto.ApprovalDTO;
 import com.example.admin.dto.ArtistResultDTO;
-import com.example.admin.dto.BoardReportMessageDTO;
-import com.example.admin.dto.ReportBoardDTO;
-
 import com.example.admin.dto.EventResultDTO;
-import com.example.admin.dto.ReportBoardDTO;
 import com.example.admin.dto.SettlementDashboardResponse;
 import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
@@ -40,8 +36,8 @@ public class AdminService {
 	private final ApprovalRepository approvalRepository;
 	private final RabbitTemplate rabbitTemplate;
 	private final StringRedisTemplate redisTemplate;
-	private final PayClient payClient;
-	private final RestTemplate restTemplate; // 외부 호출용 도구
+	private final Map<String, CompletableFuture<SettlementDashboardResponse>> pendingRequests = new ConcurrentHashMap<>();
+	private static final int MQ_TIMEOUT_SECONDS = 1;
 
 	@Transactional
 	public void processApproval(ApprovalDTO dto, String routingKey, Long adminId) {
@@ -93,59 +89,56 @@ public class AdminService {
 		}).collect(Collectors.toList());
 	}
 
-	// 1. 기존 메서드는 요청만 보내고 끝냅니다 (return void)
-	public void requestDashboardData() {
+	public SettlementDashboardResponse requestDashboardData() {
+		String requestId = "ADMIN_SETTLEMENT_REQ";
+		CompletableFuture<SettlementDashboardResponse> future = new CompletableFuture<>();
+		pendingRequests.put(requestId, future);
+		
 		PaymentRequestDTO dto = PaymentRequestDTO.builder()
 				.type("ADMIN_SETTLEMENT")
 				.replyRoutingKey(RabbitMQConfig.ADMIN_PAY_RES_ROUTING_KEY)
 				.build();
-
-		// convertSendAndReceive 대신 convertAndSend 사용
 		rabbitTemplate.convertAndSend(
 				RabbitMQConfig.EXCHANGE_NAME,
 				RabbitMQConfig.PAY_REQ_ROUTING_KEY,
 				dto);
+		
+		try {
+			return future.get(MQ_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+		} catch (Exception e) {
+			pendingRequests.remove(requestId);
+			return new SettlementDashboardResponse(null, null);
+		}
 	}
 
 	@RabbitListener(queues = "admin.pay.res.core.queue")
 	public void receiveDashboardData(PaymentResponseDTO<SettlementDashboardResponse> response) {
 		log.info("=====> [RabbitMQ 비동기 응답 수신] 상세 데이터: {}", response);
+		
+        if ("COMPLETE".equals(response.status())) {
+            CompletableFuture<SettlementDashboardResponse> future = pendingRequests.remove("ADMIN_SETTLEMENT_REQ");
+            if (future != null) {
+                log.info("=====> [AdminService] 드디어 진짜 데이터를 찾음");
+                future.complete(response.payload()); // 여기서 기다리던 스레드가 깨어남!
+            }
+        } else {
+            log.info("=====> [AdminService] 접수 알림(PROCESSING) 더 기다림.");
+        }
 	}
 
-	////////////// 정은언니 BOARD////////////////////////
-
-	// public List<ArtistResultDTO> getPendingArtistList(String artist, String
-	// status) {
-	// List<Approval> entityList =
-	// approvalRepository.findByCategoryAndStatus(artist, status);
-	// return entityList.stream().map(entity -> ArtistResultDTO.builder()
-	// .approvalId(entity.getApprovalId())
-	// .artistName(entity.getRequesterName())
-	// .subCategory(entity.getSubCategory())
-	// .description(entity.getDescription())
-	// .imageUrl(entity.getImageUrl())
-	// .status(entity.getStatus())
-	// .createdAt(entity.getCreatedAt().toString())
-	// .rejectionReason(entity.getRejectionReason())
-	// .build()).toList();
-	// }
 	public List<ArtistResultDTO> getPendingArtistList(String artist, String status) {
 		List<Approval> entityList = approvalRepository.findByCategoryAndStatus(artist, status);
-
-		return entityList.stream()
-				.map(entity -> ArtistResultDTO.builder()
-						.approvalId(entity.getApprovalId())
-						.artistName(entity.getRequesterName())
-						.subCategory(entity.getSubCategory())
-						.description(entity.getDescription())
-						.imageUrl(entity.getImageUrl())
-						.status(entity.getStatus())
-						// Null 체크 추가 및 명시적 변환
-						.createdAt(entity.getCreatedAt() != null ? entity.getCreatedAt().toString() : null)
-						.rejectionReason(entity.getRejectionReason())
-						.build())
-				.collect(Collectors.toList()); // .toList() 대신 사용
+		return entityList.stream().map(entity -> ArtistResultDTO.builder()
+				.approvalId(entity.getApprovalId())
+				.artistName(entity.getRequesterName())
+				.subCategory(entity.getSubCategory())
+				.description(entity.getDescription())
+				.imageUrl(entity.getImageUrl())
+				.status(entity.getStatus())
+				.createdAt(entity.getCreatedAt().toString())
+				.rejectionReason(entity.getRejectionReason())
+				.build())
+				.collect(Collectors.toList());
 	}
-
 	
 }
