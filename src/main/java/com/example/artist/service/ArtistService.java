@@ -95,10 +95,10 @@ public class ArtistService {
 		PaymentRequestDTO requestDTO = PaymentRequestDTO.builder()
 				.orderId(orderId)
 				.memberId(memberId)
+				.artistId(artistId)
 				.amount(amount)
 				.type("DONATION")
-				.eventTitle(artistId + "번 아티스트 후원")
-				.artistId(artistId)
+				.eventTitle(artistId + "번 아티스트 후원")				
 				.replyRoutingKey(RabbitMQConfig.PAY_RES_ROUTING_KEY)
 				.build();
 		artistEventProducer.sendPaymentRequest(requestDTO);
