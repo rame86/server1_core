@@ -12,10 +12,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.admin.dto.AdminEventListDTO;
 import com.example.admin.dto.AdminRefundResponseDTO;
+import com.example.admin.dto.ArtistResultDTO;
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.ReportBoardDTO;
 import com.example.admin.dto.SettlementDashboardResponse;
 import com.example.admin.dto.ShopResultDTO;
+import com.example.admin.entity.Approval;
 import com.example.admin.service.AdminRefundService;
 import com.example.admin.service.AdminService;
 import com.example.common.annotation.LoginUser;
@@ -69,6 +71,12 @@ public class AdminController {
 		if(user.getMemberId() != null) dto.setAdminId(user.getMemberId());
 		adminRefundService.approveRefund(dto);
 		return ResponseEntity.ok("REFUND 처리 완료");
+	}
+	
+	@GetMapping("/approval/artists")
+	public ResponseEntity<List<ArtistResultDTO>> getPendingArtist() {
+		List<ArtistResultDTO> pendingList = adminService.getPendingArtistList("ARTIST", "PENDING");
+		return ResponseEntity.ok(pendingList);
 	}
 
 	// 게시글 신고 추가

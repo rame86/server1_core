@@ -38,6 +38,9 @@ public class Approval {
 	private Long price; // 금액
 	private Integer stock; // 재고
 	private String imageUrl; // 썸네일(?)
+	private String requesterName; //신청자 닉네임
+	private String subCategory; // 공식굿즈, 팬메이드
+	private String description; // 간단한 설명
 	
 	@Column(name = "event_start_date")
     private LocalDateTime eventStartDate; //이벤트 시작일
