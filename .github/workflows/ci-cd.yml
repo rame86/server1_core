@@ -4,7 +4,7 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - master
+      - rame
 
 jobs:
   build-and-deploy:
