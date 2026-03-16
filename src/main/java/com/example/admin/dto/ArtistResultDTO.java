@@ -17,8 +17,7 @@ public class ArtistResultDTO {
     private String subCategory;   // ECHO · 발라드
     private String description;   // 한 줄 소개
     private String imageUrl;      // 프로필 이미지
-    private String createdAt;     // 신청 일시
-    
+    private String createdAt;     // 신청 일시    
     private String status;           // PENDING, CONFIRMED, FAILED
     private String rejectionReason;  // 거절 사유
 }
