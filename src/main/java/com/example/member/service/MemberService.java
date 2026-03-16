@@ -195,8 +195,8 @@ public class MemberService {
 				.sameSite("Lax") // CSRF 공격 방지
 				.build();
 		response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+		log.info("-----> local 저장 정보 member_id:{} role:{} name:{}",member.getMemberId(),member.getRole(),member.getName());
 
-		log.info("*************************** local 저장 정보 member_id:{} role:{} name:{}",member.getMemberId(),member.getRole(),member.getName());
 		// 로컬 스토리지에 담을 정보들
 		return Map.of(
 				"message", message,

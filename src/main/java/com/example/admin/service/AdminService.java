@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.admin.dto.AdminEventListDTO;
 import com.example.admin.dto.ApprovalDTO;
+import com.example.admin.dto.ArtistApprovedEvent;
 import com.example.admin.dto.ArtistResultDTO;
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.SettlementDashboardResponse;
@@ -24,6 +25,8 @@ import com.example.admin.repository.ApprovalRepository;
 import com.example.artist.dto.PaymentRequestDTO;
 import com.example.artist.dto.PaymentResponseDTO;
 import com.example.config.RabbitMQConfig;
+import com.example.member.repository.MemberRepository;
+import com.example.member.domain.Member;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +41,7 @@ public class AdminService {
 	private final StringRedisTemplate redisTemplate;
 	private final Map<String, CompletableFuture<SettlementDashboardResponse>> pendingRequests = new ConcurrentHashMap<>();
 	private static final int MQ_TIMEOUT_SECONDS = 1;
+	private final MemberRepository memberRepository;
 
 	@Transactional
 	public void processApproval(ApprovalDTO dto, String routingKey, Long adminId) {
@@ -126,6 +130,7 @@ public class AdminService {
         }
 	}
 
+	// artist 승인 대기중인 목록
 	public List<ArtistResultDTO> getPendingArtistList(String artist, String status) {
 		List<Approval> entityList = approvalRepository.findByCategoryAndStatus(artist, status);
 		return entityList.stream().map(entity -> ArtistResultDTO.builder()
@@ -139,6 +144,49 @@ public class AdminService {
 				.rejectionReason(entity.getRejectionReason())
 				.build())
 				.collect(Collectors.toList());
+	}
+	
+	// artist 승인
+	@Transactional
+	public void confirmArtist(ArtistResultDTO dto, Long adminId) {
+		// 신청서 승인 상태로 변경
+		Approval approval = approvalRepository.findById(dto.getApprovalId())
+				.orElseThrow(() -> new IllegalArgumentException("신청서가 없습니다."));
+		approval.setStatus("CONFIRMED");
+		approval.setAdminId(adminId);
+		
+		// MEMBER테이블 권한 변경
+		Member member = memberRepository.findById(approval.getArtistId())
+				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+		member.setRole("ARTIST");
+		member.setStatus("ACTIVE");
+		
+		// 2서버로 메세지 발송
+		ArtistApprovedEvent event = ArtistApprovedEvent.builder()
+				.memberId(member.getMemberId())
+				.artistName(approval.getRequesterName())
+				.type("ARTIST_APPROVE")
+				.build();
+				
+		rabbitTemplate.convertAndSend(
+				RabbitMQConfig.EXCHANGE_NAME,
+				RabbitMQConfig.PAY_REQ_ROUTING_KEY, 
+				event);
+		
+		log.info("-----> [ARTIST 완료] 1서버 DB 갱신, 메세지 전송 완료");
+	}
+	
+	// artist 거절
+	@Transactional
+	public void rejectArtist(ArtistResultDTO dto, Long adminId) {
+		Approval approval = approvalRepository.findById(dto.getApprovalId())
+	            .orElseThrow(() -> new IllegalArgumentException("신청서가 없습니다."));
+		
+		approval.setStatus("REJECTED");
+		approval.setRejectionReason(dto.getRejectionReason());
+		approval.setAdminId(adminId);
+		
+		log.info("-----> [거절 완료] ID: {}, 사유: {}", dto.getApprovalId(), dto.getRejectionReason());
 	}
 	
 }
