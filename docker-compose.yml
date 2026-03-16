@@ -20,8 +20,7 @@ services:
     ports:
       - "8080:8080"
     networks:
-      - msa-network
-    # [추가된 부분] 로컬의 C:/msa_uploads 폴더를 컨테이너 내부와 연결합니다.
+      - msa-network    
     volumes:
       - /home/ubuntu/msa/storage:/home/ubuntu/msa/storage
     environment:
