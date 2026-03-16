@@ -1,0 +1,10 @@
+
+POST http://localhost/msa/res/reserve
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxNiIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzczMzA0MTM2LCJleHAiOjE3NzMzMDc3MzZ9.xLmMm4RBvXZyAhXpaK8wdQrjmwO9ksFgZOENwD_aABYldNCpCL_NngOSHLMe4u2n
+
+{
+  "event_id": 18,
+  "ticket_count": 2,
+  "member_id": 16
+} 

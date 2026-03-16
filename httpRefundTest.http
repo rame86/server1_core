@@ -1,0 +1,9 @@
+
+POST http://localhost/msa/res/refund
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxNiIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzcyNzcwNzY3LCJleHAiOjE3NzI3NzQzNjd9.kV-dRXbjKwVPDvDI0BTEgTLP5GdQQWGDdGINeD0Smhyzk7qUqOfZkO5ISVA8pgPa
+
+{
+  "ticket_code": "TKT-260306-6799",
+  "member_id": 16
+}

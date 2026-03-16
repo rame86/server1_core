@@ -1,13 +1,9 @@
 package com.example.member.controller;
 
-import java.time.Duration;
 import java.util.Map;
-import java.util.Optional;
 
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,181 +11,83 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.member.dto.MemberSignupRequest;
-import com.example.member.entity.Member;
-import com.example.member.entity.SocialAccount;
-import com.example.member.repository.MemberRepository;
-import com.example.member.repository.SocialAccountRepository;
 import com.example.member.service.MailSenderService;
-import com.example.security.JwtTokenProvider;
+import com.example.member.service.MemberService;
+import com.example.security.tokenProvider.JwtTokenProvider;
 
-import jakarta.transaction.Transactional;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-@CrossOrigin(origins = "http://localhost:3000")
 @RequestMapping("/member")
 @RequiredArgsConstructor
 @RestController
-@Transactional
 @Slf4j
 public class MemberController {
 	
-	private final MemberRepository memberRepository;
-    private final JwtTokenProvider jwtTokenProvider;
-	private final SocialAccountRepository socialAccountRepository;
-	private final PasswordEncoder passwordEncoder;
+	private final MemberService memberService;
 	private final MailSenderService mailSenderService;
-	private final StringRedisTemplate redisTemplate;
-     
-    @PostMapping("/signup")
-    public ResponseEntity<?> signup(@RequestBody MemberSignupRequest dto) {
-
-    	// Redis에서 해당 이메일의 인증번호 가져오기
-    	String saveCode = redisTemplate.opsForValue().get("CHECK:" + dto.getEmail());
-    	
-    	// 인증번호가 없거나(시간초과) 입력한 번호와 다르면 에러!
-    	if(saveCode == null || !saveCode.equals(dto.getAuthCode())) {
-    		return ResponseEntity.badRequest().body(Map.of("message", "인증번호가 일치하지 않거나 만료되었습니다."));
-    	}
-    	
-		Optional<Member> existingMember = memberRepository.findByEmail(dto.getEmail());
-		
-		// 기존 회원이 있는 경우
-		if(existingMember.isPresent()) {
-			Member member = existingMember.get();
-			
-			if(dto.getProvider() != null && !dto.getProviderId().isEmpty()) {
-				
-				// 소셜 계정이 이미 이 회원에게 연결되어 있는지 최종적으로 확인
-				Optional<SocialAccount> alreadyLinked = socialAccountRepository.findByProviderAndProviderId(dto.getProvider(), dto.getProviderId());
-
-				if(alreadyLinked.isEmpty()) {
-					SocialAccount socialAccount = new SocialAccount();
-		        	socialAccount.setProvider(dto.getProvider());
-		        	socialAccount.setProviderId(dto.getProviderId());
-		        	socialAccount.setMember(member);
-		        	
-		        	socialAccountRepository.save(socialAccount);
-				}
-				
-				log.info("인증 완료로 인한 Redis 키 삭제: {}", dto.getEmail());
-				redisTemplate.delete("CHECK:" + dto.getEmail());
-
-				return loginUser(member, "기존 계정에 소셜 정보가 연동되었습니다!");
-				
-			} else if(passwordEncoder.matches("SOCIAL_USER", member.getPassword())) {
-				
-				// 소셜 유저가 비밀번호 설정함
-				member.setPassword(passwordEncoder.encode(dto.getPassword()));
-				member.setName(dto.getName());
-				member.setPhone(dto.getPhone());
-				memberRepository.save(member);
-				
-				log.info("인증 완료로 인한 Redis 키 삭제: {}", dto.getEmail());
-				redisTemplate.delete("CHECK:" + dto.getEmail());
-				
-				return loginUser(member, "일반 로그인 설정이 완료되었습니다!");
-				
-			} else {
-				return ResponseEntity.badRequest().body(Map.of("message", "이미 가입된 이메일입니다."));
-			}
+	private final JwtTokenProvider jwtTokenProvider;
+	
+	// 인증 메일 발송
+	@PostMapping("/SendVerification")
+	public ResponseEntity<?> sendVerificationCode(@RequestParam("email") String email) {
+		try {
+			mailSenderService.sendVerificationCode(email);
+			return ResponseEntity.ok(Map.of("message", "인증번호가 발송되었습니다."));
+		} catch (RuntimeException e) {
+			return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
 		}
+	}
+	
+	// 회원 가입
+	@PostMapping("/signup")
+	public ResponseEntity<?> signup(@RequestBody MemberSignupRequest dto, HttpServletResponse response) {
+		Map<String, Object> result = memberService.registerMember(dto, response);
+		return ResponseEntity.ok(result);
+	}
+	
+	// 로그인
+	@PostMapping(value = "/login", produces = "application/json; charset=UTF-8")
+	public ResponseEntity<?> login(@RequestBody Map<String, String> loginData, HttpServletResponse response) {
+		try {
+			Map<String, Object> result = memberService.login(
+				loginData.get("email"), 
+				loginData.get("password"),
+				response
+			);
 
-		// 회원생성
-    	Member member = new Member();
-    	member.setEmail(dto.getEmail());
-    	member.setName(dto.getName());
-    	member.setPhone(dto.getPhone());
-    	member.setAddress(dto.getAddress());
-		member.setAge(dto.getAge());
-		member.setRole("USER");
-		
-		// 소셜계정 생성
-		if(dto.getProvider() != null && !dto.getProvider().isEmpty()) {
-			
-			SocialAccount socialAccount = new SocialAccount();
-			socialAccount.setProvider(dto.getProvider());
-			socialAccount.setProviderId(dto.getProviderId());
-			socialAccount.setMember(member); // 연관관계 설정
-
-			member.getSocialAccounts().add(socialAccount);	
-			member.setPassword(passwordEncoder.encode("SOCIAL_USER"));
-			
-			Member savedMember = memberRepository.save(member);
-			socialAccountRepository.save(socialAccount);
-			
-			log.info("-----> 소셜 계정 테이블 저장 완료: {}", dto.getProvider());
-	    	redisTemplate.delete("CHECK:" + dto.getEmail());
-	    	return loginUser(savedMember, "회원가입 성공! 환영합니다.");
-			
-		}else {
-			member.setPassword(passwordEncoder.encode(dto.getPassword()));
-	    	Member savedMember = memberRepository.save(member);
-	    	
-	    	log.info("인증 완료로 인한 Redis 키 삭제: {}", dto.getEmail());
-	    	redisTemplate.delete("CHECK:" + dto.getEmail());
-	    	return loginUser(savedMember, "회원가입 성공! 환영합니다.");
+			log.info("Controller 전송 직전 데이터 check - name: {}", result.get("name"));
+			return ResponseEntity.ok(result);
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
 		}
-    	
-    }
-    
-    // 인증메일
-    @PostMapping("/SendVerification")
-    public ResponseEntity<?> sendVerificationCode(@RequestParam("email")String email){
-    	// 1. 6자리 랜덤 인증번호 생성 (100000 ~ 999999)
-    	String verificationCode = String.valueOf((int)(Math.random() * 899999) + 100000);
-    	
-    	// 2. Redis에 저장하기(key : email, Value : 인증번호, 유효시간 : 5분)
-    	redisTemplate.opsForValue().set("CHECK:" + email, verificationCode, Duration.ofMinutes(5));
-    	log.info("-----> [Redis 저장] 이메일: {}, 인증번호: {}", email, verificationCode);
-    	        
-        // 3. 메일 발송
-        String title = "[TEST] 회원가입 인증번호입니다.";
-        String content = "안녕하세요! 인증번호는 [" + verificationCode + "] 입니다. \n5분 이내에 입력해 주세요.";
-    	
-        try {
-        	mailSenderService.sendEmail(email, title, content);
-            return ResponseEntity.ok(Map.of("message", "인증번호가 발송되었습니다."));
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("message", "메일 발송 실패: " + e.getMessage()));
-        }
-    }
-    
-    // 토큰을 만들고 redis에 저장한 뒤 응답 데이터 반환(로그인 처리) -> 우리사이트(?) 회원
-    private ResponseEntity<?> loginUser(Member member, String message) {
-    	String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
-    	String userInfo = member.getMemberId() + ":" + member.getRole();
-    	redisTemplate.opsForValue().set("TOKEN:" + jwtToken, userInfo, Duration.ofHours(1));
-    	
-    	log.info("-----> [로그인 처리 완료] 유저: {}, 토큰 저장됨", member.getEmail());
-    	
-    	return ResponseEntity.ok(Map.of(
-                "message", message,
-                "token", jwtToken,
-                "memberId", member.getMemberId(),
-                "role", member.getRole(),
-                "redirectUrl", "/"
-    	));
-    }
-    
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> loginData) {
-    	
-    	String email = loginData.get("email");
-    	String password = loginData.get("password");
-    	
-    	Optional<Member> memberOpt = memberRepository.findByEmail(email);
-    	if(memberOpt.isEmpty()) {
-    		return ResponseEntity.badRequest().body(Map.of("message", "존재하지 않는 계정입니다."));
-    	}
-    	
-    	Member member = memberOpt.get();
-    	if(!passwordEncoder.matches(password, member.getPassword())) {
-    		return ResponseEntity.badRequest().body(Map.of("message", "비밀번호가 일치하지 않습니다."));
-    	}
-    	
-    	return loginUser(member, "로그인 성공!");
-    	
-    }
+	}
+	
+	// 로그아웃
+	@PostMapping("/logout")
+	public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
+		String token = jwtTokenProvider.resolveToken(request);
+		if(token != null) {
+			memberService.logout(token, response);
+			return ResponseEntity.ok(Map.of("message", "로그아웃 성공!"));
+		}
+		return ResponseEntity.badRequest().body(Map.of("message", "토큰이 없습니다."));
+	}
+	
+	// 리프레시 토큰
+	@PostMapping("/refresh")
+	public ResponseEntity<?> refresh(@CookieValue(name = "refreshToken") String refreshToken,
+			HttpServletResponse response) {
+		if(refreshToken == null) return ResponseEntity.status(401).body(Map.of("message", "다시 로그인해주세요."));
+		try {
+	        // 서비스에서 재발급 로직 수행
+	        Map<String, Object> result = memberService.refreshToken(refreshToken, response);
+	        return ResponseEntity.ok(result);
+	    } catch (IllegalArgumentException e) {
+	        return ResponseEntity.status(401).body(Map.of("message", e.getMessage()));
+	    }
+	}
 
 }

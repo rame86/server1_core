@@ -1,7 +1,11 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '3.5.10'
+	id 'org.springframework.boot' version '3.5.11'
 	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+ext {
+	set('springCloudVersion', "2025.0.1")
 }
 
 group = 'com.example'
@@ -62,6 +66,22 @@ dependencies {
     
     // Redis를 사용하기 위한 핵심 라이브러리
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	
+	// Spring Boot Starter AMQP (RabbitMQ 등을 위한 핵심 의존성)
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+    
+    // WebClient 사용을 위한 WebFlux 의존성 추가
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    
+    // FeignClient 의존성 추가
+    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+}
+
+// Spring Cloud 전체 버전 관리 (BOM) 추가 - 매우 중요!
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
 }
 
 tasks.named('test') {

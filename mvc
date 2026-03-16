@@ -1,0 +1,29 @@
+# 스프링 프로젝트 기본 구조도
+src/main/java/com/project/service_name/
+├── common/                   # 공통 유틸, 예외 처리, 상수 등
+│   ├── exception/            # Custom Exception 클래스
+│   └── util/                 # 공통 유틸리티 (날짜, 문자열 등)
+├── controller/               # [Controller] HTTP 요청/응답 처리 
+│   └── MemberController.java
+├── service/                  # [Service] 비즈니스 로직 처리 및 트랜잭션 관리 [cite: 9]
+│   ├── MemberService.java    # Interface
+│   └── MemberServiceImpl.java
+├── repository/               # [Repository] MyBatis Mapper 인터페이스 (DAO 역할)
+│   └── MemberMapper.java
+└── dto/                      # Data Transfer Object (계층 간 데이터 전송 객체)
+    ├── request/              # 클라이언트 요청용 DTO
+    └── response/             # 서버 응답용 DTO (API 스펙 정의)
+
+src/main/resources/
+├── mappers/                  # MyBatis SQL XML 파일 위치 (쿼리문 작성)
+│   └── MemberMapper.xml
+├── static/                   # 정적 리소스 (이미지, JS, CSS)
+├── application.properties           # 환경 설정 (Spring Profile, DB 연결 등)
+├── application-dev.properties       # 환경 설정 (Spring Profile, DB 연결 등)
+└── application-prod.properties      # 운영 환경 배포용 설정
+
+
+.github/workflows
+└── ci-cd.yml   	          # git action 배포 설정 정의용 파일
+.env			              # 설정 파일
+Dockerfile                    # 컨테이너 빌드용 파일

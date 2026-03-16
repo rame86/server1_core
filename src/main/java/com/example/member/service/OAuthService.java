@@ -1,19 +1,15 @@
 package com.example.member.service;
 
-import java.io.IOException;
-import java.time.Duration;
+import java.util.Map;
 import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import com.example.member.domain.Member;
+import com.example.member.domain.SocialAccount;
 import com.example.member.dto.OAuthUserInfo;
-import com.example.member.entity.Member;
-import com.example.member.entity.SocialAccount;
 import com.example.member.repository.MemberRepository;
 import com.example.member.repository.SocialAccountRepository;
-import com.example.security.JwtTokenProvider;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
@@ -26,24 +22,16 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class OAuthService {
 
+    private final MemberService memberService;
 	private final MemberRepository memberRepository;
-    private final JwtTokenProvider jwtTokenProvider;
 	private final SocialAccountRepository socialAccountRepository;
-	private final StringRedisTemplate redisTemplate;
-    
-	@Value("${sign.up.url}")
-	private String signUpUrl;
-	@Value("${login.user.url}")
-	private String loginUrl;	
 
-    public void memberLogin(OAuthUserInfo userInfo, HttpServletResponse response) throws IOException {
-    	
+    public Map<String, Object> memberLogin(OAuthUserInfo userInfo, HttpServletResponse response) {
 		// 소셜계정으로 가입된 이력이 있는지 확인하기
 		Optional<SocialAccount> socialOpt = socialAccountRepository.findByProviderAndProviderId(userInfo.getProvider(), userInfo.getProviderId());
 		// 소셜로 가입/연동된 적이 있음
 		if(socialOpt.isPresent()) {
-			loginUser(socialOpt.get().getMember(), response);
-			return;
+			return memberService.loginResponse(socialOpt.get().getMember(), "소셜 로그인 성공", response);
 		}
 
 		if(userInfo.getEmail() != null && !userInfo.getEmail().trim().isEmpty()) {
@@ -53,14 +41,12 @@ public class OAuthService {
 				// 이메일이 있지만 해당 소셜 계정은 없을때
 				Member member = memberOpt.get();
 				linkSocialAccount(member, userInfo);
-				loginUser(member, response);
-				return;
+				return memberService.loginResponse(member, "연동 성공", response);
 			}
 		}
 		
 		// 신규회원
-		redirectSignup(userInfo, response);
-    	
+		return Map.of("status", "signup", "userInfo", userInfo);
     }
 
 	// 소셜 계정 연동
@@ -71,35 +57,6 @@ public class OAuthService {
 		social.setProviderId(userInfo.getProviderId());
 		socialAccountRepository.save(social);
 		log.info("---------> [계정 연동] 기존 이메일({})에 소셜({}) 연동 완료", member.getEmail(), userInfo.getProvider());
-	}
-
-	// 로그인 처리(JWT 발급 및 이동)
-	private void loginUser(Member member, HttpServletResponse response) throws IOException {
-		log.info("---------> [로그인 성공] JWT 발급: {}", member.getEmail());
-		String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
-		
-		// Redis에 유저 정보를 저장하고 공유
-		// Key를 "TOKEN:토큰값"으로 하고, Value를 "유저ID:역할"로 저장해서 다른 서비스가 읽게 합니다.
-		String userInfo = member.getMemberId() + ":" + member.getRole();
-	    redisTemplate.opsForValue().set("TOKEN:" + jwtToken, userInfo, Duration.ofHours(1));
-		
-		response.sendRedirect(loginUrl + jwtToken);
-	}
-
-	// 회원가입 페이지로 이동
-	private void redirectSignup(OAuthUserInfo userInfo, HttpServletResponse response) throws IOException {
-		log.info("---------> [신규 유저] 추가 정보 입력 페이지로 이동");
-
-		String email = (userInfo.getEmail() != null) ? userInfo.getEmail() : "";
-		String nickName = "";
-		if(userInfo.getNickname() != null) nickName = java.net.URLEncoder.encode(userInfo.getNickname(), java.nio.charset.StandardCharsets.UTF_8);
-
-    	String redirectUrl = signUpUrl
-        		+ "?email=" + email
-        		+ "&nickname=" + nickName
-        		+ "&provider=" + userInfo.getProvider()
-    			+ "&providerId=" + userInfo.getProviderId();
-       	response.sendRedirect(redirectUrl);
 	}
 
 }
