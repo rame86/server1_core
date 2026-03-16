@@ -1,22 +1,18 @@
 #core-service/ ci-cd.yml
 name: CI/CD Pipeline
 
-
 on:
   push:
     branches:
       - master
 
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -24,14 +20,11 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-
       - name: Build with Gradle
         run: ./gradlew build -x test
-
 
       - name: Login to DockerHub
         uses: docker/login-action@v3
@@ -39,15 +32,39 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-
       - name: Build and Push Docker Image
         run: |
           IMAGE_NAME=${{ secrets.DOCKER_USERNAME }}/server1_core
           docker build -t $IMAGE_NAME:latest .
           docker push $IMAGE_NAME:latest
 
+      # 1. GitHub Actions 러너의 공용 IP 가져오기
+      - name: Get Runner IP
+        id: ip
+        run: echo "ipv4=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
 
-      # Core Service 전용 디렉토리로 파일 전송
+      # 2. GCP 인증 (GCP_SA_KEY 시크릿 필요)
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      # 3. gcloud SDK 설정
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # 4. SSH 포트 일시 허용 (방화벽 규칙 생성)
+      - name: Open Firewall for Deployment
+        run: |
+          gcloud compute firewall-rules create allow-ssh-${{ github.run_id }} \
+            --direction=INGRESS \
+            --priority=100 \
+            --action=ALLOW \
+            --rules=tcp:22 \
+            --source-ranges=${{ steps.ip.outputs.ipv4 }}/32 \
+            --description="Temporary SSH access for GitHub Actions"
+
+      # 5. 파일 전송
       - name: Copy docker-compose to GCP
         uses: appleboy/scp-action@master
         with:
@@ -57,8 +74,7 @@ jobs:
           source: "docker-compose.yml"
           target: "/home/${{ secrets.GCP_USER }}/core-service/"
 
-
-      # GCP 서버 접속 및 무중단(에 가까운) 배포 실행
+      # 6. 원격 배포 실행
       - name: Deploy to GCP
         uses: appleboy/ssh-action@master
         with:
@@ -66,24 +82,20 @@ jobs:
           username: ${{ secrets.GCP_USER }}
           key: ${{ secrets.GCP_KEY }}                  
           script: |            
-            # 1. 작업 디렉토리 이동 및 생성
             mkdir -p /home/${{ secrets.GCP_USER }}/core-service
             cd /home/${{ secrets.GCP_USER }}/core-service
-           
-            # 2. 공통 네트워크 확인 및 생성
             docker network inspect msa-network >/dev/null 2>&1 || docker network create msa-network
-
-
-            # 3. .env 파일 동적 생성 (보안 및 실행 안정성 확보)
             echo "SPRING_PROFILES_ACTIVE=prod" > .env
             echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env
             echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
             echo "RABBITMQ_USER=${{ secrets.RABBITMQ_USER }}" >> .env
             echo "RABBITMQ_PASSWORD=${{ secrets.RABBITMQ_PASSWORD }}" >> .env
-           
-            # 4. 최신 이미지 풀 및 컨테이너 실행
             docker compose pull
             docker compose up -d
-           
-            # 5. 사용하지 않는 구형 이미지 정리 (용량 확보)
             docker image prune -f
+
+      # 7. 방화벽 규칙 삭제 (성공/실패 여부 상관없이 항상 실행)
+      - name: Close Firewall
+        if: always()
+        run: |
+          gcloud compute firewall-rules delete allow-ssh-${{ github.run_id }} --quiet
