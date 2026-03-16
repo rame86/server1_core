@@ -171,7 +171,7 @@ public class BoardService {
         return commentRepository.findByBoardIdOrderByCreatedAtDesc(boardId)
                 .stream().map(CommentResponseDTO::from).toList();
     }
-    // 게시글 신고
+    // 게시글 신고 접수
     @Transactional
     public String reportBoard(Long boardId, Long memberId, String reason) {
         if (!boardRepository.existsById(boardId)) throw new IllegalArgumentException("존재하지 않는 게시글입니다.");
@@ -188,7 +188,7 @@ public class BoardService {
         return "SUCCESS";
     }
 
-    // 댓글 신고
+    // 댓글 신고 접수
     @Transactional
     public String reportComment(Long commentId, Long memberId, String reason) {
         if (!commentRepository.existsById(commentId)) throw new IllegalArgumentException("댓글 없음");
@@ -215,7 +215,7 @@ public class BoardService {
         return reportCommentRepository.findAll();
     }
 
-    // 게시글 신고 승인 처리
+    // [관리자] 게시글 신고 승인 처리
     public void approveReport(Long reportId) {
         // 1. 신고 내역 조회
         BoardReport report = reportRepository.findById(reportId)
