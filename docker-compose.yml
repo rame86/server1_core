@@ -25,19 +25,14 @@ services:
     volumes:
       - /home/ubuntu/msa/storage:/home/ubuntu/msa/storage
     environment:
-      # 스프링 프로파일 설정
       SPRING_PROFILES_ACTIVE: prod
-      
-      # Redis 연결 정보
       SPRING_DATA_REDIS_HOST: msa-redis
       SPRING_DATA_REDIS_PORT: 6379
       
-      # DB 설정
-      SPRING_DATASOURCE_URL: jdbc:postgresql://main-db:5432/msa_core_db
+      # [수정] 호스트명을 main-db에서 실제 DB 컨테이너 이름인 msa_core_db로 변경
+      SPRING_DATASOURCE_URL: jdbc:postgresql://msa_core_db:5432/msa_core_db
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-      
-      # RabbitMQ 설정
       SPRING_RABBITMQ_HOST: rabbitmq
 
 networks:
