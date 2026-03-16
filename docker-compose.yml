@@ -23,7 +23,7 @@ services:
       - msa-network
     # [추가된 부분] 로컬의 C:/msa_uploads 폴더를 컨테이너 내부와 연결합니다.
     volumes:
-    - C:/msa_uploads:/home/ubuntu/msa/storage/  # [로컬경로]:[컨테이너경로]
+      - /home/ubuntu/msa/storage:/home/ubuntu/msa/storage
     environment:
       # 스프링 프로파일 설정
       SPRING_PROFILES_ACTIVE: prod
