@@ -16,7 +16,11 @@ import org.springframework.web.client.RestTemplate;
 import com.example.admin.client.PayClient;
 import com.example.admin.dto.AdminEventListDTO;
 import com.example.admin.dto.ApprovalDTO;
-import com.example.admin.dto.ArtistResultDTO;
+
+
+import com.example.admin.dto.BoardReportMessageDTO;
+import com.example.admin.dto.ReportBoardDTO;
+
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.ReportBoardDTO;
 import com.example.admin.dto.SettlementDashboardResponse;
@@ -130,26 +134,55 @@ public class AdminService {
 	//////////////정은언니 BOARD////////////////////////
 	// 추가
 	public List<ReportBoardDTO> getBoardReports() {
-		// Board 서비스의 API 엔드포인트
-		String url = "http://localhost:8080/board/admin/reports";
 
-		try {
-			log.info("-----> [AdminService] Board 서비스(Core)에 신고 내역 요청 중...");
+    
+    
+    
+    
+    
+        // Board 서비스의 API 엔드포인트
+        String url = "http://localhost:8080/board/admin/reports";
+        
+        try {
+            log.info("-----> [AdminService] Board 서비스(Core)에 신고 내역 요청 중...");
+            
+            // RestTemplate을 사용하여 GET 요청을 보내고 배열 형태로 응답을 받음
+            ReportBoardDTO[] response = restTemplate.getForObject(url, ReportBoardDTO[].class);
+            
+            if (response != null) {
+                log.info("-----> [AdminService] 신고 내역 수신 성공: {}건", response.length);
+                return Arrays.asList(response);
+            }
+            return Collections.emptyList();
+            
+        } catch (Exception e) {
+            log.error("-----> [AdminService] Board 서비스 호출 실패: {}", e.getMessage());
+            // 서비스 호출 실패 시 빈 리스트 반환 (시스템 중단 방지)
+            return Collections.emptyList
+			();
+        }
+    }
+// 2. [추가] 신고 승인 처리 (RabbitMQ 사용)
+    @Transactional
+    public void approveBoardReport(Long boardId) {
+        log.info("-----> [AdminService2] 게시글 신고 승인 프로세스 시작. ID: {}", boardId);
+        
+        // 메시지 전송용 DTO 생성
+        BoardReportMessageDTO message = new BoardReportMessageDTO(boardId, "HIDDEN");
 
-			// RestTemplate을 사용하여 GET 요청을 보내고 배열 형태로 응답을 받음
-			ReportBoardDTO[] response = restTemplate.getForObject(url, ReportBoardDTO[].class);
-
-			if (response != null) {
-				log.info("-----> [AdminService] 신고 내역 수신 성공: {}건", response.length);
-				return Arrays.asList(response);
-			}
-			return Collections.emptyList();
-
-		} catch (Exception e) {
-			log.error("-----> [AdminService] Board 서비스 호출 실패: {}", e.getMessage());
-			// 서비스 호출 실패 시 빈 리스트 반환 (시스템 중단 방지)
-			return Collections.emptyList();
-		}
-	}
-
+        try {
+            // RabbitMQ로 메시지 발행 (시큐리티 우회)
+            rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EXCHANGE_NAME, 
+                RabbitMQConfig.BOARD_REPORT_APPROVE_ROUTING_KEY, 
+                message
+            );
+            log.info("-----> [AdminService] RabbitMQ 메시지 발행 완료 (RoutingKey: {})", 
+                     RabbitMQConfig.BOARD_REPORT_APPROVE_ROUTING_KEY);
+        } catch (Exception e) {
+            log.error("-----> [AdminService] 메시지 발행 중 오류 발생: {}", e.getMessage());
+            throw new RuntimeException("신고 승인 처리에 실패했습니다.");
+        }
+    }
 }
+

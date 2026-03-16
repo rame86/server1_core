@@ -115,25 +115,27 @@ public class AdminService2 {
     }
 
     // 2. [추가] 신고 승인 처리 (RabbitMQ 사용)
-//    @Transactional
-//    public void approveBoardReport(Long boardId) {
-//        log.info("-----> [AdminService2] 게시글 신고 승인 프로세스 시작. ID: {}", boardId);
-//        
-//        // 메시지 전송용 DTO 생성
-//        BoardReportMessageDTO message = new BoardReportMessageDTO(boardId, "HIDDEN");
-//
-//        try {
-//            // RabbitMQ로 메시지 발행 (시큐리티 우회)
-//            rabbitTemplate.convertAndSend(
-//                RabbitMQConfig.EXCHANGE_NAME, 
-//                RabbitMQConfig.BOARD_REPORT_APPROVE_ROUTING_KEY, 
-//                message
-//            );
-//            log.info("-----> [AdminService] RabbitMQ 메시지 발행 완료 (RoutingKey: {})", 
-//                     RabbitMQConfig.BOARD_REPORT_APPROVE_ROUTING_KEY);
-//        } catch (Exception e) {
-//            log.error("-----> [AdminService] 메시지 발행 중 오류 발생: {}", e.getMessage());
-//            throw new RuntimeException("신고 승인 처리에 실패했습니다.");
-//        }
-//    }
+
+    @Transactional
+    public void approveBoardReport(Long boardId) {
+        log.info("-----> [AdminService2] 게시글 신고 승인 프로세스 시작. ID: {}", boardId);
+        
+        // 메시지 전송용 DTO 생성
+        BoardReportMessageDTO message = new BoardReportMessageDTO(boardId, "HIDDEN");
+
+        try {
+            // RabbitMQ로 메시지 발행 (시큐리티 우회)
+            rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EXCHANGE_NAME, 
+                RabbitMQConfig.BOARD_REPORT_APPROVE_ROUTING_KEY, 
+                message
+            );
+            log.info("-----> [AdminService] RabbitMQ 메시지 발행 완료 (RoutingKey: {})", 
+                     RabbitMQConfig.BOARD_REPORT_APPROVE_ROUTING_KEY);
+        } catch (Exception e) {
+            log.error("-----> [AdminService] 메시지 발행 중 오류 발생: {}", e.getMessage());
+            throw new RuntimeException("신고 승인 처리에 실패했습니다.");
+        }
+    }
+
 }

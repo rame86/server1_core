@@ -104,4 +104,14 @@ public class AdminController {
 		return ResponseEntity.ok(list);
 	}
 
+	// 2. [추가] 게시글 신고 승인 (RabbitMQ 활용)
+    @PostMapping("/board/report/approve")
+    public ResponseEntity<String> approveBoardReport(@RequestParam("boardId") Long boardId, @LoginUser RedisMemberDTO user) {
+        log.info("=====> [1서버 관리자] 게시글 신고 승인 요청. 처리자: {}, 게시글ID: {}", user.getMemberId(), boardId);
+        
+        // AdminService2(또는 AdminService)에 구현한 RabbitMQ 발행 메서드 호출
+        adminService.approveBoardReport(boardId);
+        
+        return ResponseEntity.ok("게시글 신고 승인 및 메시지 발행 완료");
+    }
 }

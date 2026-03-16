@@ -13,6 +13,7 @@ public class CommentResponseDTO {
     private String content;
     private Long memberId;
     private OffsetDateTime createdAt;
+    private String status; // <--- [추가]
 
     // Entity -> DTO 변환 정적 메서드
     public static CommentResponseDTO from(com.example.board.entity.Comment comment) {
@@ -20,7 +21,8 @@ public class CommentResponseDTO {
             comment.getCommentId(),
             comment.getContent(),
             comment.getMemberId(),
-            comment.getCreatedAt()
+            comment.getCreatedAt(),
+            comment.getStatus() // <--- [추가] 엔티티의 status 값을 DTO로 복사
         );
     }
 }

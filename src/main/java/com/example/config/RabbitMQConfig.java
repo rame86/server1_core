@@ -43,12 +43,13 @@ public class RabbitMQConfig {
     // [추가] 게시판 신고 승인 관련
     public static final String BOARD_REPORT_APPROVE_QUEUE_NAME = "board.report.approve.queue";
     public static final String BOARD_REPORT_APPROVE_ROUTING_KEY = "board.report.approve.key";
-    
+
     // 환불 요청 관련
     public static final String REFUND_REQ_ROUTING_KEY = "refund.req.core";
     public static final String REFUND_REQ_QUEUE_NAME = "refund.req.core.queue";
     public static final String REFUND_RES_ROUTING_KEY = "refund.res.core";
     public static final String REFUND_RES_QUEUE_NAME = "refund.res.core.queue";
+
     
     @Bean
     public DirectExchange exchange() {

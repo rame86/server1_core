@@ -242,7 +242,10 @@ public class BoardService {
                 .orElseThrow(() -> new RuntimeException("댓글을 찾을 수 없습니다."));
         
         // Comment 엔티티에도 status 필드나 hidden 필드가 있다면 그에 맞춰 수정
-        comment.setStatus("HIDDEN");
+
+        comment.hideComment();
+        
+
         log.info("관리자 승인: 댓글 신고 ID {} 승인 완료", reportId);
     }
 
@@ -269,7 +272,7 @@ public class BoardService {
         return BoardDTO.builder()
                 .boardId(board.getBoardId()).title(board.getTitle())
                 .content(board.getContent()).category(board.getCategory())
-                .memberId(board.getMemberId()).viewCount(board.getViewCount())
+                .memberId(board.getMemberId()).viewCount(board.getViewCount()).status(board.getStatus())
                 .likeCount(board.getLikeCount()).commentCount(board.getCommentCount())
                 .originalFileName(board.getOriginalFileName()).storedFilePath(board.getStoredFilePath())
                 .createdAt(board.getCreatedAt()).updatedAt(board.getUpdatedAt()).build();
