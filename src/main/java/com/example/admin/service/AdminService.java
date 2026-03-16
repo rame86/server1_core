@@ -16,6 +16,7 @@ import org.springframework.web.client.RestTemplate;
 import com.example.admin.client.PayClient;
 import com.example.admin.dto.AdminEventListDTO;
 import com.example.admin.dto.ApprovalDTO;
+import com.example.admin.dto.ArtistResultDTO;
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.ReportBoardDTO;
 import com.example.admin.dto.SettlementDashboardResponse;
@@ -109,6 +110,24 @@ public class AdminService {
 	}
 
 	////////////// 정은언니 BOARD////////////////////////
+	
+	public List<ArtistResultDTO> getPendingArtistList(String artist, String status) {
+		List<Approval> entityList = approvalRepository.findByCategoryAndStatus(artist, status);
+		return entityList.stream().map(entity -> ArtistResultDTO.builder()
+				.approvalId(entity.getApprovalId())
+				.artistName(entity.getRequesterName())
+				.subCategory(entity.getSubCategory())
+				.description(entity.getDescription())
+				.imageUrl(entity.getImageUrl())
+				.status(entity.getStatus())
+				.createdAt(entity.getCreatedAt().toString())
+				.rejectionReason(entity.getRejectionReason())
+				.build()).toList();
+	}
+	
+	
+	
+	//////////////정은언니 BOARD////////////////////////
 	// 추가
 	public List<ReportBoardDTO> getBoardReports() {
 		// Board 서비스의 API 엔드포인트

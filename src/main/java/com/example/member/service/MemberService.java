@@ -13,6 +13,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.example.admin.entity.Approval;
+import com.example.admin.repository.ApprovalRepository;
 import com.example.member.domain.Member;
 import com.example.member.domain.SocialAccount;
 import com.example.member.dto.MemberSignupRequest;
@@ -39,6 +41,7 @@ public class MemberService {
 	private final StringRedisTemplate redisTemplate;
 	private final MailSenderService mailSenderService;
 	private final WebClient webClient;
+	private final ApprovalRepository approvalRepository;
 
 	@Value("${pay.url}")
 	private String paymentUrl;
@@ -104,7 +107,11 @@ public class MemberService {
 		member.setPhone(dto.getPhone());
 		member.setAddress(dto.getAddress());
 		member.setAge(dto.getAge());
-		member.setRole("USER");
+		member.setRole("USER"); // 일단은 기본유저
+		
+		// 상태 결정
+		boolean isArtistApply = dto.getInfo() != null && "true".equals(String.valueOf(dto.getInfo().get("isArtistApply")));
+		member.setStatus(isArtistApply ? "PENDING" : "ACTIVE");
 
 		// 소셜계정 생성
 		if (dto.getProvider() != null && !dto.getProvider().isEmpty()) {
@@ -124,6 +131,24 @@ public class MemberService {
 			member.setPassword(passwordEncoder.encode(dto.getPassword()));
 			memberRepository.save(member);
 		}
+		
+		// 아티스트 신청 info에 있음
+		if(isArtistApply) {
+			// Approval 신청서 작성
+			Approval approval = Approval.builder()
+					.category("ARTIST")
+					.artistId(member.getMemberId())
+					.requesterName(String.valueOf(dto.getInfo().get("artistName"))) // "김민준"
+	                .subCategory(String.valueOf(dto.getInfo().get("artistType"))) // "ECHO · 발라드"
+	                .description(String.valueOf(dto.getInfo().get("description")))
+	                .status("PENDING") // 승인 요청 상태
+	                .title("아티스트 승인 신청: " + dto.getInfo().get("artistName"))
+	                .build();
+			
+			approvalRepository.save(approval);
+			log.info("-----> [아티스트 신청 접수] MemberID: {}", member.getMemberId());
+		}
+		
 		return member;
 	}
 
