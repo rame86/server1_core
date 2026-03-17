@@ -9,8 +9,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.amqp.rabbit.core.RabbitTemplate; // 추가 필요
-import org.springframework.data.redis.core.StringRedisTemplate; // 추가 필요
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -96,6 +96,7 @@ public class AdminService {
 					.eventStartDate(approval.getEventStartDate())
 					.createdAt(approval.getCreatedAt())
 					.stock(currentStock) // Redis 데이터 합체
+					.imageUrl(approval.getImageUrl())
 					.build();
 		}).collect(Collectors.toList());
 	}
@@ -248,6 +249,8 @@ public class AdminService {
 				.orElseThrow(() -> new IllegalArgumentException("해당 기록이 없습니다. ID: " + approvalId));
 		Member member = memberRepository.findById(artistId)
 				.orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다. ID: " + artistId));
+		Artist artist = artistRepository.findById(artistId)
+				.orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다. ID: " + artistId));
 		
 		// 2서버 WebClient 호출
 		ArtistAccountResponse paymentData = webClient.get()
@@ -264,6 +267,7 @@ public class AdminService {
 				.description(approval.getDescription())
 				.createdAt(approval.getCreatedAt().toString())
 				.status(approval.getStatus())
+				.followerCount(artist.getFollowerCount())
 				.totalBalance(paymentData.getTotalBalance())
 				.withdrawableBalance(paymentData.getWithdrawableBalance())
 				.rejectionReason(approval.getRejectionReason())
@@ -271,6 +275,14 @@ public class AdminService {
 				.processedAt(approval.getProcessedAt() != null ? approval.getProcessedAt().toString() : "처리 대기중")
 				.build();
 		
+	}
+	
+	// user정지 (정지한 사람 추가하는부분 필요)
+	@Transactional
+	public void blockUser(Long memberId, Long adminId) {
+		Member member = memberRepository.findById(memberId).orElseThrow();
+		member.setStatus("BLOCK");
+		redisTemplate.opsForValue().set("BLOCK:" + memberId, "true", 24, TimeUnit.HOURS);
 	}
 	
 }

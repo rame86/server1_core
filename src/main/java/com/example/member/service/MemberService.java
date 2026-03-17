@@ -219,6 +219,10 @@ public class MemberService {
 	public Map<String, Object> login(String email, String password, HttpServletResponse response) {
 		Member member = memberRepository.findByEmail(email)
 				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 계정입니다."));
+		
+		if("BLOCK".equals(member.getStatus())) {
+			throw new IllegalArgumentException("정지된 계정입니다. 고객센터에 문의하세요.");
+		}
 
 		if (!passwordEncoder.matches(password, member.getPassword())) {
 			throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");

@@ -24,7 +24,7 @@ public class ArtistResponseDTO {
     private String status;
     
     // 활동 통계
-    private Long followerCount;
+    private int followerCount;
     private java.math.BigDecimal totalBalance;
     private java.math.BigDecimal withdrawableBalance;
     
