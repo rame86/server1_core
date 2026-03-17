@@ -1,6 +1,7 @@
 package com.example.member.service;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -13,6 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.example.admin.dto.ArtistResultDTO;
 import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
 import com.example.member.domain.Member;
@@ -108,10 +110,6 @@ public class MemberService {
 		member.setAddress(dto.getAddress());
 		member.setAge(dto.getAge());
 		member.setRole("USER"); // 일단은 기본유저
-		
-		// 상태 결정
-		boolean isArtistApply = dto.getInfo() != null && "true".equals(String.valueOf(dto.getInfo().get("isArtistApply")));
-		member.setStatus(isArtistApply ? "PENDING" : "ACTIVE");
 
 		// 소셜계정 생성
 		if (dto.getProvider() != null && !dto.getProvider().isEmpty()) {
@@ -130,23 +128,6 @@ public class MemberService {
 		} else {
 			member.setPassword(passwordEncoder.encode(dto.getPassword()));
 			memberRepository.save(member);
-		}
-		
-		// 아티스트 신청 info에 있음
-		if(isArtistApply) {
-			// Approval 신청서 작성
-			Approval approval = Approval.builder()
-					.category("ARTIST")
-					.artistId(member.getMemberId())
-					.requesterName(String.valueOf(dto.getInfo().get("artistName"))) // "김민준"
-	                .subCategory(String.valueOf(dto.getInfo().get("artistType"))) // "ECHO · 발라드"
-	                .description(String.valueOf(dto.getInfo().get("description")))
-	                .status("PENDING") // 승인 요청 상태
-	                .title("아티스트 승인 신청: " + dto.getInfo().get("artistName"))
-	                .build();
-			
-			approvalRepository.save(approval);
-			log.info("-----> [아티스트 신청 접수] MemberID: {}", member.getMemberId());
 		}
 		
 		return member;
@@ -281,6 +262,55 @@ public class MemberService {
 				.build();
 		response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 		log.info("---------> [로그아웃] 브라우저 쿠키 삭제 명령 전송 완료");
+	}
+	
+	// Artist 신청
+	@Transactional
+	public void applyArtist(Long memberId, ArtistResultDTO dto) {
+		// 재신청(7일) 제한 체크
+		checkReapplication(memberId);
+		
+		// 중복심사 체크
+		boolean isPending = approvalRepository.existsByArtistIdAndCategoryAndStatus(
+				memberId, "ARTIST", "PENDING");
+		if(isPending) {
+			throw new IllegalStateException("이미 심사 중인 아티스트 신청 건이 있습니다. 조금만 기다려주세요!");
+		}
+		
+		// 신청서 생성
+		Approval approval = Approval.builder()
+				.category("ARTIST")
+	            .artistId(memberId)
+	            .requesterName(String.valueOf(dto.getArtistName()))
+	            .subCategory(String.valueOf(dto.getSubCategory()))
+	            .description(String.valueOf(dto.getDescription()))
+	            .status("PENDING")
+	            .title("아티스트 승인 신청: " + dto.getArtistName())
+	            .build();
+		approvalRepository.save(approval);
+		
+		// 멤버테이블 상태 변경
+		Member member = memberRepository.findById(memberId)
+				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+		member.setStatus("PENDING");
+		
+		log.info("-----> [아티스트 별도 신청 완료] MemberID: {}", memberId);
+	}
+	
+	// Artist신청 시 연속신청 방지
+	public void checkReapplication(Long memberId) {
+		Optional<Approval> latestReject = approvalRepository
+				.findFirstByArtistIdAndCategoryAndStatusOrderByProcessedAtDesc(
+						memberId, "ARTIST", "REJECTED");
+		if(latestReject.isPresent()) {
+			LocalDateTime lastProcessed = latestReject.get().getProcessedAt();
+			if (lastProcessed == null) return;
+			if(lastProcessed.plusDays(7).isAfter(LocalDateTime.now())) {
+				String availableDate = lastProcessed.plusDays(7).toLocalDate().toString();
+				throw new IllegalStateException(
+						"아티스트 신청이 거절된 지 얼마 되지 않았습니다. " + availableDate + " 이후에 다시 신청해주세요!");
+			}
+		}
 	}
 
 }

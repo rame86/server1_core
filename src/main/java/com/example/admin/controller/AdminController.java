@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.admin.dto.AdminEventListDTO;
 import com.example.admin.dto.AdminRefundResponseDTO;
+import com.example.admin.dto.ArtistResponseDTO;
 import com.example.admin.dto.ArtistResultDTO;
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.SettlementDashboardResponse;
@@ -77,10 +79,26 @@ public class AdminController {
 		return ResponseEntity.ok("REFUND 처리 완료");
 	}
 	
-	@GetMapping("/approval/artists")
+	// 승인요청한 아티스트 목록
+	@GetMapping("/artist/approvalList")
 	public ResponseEntity<List<ArtistResultDTO>> getPendingArtist() {
 		List<ArtistResultDTO> pendingList = adminService.getPendingArtistList("ARTIST", "PENDING");
 		return ResponseEntity.ok(pendingList);
+	}
+	
+	// 승인된 아티스트 목록
+	@GetMapping("/artist/activeList")
+	public ResponseEntity<List<ArtistResponseDTO>> getActiveArtist() {
+		List<ArtistResponseDTO> activeList = adminService.getActiceArtistList("ARTIST", "CONFIRMED");
+		return ResponseEntity.ok(activeList);
+	}
+	
+	// 아티스트 상세 정보
+	@GetMapping("/artist/{approvalId}/{artistId}")
+	public ResponseEntity<ArtistResponseDTO> getArtistDetail(
+			@PathVariable("approvalId") Long approvalId,
+			@PathVariable("artistId") Long artistId) {
+		return ResponseEntity.ok(adminService.getArtistDetail(approvalId, artistId));
 	}
 	
 	@GetMapping("/settlement")
