@@ -1,0 +1,3 @@
+GET http://localhost/msa/core/board/list
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxNiIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzczMzcxMTAxLCJleHAiOjE3NzMzNzQ3MDF9.edS9dsRocZmVnntjOat9VlmjDXpiz0SSaFqP-NumQbEK06BK0uHYAYclQJzRDWPC

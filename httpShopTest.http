@@ -1,0 +1,3 @@
+GET http://localhost/msa/shop/shop/
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxNiIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzczMzgxMDg1LCJleHAiOjE3NzMzODQ2ODV9.HOWxXB-eyeWBPDkfnTGzXRG7Auvz5MTmvuTMI5ptLjmHqDGOvpAN4g03Pso8fujc

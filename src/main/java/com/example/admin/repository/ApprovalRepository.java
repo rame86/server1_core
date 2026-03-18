@@ -8,4 +8,5 @@ import com.example.admin.entity.Approval;
 
 public interface ApprovalRepository extends JpaRepository<Approval, Long>{
 	List<Approval> findAllByOrderByCreatedAtDesc();
+	List<Approval> findByCategoryAndStatus(String category, String status);
 }

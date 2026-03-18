@@ -60,6 +60,16 @@ public class Board {
         this.viewCount = (this.viewCount == null) ? 1 : this.viewCount + 1;
     }
     
+    public void incrementCommentCount() { // [추가] 명확한 증가 메서드
+        if (this.commentCount == null) this.commentCount = 0;
+        this.commentCount++;
+    }
+
+    public void decrementCommentCount() { // [추가] 명확한 감소 메서드
+        if (this.commentCount == null || this.commentCount <= 0) this.commentCount = 0;
+        else this.commentCount--;
+    }
+
     // 게시글 정보 수정
     public void update(String title, String content, String category) {
         this.title = title;
@@ -84,4 +94,5 @@ public class Board {
         if (this.commentCount == null) this.commentCount = 0;
         this.commentCount = increment ? this.commentCount + 1 : Math.max(0, this.commentCount - 1);
     }
+
 }

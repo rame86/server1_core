@@ -1,17 +1,10 @@
 package com.example.artist.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
 
-@Getter
-@NoArgsConstructor
-@AllArgsConstructor
-@ToString
-public class PaymentResponseDTO {
-	private String orderId;
-	private String status;
-	private String message;
-	private String type;
-}
+public record PaymentResponseDTO<T> (
+	String orderId,
+	String status,
+	String message,
+	String type,
+	T payload)
+{}

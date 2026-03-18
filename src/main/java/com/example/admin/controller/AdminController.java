@@ -11,10 +11,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.admin.dto.AdminEventListDTO;
+import com.example.admin.dto.AdminRefundResponseDTO;
+import com.example.admin.dto.ArtistResultDTO;
 import com.example.admin.dto.EventResultDTO;
-import com.example.admin.dto.ReportBoardDTO;
 import com.example.admin.dto.SettlementDashboardResponse;
 import com.example.admin.dto.ShopResultDTO;
+import com.example.admin.service.AdminRefundService;
 import com.example.admin.service.AdminService;
 import com.example.common.annotation.LoginUser;
 import com.example.config.RabbitMQConfig;
@@ -31,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 public class AdminController {
 	
 	private final AdminService adminService;
+	private final AdminRefundService adminRefundService;
 	
 	@PostMapping("/event/confirm")
 	public ResponseEntity<String> confirmEvent(@RequestBody EventResultDTO dto, @LoginUser RedisMemberDTO user) {
@@ -46,6 +49,20 @@ public class AdminController {
 		return ResponseEntity.ok("SHOP 처리 완료");
 	}
 	
+	@PostMapping("/artist/confirm")
+	public ResponseEntity<String> confirmArtist(@RequestBody ArtistResultDTO dto, @LoginUser RedisMemberDTO user) {
+		log.info("=====> [1서버 관리자] 아티스트 등록 완료");
+		adminService.confirmArtist(dto, user.getMemberId());
+		return ResponseEntity.ok("ARTIST 처리 완료");
+	}
+	
+	@PostMapping("/artist/reject")
+	public ResponseEntity<String> rejectArtist(@RequestBody ArtistResultDTO dto, @LoginUser RedisMemberDTO user) {
+		log.info("=====> [1서버 관리자] 아티스트 거절 처리");
+		adminService.rejectArtist(dto, user.getMemberId());
+		return ResponseEntity.ok("ARTIST 거절 처리 완료");
+	}
+	
 	@GetMapping("/event/list")
 	public ResponseEntity<List<AdminEventListDTO>> getEventList() {
 		log.info("=====> [1서버 관리자] 전체 이벤트 리스트 조회 요청");
@@ -53,20 +70,25 @@ public class AdminController {
 		return ResponseEntity.ok(list);
 	}
 	
-	@GetMapping("/settlement/stats")
-	public ResponseEntity<SettlementDashboardResponse> getStats(@RequestParam(value = "yearMonth", required = false) String yearMonth) {
-		log.info("=====> [1서버 관리자] 통합 대시보드 데이터 요청 (기간: {})", yearMonth);
-		SettlementDashboardResponse response = adminService.getDashboardData(yearMonth);
-		return ResponseEntity.ok(response);
+	@PostMapping("/refund")
+	public ResponseEntity<String> approveRefund(@RequestBody AdminRefundResponseDTO dto, @LoginUser RedisMemberDTO user) {
+		log.info("=====> [1서버 관리자] 결정 전송 요청: {}", dto);
+		if(user.getMemberId() != null) dto.setAdminId(user.getMemberId());
+		adminRefundService.approveRefund(dto);
+		return ResponseEntity.ok("REFUND 처리 완료");
 	}
-
-	// 게시글 신고 추가
-	@GetMapping("/board/reports")
-	public ResponseEntity<List<ReportBoardDTO>> getBoardReportList(@LoginUser RedisMemberDTO user) {
-		log.info("=====> [1서버 관리자] 게시글 신고 리스트 조회 요청자: {}", user.getMemberId());
-		// 서비스에서 DTO 리스트를 반환하므로 타입을 맞춰줍니다.
-		List<ReportBoardDTO> list = adminService.getBoardReports(); 
-		return ResponseEntity.ok(list);
+	
+	@GetMapping("/approval/artists")
+	public ResponseEntity<List<ArtistResultDTO>> getPendingArtist() {
+		List<ArtistResultDTO> pendingList = adminService.getPendingArtistList("ARTIST", "PENDING");
+		return ResponseEntity.ok(pendingList);
+	}
+	
+	@GetMapping("/settlement")
+	public ResponseEntity<SettlementDashboardResponse> getSettlementStats() {
+	    log.info("=====> [core 서비스 관리자] 통합 대시보드 데이터 HTTP 요청 발생");
+	    SettlementDashboardResponse response = adminService.requestDashboardData();
+	    return ResponseEntity.ok(response);
 	}
 	
 	// 2. [추가] 게시글 신고 승인 (RabbitMQ 활용)
