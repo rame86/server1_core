@@ -21,34 +21,37 @@ public class SecurityConfig {
     @Profile("dev") // 개발 환경(dev)일 때만 작동하는 빈
     public SecurityFilterChain devFilterChain(HttpSecurity http) throws Exception {
         return http
-        	.cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .csrf(csrf -> csrf.disable())
-            .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
-            .build();
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .build();
     }
 
     @Bean
-    @Profile("prod") // 운영 환경(prod)일 때 작동하는 빈
+    @Profile("prod")
     public SecurityFilterChain prodFilterChain(HttpSecurity http) throws Exception {
         return http
-            .csrf(csrf -> csrf.disable())
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/login", "/shop", "/member","/api/**","/board/**").permitAll()
-                .anyRequest().authenticated()
-            )
-            .build();
+                // 1. prod 환경에서도 CORS 설정 적용
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        // 2. /error 경로를 추가하여 404/500 에러 발생 시 상세 내용을 볼 수 있게 허용
+                        .requestMatchers("/", "/login", "/shop", "/member", "/api/**", "/board/**", "/error")
+                        .permitAll()
+                        .anyRequest().authenticated())
+                .build();
     }
-    
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-    
+
     @Bean
     public RestTemplate restTemplate() {
         return new RestTemplate();
     }
-    
+
     // 3. CORS 상세 설정 빈 추가
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
@@ -57,10 +60,10 @@ public class SecurityConfig {
         configuration.addAllowedMethod("*"); // 모든 HTTP 메서드 허용 (GET, POST, OPTIONS 등)
         configuration.addAllowedHeader("*"); // 모든 헤더 허용
         configuration.setAllowCredentials(true);
-        
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
-    
+
 }
