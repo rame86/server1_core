@@ -164,7 +164,7 @@ public class BoardService {
     public List<CommentResponseDTO> getComments(Long boardId) {
         if (!boardRepository.existsById(boardId)) throw new IllegalArgumentException("게시글 없음");
         // [수정] Comment 엔티티 내 필드명이 board인 경우 findByBoard_BoardId를 사용합니다.
-       return commentRepository.findByBoardIdAndStatusOrderByCreatedAtDesc(boardId, "ACTIVE")
+       return commentRepository.findByBoardId_BoardIdAndStatusOrderByCreatedAtDesc(boardId, "ACTIVE")
                 .stream().map(this::convertToCommentDTO).toList();
     }
 

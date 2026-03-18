@@ -39,29 +39,22 @@ public class BoardCommentService {
                 .build();
 
         Comment savedComment = commentRepository.save(comment);
-        
-        // 게시글 엔티티 내부의 댓글 수 카운트 증가
         board.incrementCommentCount(); 
-        
-        log.info("새 댓글 등록 완료: 게시글ID={}, 댓글ID={}", board.getBoardId(), savedComment.getCommentId());
+           log.info("새 댓글 등록 완료: 게시글ID={}, 댓글ID={}", board.getBoardId(), savedComment.getCommentId());
 
-        return convertToCommentDTO(savedComment);
+           return convertToCommentDTO(savedComment);
     }
 
-    /**
-     * 특정 게시글의 활성화된 댓글만 조회 (최신순)
-     */
+    // 특정 게시글의 활성화된 댓글만 조회 (최신순)
     @Transactional(readOnly = true)
     public List<CommentResponseDTO> getCommentsByBoardId(Long boardId) {
         // [수정] ACTIVE 상태인 댓글만 필터링 조회
-        return commentRepository.findByBoardIdAndStatusOrderByCreatedAtDesc(boardId, "ACTIVE").stream()
+        return commentRepository.findByBoardId_BoardIdAndStatusOrderByCreatedAtDesc(boardId, "ACTIVE").stream()
                 .map(this::convertToCommentDTO)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * 댓글 삭제
-     */
+    //댓글 삭제
     @Transactional
     public void deleteComment(Long commentId) {
         Comment comment = commentRepository.findById(commentId)
@@ -69,11 +62,7 @@ public class BoardCommentService {
         
         Board board = comment.getBoardId();
         commentRepository.delete(comment);
-        
-        // 게시글 엔티티 내부의 댓글 수 카운트 감소
         board.decrementCommentCount();
-        
-        log.info("댓글 삭제 완료: 댓글ID={}", commentId);
     }
 
     private CommentResponseDTO convertToCommentDTO(Comment comment) {

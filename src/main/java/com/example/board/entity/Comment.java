@@ -39,8 +39,4 @@ public class Comment {
         this.status = "HIDDEN";
     }
 
-    public Board getBoardId() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getBoardId'");
-    }
 }
