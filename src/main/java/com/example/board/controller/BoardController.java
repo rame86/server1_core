@@ -30,7 +30,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class BoardController {
 
-    // 분리된 3개의 서비스 주입
     private final BoardService boardService;
     private final BoardCommentService boardCommentService;
     private final BoardReportService boardReportService;
@@ -38,7 +37,7 @@ public class BoardController {
     @Value("${file.upload.dir}")
     private String uploadDir;
 
-    // --- [1. 게시글 관련 API - BoardService] ---
+    // --- [1. 게시글 관련 API] ---
 
     @GetMapping("/list")
     public ResponseEntity<List<BoardDTO>> getList(@RequestParam(name = "category", required = false) String category) {
@@ -49,7 +48,8 @@ public class BoardController {
 
     @GetMapping("/{id}")
     public ResponseEntity<BoardDTO> getDetail(@PathVariable(name = "id") Long id) {
-        return ResponseEntity.ok(boardService.getBoardDetail(id));
+        BoardDTO detail = boardService.getBoardDetail(id);
+        return ResponseEntity.ok(detail);
     }
 
     @PostMapping(value = "/write", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
@@ -81,6 +81,7 @@ public class BoardController {
             @PathVariable(name = "id") Long id) {
 
         if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        
         BoardResponseDTO response = boardService.deleteBoard(id, loginUser.getMemberId(), loginUser.getRole());
         return ResponseEntity.ok(response);
     }
@@ -95,26 +96,7 @@ public class BoardController {
         return ResponseEntity.ok(updatedLikeCount);
     }
 
-    // --- [2. 파일 제공 API] ---
-
-    @GetMapping("/files/{fileName}")
-    public ResponseEntity<Resource> serveFile(@PathVariable(name = "fileName") String fileName) {
-        try {
-            Path path = Paths.get(uploadDir).resolve(fileName);
-            Resource resource = new UrlResource(path.toUri());
-
-            if (resource.exists() || resource.isReadable()) {
-                return ResponseEntity.ok()
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
-                        .body(resource);
-            }
-            return ResponseEntity.notFound().build();
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
-        }
-    }
-
-    // --- [3. 댓글 관련 API - BoardCommentService] ---
+    // --- [2. 댓글 관련 API] ---
 
     @PostMapping("/{id}/comments")
     public ResponseEntity<CommentResponseDTO> addComment(
@@ -123,12 +105,13 @@ public class BoardController {
             @RequestBody CommentRequestDTO request) {
 
         if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        
         request.setBoardId(boardId);
         request.setMemberId(loginUser.getMemberId());
-        return ResponseEntity.ok(boardCommentService.createComment(request));
+        
+        CommentResponseDTO response = boardCommentService.createComment(request);
+        return ResponseEntity.ok(response);
     }
-
+    
     @GetMapping("/{id}/comments")
     public ResponseEntity<List<CommentResponseDTO>> getComments(@PathVariable(name = "id") Long id) {
         List<CommentResponseDTO> comments = boardCommentService.getCommentsByBoardId(id);
@@ -141,11 +124,30 @@ public class BoardController {
             @PathVariable(name = "commentId") Long commentId) {
             
         if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        boardCommentService.deleteComment(commentId);
+        
+        boardCommentService.deleteComment(commentId, loginUser.getMemberId(), loginUser.getRole());
         return ResponseEntity.noContent().build();
     }
+    
+    // --- [3. 파일 제공 API] ---
 
-    // --- [4. 신고 관련 API - BoardReportService] ---
+    @GetMapping("/files/{fileName}")
+    public ResponseEntity<Resource> serveFile(@PathVariable(name = "fileName") String fileName) {
+        try {
+            Path path = Paths.get(uploadDir).resolve(fileName);
+            Resource resource = new UrlResource(path.toUri());
+            if (resource.exists() || resource.isReadable()) {
+                return ResponseEntity.ok()
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
+                        .body(resource);
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+    
+    // --- [4. 신고 및 관리자 API는 기존과 동일하게 유지하되 가독성 개선] ---
 
     @PostMapping("/{id}/report")
     public ResponseEntity<String> reportBoard(
@@ -154,9 +156,8 @@ public class BoardController {
             @RequestBody Map<String, String> body) {
 
         if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        String reason = body.get("reason");
-        String result = boardReportService.reportBoard(id, loginUser.getMemberId(), reason);
-
+        
+        String result = boardReportService.reportBoard(id, loginUser.getMemberId(), body.get("reason"));
         if ("ALREADY_REPORTED".equals(result)) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("이미 신고한 게시글입니다.");
         }
@@ -170,16 +171,13 @@ public class BoardController {
             @RequestBody Map<String, String> body) {
 
         if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        String reason = body.get("reason");
-        String result = boardReportService.reportComment(commentId, loginUser.getMemberId(), reason);
-
+        
+        String result = boardReportService.reportComment(commentId, loginUser.getMemberId(), body.get("reason"));
         if ("ALREADY_REPORTED".equals(result)) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("이미 신고한 댓글입니다.");
         }
         return ResponseEntity.ok("댓글 신고가 접수되었습니다.");
     }
-
-    // --- [5. 관리자 전용 API - BoardReportService] ---
 
     @GetMapping("/admin/reports/boards")
     public ResponseEntity<?> getBoardReports(@LoginUser RedisMemberDTO loginUser) {

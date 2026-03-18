@@ -3,20 +3,12 @@ package com.example.board.service;
 import com.example.board.dto.BoardCreateRequest;
 import com.example.board.dto.BoardDTO;
 import com.example.board.dto.BoardResponseDTO;
-import com.example.board.dto.CommentResponseDTO;
 import com.example.board.entity.Board;
-import com.example.board.entity.Comment;
 import com.example.board.entity.LikeBoard;
 import com.example.board.repository.BoardRepository;
-import com.example.board.repository.CommentRepository;
 import com.example.board.repository.LikeRepository;
-import com.example.board.repository.ReportCommentRepository;
-import com.example.board.repository.ReportRepository;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,11 +26,7 @@ import java.util.stream.Collectors;
 public class BoardService {
 
     private final LikeRepository likeRepository;
-    private final CommentRepository commentRepository;
     private final BoardRepository boardRepository; 
-    private final ReportRepository reportRepository; 
-    private final ReportCommentRepository reportCommentRepository;
-    private final RabbitTemplate rabbitTemplate;
 
     @Value("${file.upload.dir}")
     private String uploadDir;
@@ -142,42 +130,6 @@ public class BoardService {
             board.updateLikeCount(true); 
         }
         return board.getLikeCount();
-    }
-
-    @Transactional
-    public int addComment(Long boardId, Long memberId, String content) {
-        Board board = boardRepository.findById(boardId)
-            .orElseThrow(()-> new IllegalArgumentException("게시글이 없습니다."));
-        
-        commentRepository.save(Comment.builder()
-                                 .boardId(board)
-                                 .memberId(memberId)
-                                 .content(content)
-                                 .status("ACTIVE")
-                                 .build());
-        
-        board.incrementCommentCount(); 
-        return board.getCommentCount();
-    }
-
-    @Transactional(readOnly = true)
-    public List<CommentResponseDTO> getComments(Long boardId) {
-        if (!boardRepository.existsById(boardId)) throw new IllegalArgumentException("게시글 없음");
-        // [수정] Comment 엔티티 내 필드명이 board인 경우 findByBoard_BoardId를 사용합니다.
-       return commentRepository.findByBoardId_BoardIdAndStatusOrderByCreatedAtDesc(boardId, "ACTIVE")
-                .stream().map(this::convertToCommentDTO).toList();
-    }
-
-    private CommentResponseDTO convertToCommentDTO(Comment comment) {
-        return CommentResponseDTO.builder()
-                .commentId(comment.getCommentId())
-                .boardId(comment.getBoardId() != null ? comment.getBoardId().getBoardId() : null)
-                .memberId(comment.getMemberId())
-                .content(comment.getContent())
-                .createdAt(comment.getCreatedAt())
-                .status(comment.getStatus())
-                .authorName("User_" + comment.getMemberId())
-                .build();
     }
 
     private String saveFile(MultipartFile file) throws IOException {
