@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.admin.dto.AdminEventListDTO;
@@ -48,13 +49,26 @@ public class AdminController {
 		return ResponseEntity.ok("SHOP 처리 완료");
 	}
 	
+	@PostMapping("/artist/confirm")
+	public ResponseEntity<String> confirmArtist(@RequestBody ArtistResultDTO dto, @LoginUser RedisMemberDTO user) {
+		log.info("=====> [1서버 관리자] 아티스트 등록 완료");
+		adminService.confirmArtist(dto, user.getMemberId());
+		return ResponseEntity.ok("ARTIST 처리 완료");
+	}
+	
+	@PostMapping("/artist/reject")
+	public ResponseEntity<String> rejectArtist(@RequestBody ArtistResultDTO dto, @LoginUser RedisMemberDTO user) {
+		log.info("=====> [1서버 관리자] 아티스트 거절 처리");
+		adminService.rejectArtist(dto, user.getMemberId());
+		return ResponseEntity.ok("ARTIST 거절 처리 완료");
+	}
+	
 	@GetMapping("/event/list")
 	public ResponseEntity<List<AdminEventListDTO>> getEventList() {
 		log.info("=====> [1서버 관리자] 전체 이벤트 리스트 조회 요청");
 		List<AdminEventListDTO> list = adminService.getAllEvents();
 		return ResponseEntity.ok(list);
 	}
-	
 	
 	@PostMapping("/refund")
 	public ResponseEntity<String> approveRefund(@RequestBody AdminRefundResponseDTO dto, @LoginUser RedisMemberDTO user) {
@@ -69,27 +83,22 @@ public class AdminController {
 		List<ArtistResultDTO> pendingList = adminService.getPendingArtistList("ARTIST", "PENDING");
 		return ResponseEntity.ok(pendingList);
 	}
-	public ResponseEntity<SettlementDashboardResponse> getSettlementStats() {
-    log.info("=====> [core 서비스 관리자] 통합 대시보드 데이터 HTTP 요청 발생");
-    
-    // 1. RabbitMQ로 비동기 데이터 요청 전송 (return void)
-    adminService.requestDashboardData();
-    
-    // 2. 비동기 요청이므로 당장 데이터를 받을 수 없습니다. 
-    // 현재는 테스트 목적이므로 HTTP 요청을 정상 종료시키기 위해 빈 객체를 반환합니다.
-    // (실제 넘어오는 데이터는 아래 리스너의 콘솔 로그에서 확인)
-    SettlementDashboardResponse response = new SettlementDashboardResponse(null, null); 
-    
-    return ResponseEntity.ok(response);
-}
-
-	// // 게시글 신고 추가
-	// @GetMapping("/board/reports")
-	// public ResponseEntity<List<ReportBoardDTO>> getBoardReportList(@LoginUser RedisMemberDTO user) {
-	// 	log.info("=====> [1서버 관리자] 게시글 신고 리스트 조회 요청자: {}", user.getMemberId());
-	// 	// 서비스에서 DTO 리스트를 반환하므로 타입을 맞춰줍니다.
-	// 	List<ReportBoardDTO> list = adminService.getBoardReports(); 
-	// 	return ResponseEntity.ok(list);
-	// }
 	
+	@GetMapping("/settlement")
+	public ResponseEntity<SettlementDashboardResponse> getSettlementStats() {
+	    log.info("=====> [core 서비스 관리자] 통합 대시보드 데이터 HTTP 요청 발생");
+	    SettlementDashboardResponse response = adminService.requestDashboardData();
+	    return ResponseEntity.ok(response);
+	}
+	
+	// 2. [추가] 게시글 신고 승인 (RabbitMQ 활용)
+    @PostMapping("/board/report/approve")
+    public ResponseEntity<String> approveBoardReport(@RequestParam("boardId") Long boardId, @LoginUser RedisMemberDTO user) {
+        log.info("=====> [1서버 관리자] 게시글 신고 승인 요청. 처리자: {}, 게시글ID: {}", user.getMemberId(), boardId);
+        
+        // AdminService2(또는 AdminService)에 구현한 RabbitMQ 발행 메서드 호출
+        adminService.approveBoardReport(boardId);
+        
+        return ResponseEntity.ok("게시글 신고 승인 및 메시지 발행 완료");
+    }
 }
