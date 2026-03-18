@@ -81,7 +81,6 @@ public class BoardController {
             @PathVariable(name = "id") Long id) {
 
         if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        
         BoardResponseDTO response = boardService.deleteBoard(id, loginUser.getMemberId(), loginUser.getRole());
         return ResponseEntity.ok(response);
     }
