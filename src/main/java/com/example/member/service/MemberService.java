@@ -141,30 +141,15 @@ public class MemberService {
 		String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
 		String refreshToken = jwtTokenProvider.refreshToken(member.getMemberId(), member.getRole());
 
-		// 2. 결제 정보 조회 (WebClient 헤더에 직접 토큰 주입)
-        Long balance = webClient.get()
-                .uri(paymentUrl + member.getMemberId())
-                // 결제 서버의 인증 방식에 맞춰 헤더에 토큰 추가 (예: Bearer 토큰)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)
-                // 만약 결제 서버가 헤더 대신 쿠키를 요구한다면 아래 주석을 해제하여 사용하세요.
-                // .cookie("refreshToken", refreshToken) 
-                .retrieve()
-                .bodyToMono(Long.class)
-                .onErrorResume(e -> {
-                    log.error("Payment 서버 조회 실패! ID: {}, 원인: {}", member.getMemberId(), e.getMessage());
-                    return Mono.just(0L); // 실패 시 기본값 0 처리
-                }).block();
-				
 		// Redis용 키 설정
 		String redisKey = "AUTH:MEMBER:" + member.getMemberId(); // 유저 상세 정보용 (Hash)
 		String refreshKey = "AUTH:REFRESH:" + member.getMemberId(); // 리프레시 토큰 전용 (String)
-
 
 		// Redis 유저 정보 Hash 저장 (token 포함)
 		Map<String, String> userInfo = new HashMap<>();
 		userInfo.put("token", jwtToken);
 		userInfo.put("role", member.getRole());
-		userInfo.put("balance", String.valueOf(balance));
+		userInfo.put("balance", "0");
 		userInfo.put("name", member.getName());
 
 		redisTemplate.opsForHash().putAll(redisKey, userInfo);
@@ -172,6 +157,20 @@ public class MemberService {
 
 		// Redis 리프레시 토큰 저장
 		redisTemplate.opsForValue().set(refreshKey, refreshToken, Duration.ofDays(14));
+
+		// 결제 정보 조회 (WebClient 헤더에 직접 토큰 주입)
+        Long balance = webClient.get()
+                .uri(paymentUrl + member.getMemberId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)
+                .retrieve()
+                .bodyToMono(Long.class)
+                .onErrorResume(e -> {
+                    log.error("Payment 서버 조회 실패! ID: {}, 원인: {}", member.getMemberId(), e.getMessage());
+                    return Mono.just(0L); // 실패 시 기본값 0 처리
+                }).block();
+		
+		// Redis에 잔액정보 저장
+		redisTemplate.opsForHash().put(redisKey, "balance", String.valueOf(balance));
 
 		// 리프레시 토큰을 보안 쿠키에 담기
 		ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
