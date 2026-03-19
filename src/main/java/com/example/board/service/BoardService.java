@@ -3,32 +3,24 @@ package com.example.board.service;
 import com.example.board.dto.BoardCreateRequest;
 import com.example.board.dto.BoardDTO;
 import com.example.board.dto.BoardResponseDTO;
-import com.example.board.dto.CommentResponseDTO;
-import com.example.board.dto.ReportBoardDTO; // 추가
 import com.example.board.entity.Board;
-import com.example.board.entity.Comment;
 import com.example.board.entity.LikeBoard;
-import com.example.board.entity.ReportComment;
-import com.example.board.entity.BoardReport;
 import com.example.board.repository.BoardRepository;
-import com.example.board.repository.CommentRepository;
 import com.example.board.repository.LikeRepository;
-import com.example.board.repository.ReportCommentRepository;
-import com.example.board.repository.ReportRepository;
-
+import com.example.board.repository.CommentRepository;
+import com.example.member.domain.Member;
+import com.example.member.repository.MemberRepository; // MemberRepository 경로 확인 필요
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -37,75 +29,115 @@ import java.util.stream.Collectors;
 public class BoardService {
 
     private final LikeRepository likeRepository;
+    private final BoardRepository boardRepository; 
     private final CommentRepository commentRepository;
-    private final BoardRepository boardRepository;     // 조회용 (기존 필드)
-    private final ReportRepository reportRepository;   // 저장용 (새로 추가)
-    private final ReportCommentRepository reportCommentRepository; // 댓글 신고용 레포지토리 추가
-    private final RabbitTemplate rabbitTemplate; // RabbitMQ 템플릿 주입
-
+    private final MemberRepository memberRepository;
+    
     @Value("${file.upload.dir}")
     private String uploadDir;
 
-    // RabbitMQ 리스너로부터 호출될 실제 승인 처리 로직
-    @Transactional
-    public void hideBoardByMessage(Long boardId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다. ID: " + boardId));
-        board.hideBoard(); // hidden = true
-        log.info("메시지 수신: 게시글 ID {} 가 숨김 처리되었습니다.", boardId);
-    }
-   
-    // 전체 조회
     @Transactional(readOnly = true)
-    public List<BoardDTO> getBoardList(String category) {
+    public List<BoardDTO> getBoardList(String category, Long memberId) {
         String searchCategory = (category == null || category.isEmpty() || "전체".equals(category)) ? "전체" : category;
+        
         List<Board> boards = "전체".equals(searchCategory) ?
             boardRepository.findByStatusOrderByCreatedAtDesc("ACTIVE") : 
             boardRepository.findByCategoryAndStatusOrderByCreatedAtDesc(category, "ACTIVE");
-        return boards.stream().map(this::convertToDTO).collect(Collectors.toList());
-    }
 
-    // 상세 조회
+        // [핵심] 1. 게시글 목록에 있는 모든 작성자 ID를 중복 없이 모읍니다.
+        Set<Long> memberIds = boards.stream()
+                .map(Board::getMemberId)
+                .collect(Collectors.toSet());
+                
+        // [핵심] 2. DB에서 해당 ID들의 회원 정보를 한 번에 다 가져옵니다. (IN 절 쿼리 한 번 실행)
+        List<Member> members = memberRepository.findAllById(memberIds);        
+                
+        // [핵심] 3. 가져온 회원 정보를 Map<ID, 이름> 형태로 만듭니다.
+        Map<Long, String> memberNameMap = members.stream()
+                .collect(Collectors.toMap(
+                    Member::getMemberId, 
+                    Member::getName, 
+                    (existing, replacement) -> existing
+                ));
+                
+        return boards.stream().map(board -> {
+            BoardDTO dto = convertToDTO(board);
+
+           // [핵심] 4. 맵에서 작성자 ID로 이름을 찾아서 넣어줍니다. (없으면 기본값)
+            String authorName = memberNameMap.getOrDefault(board.getMemberId(), "탈퇴한 사용자");
+            dto.setAuthorName(authorName);
+            
+            if (memberId != null) {
+                boolean isLiked = likeRepository.existsByBoardIdAndMemberId(board.getBoardId(), memberId);
+                dto.setLiked(isLiked);
+            }
+            return dto;
+        }).collect(Collectors.toList());
+    }
+    // [게시글 상세 조회] 조회수 증가 + 좋아요 여부 확인
     @Transactional
-    public BoardDTO getBoardDetail(Long id) {
-        Board board = boardRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("게시글 없음"));
+    public BoardDTO getBoardDetail(Long boardId, Long memberId) {
+        // 1. DB에서 게시글 조회
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new IllegalArgumentException("게시글 없음"));
         board.incrementViewCount();
-        return convertToDTO(board);
+
+        BoardDTO dto = convertToDTO(board);
+
+        // [상세조회] 작성자 이름 DB 조회 후 세팅
+        Member writer = memberRepository.findByMemberId(board.getMemberId());
+        if (writer != null) {
+            dto.setAuthorName(writer.getName());
+        } else {
+            dto.setAuthorName("알 수 없는 사용자");
+        }
+        if (memberId != null) {
+            boolean isLiked = likeRepository.existsByBoardIdAndMemberId(boardId, memberId);
+            dto.setLiked(isLiked);
+        }
+        return dto;
     }
 
     // 게시글 작성
     @Transactional
     public BoardResponseDTO writeBoard(BoardCreateRequest request, MultipartFile file, Long memberId) throws IOException {
-        String originalFileName = (file != null && !file.isEmpty()) ? file.getOriginalFilename() : null;
-        String storedFilePath = (file != null && !file.isEmpty()) ? saveFile(file) : null;
+        String originalFileName = null;
+        String storedFileName = null;
+
+        if (file != null && !file.isEmpty()) {
+            originalFileName = file.getOriginalFilename();
+            String fullPath = saveFile(file);
+            storedFileName = new File(fullPath).getName();
+        }
 
         Board board = Board.builder()
                 .title(request.getTitle()).content(request.getContent())
                 .category(request.getCategory()).memberId(memberId)
-                .originalFileName(originalFileName).storedFilePath(storedFilePath).build();
-
+                .originalFileName(originalFileName).storedFilePath(storedFileName).status("ACTIVE").build();
         boardRepository.save(board);
         return BoardResponseDTO.builder().boardId(board.getBoardId()).status("SUCCESS").build();
     }
-
     // 게시글 삭제
     @Transactional
     public BoardResponseDTO deleteBoard(Long id, Long memberId, String role) {
         Board board = boardRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("삭제할 게시글이 없습니다."));
 
-        // 401/403 방지를 위한 권한 체크 로그
-        log.info("Delete Attempt - Board MemberId: {}, Request MemberId: {}, Role: {}", board.getMemberId(), memberId, role);
-        
         if (!board.getMemberId().equals(memberId) && !"ADMIN".equals(role)) {
             throw new IllegalStateException("삭제 권한이 없습니다.");
         }
-
-        deletePhysicalFile(board.getStoredFilePath());
+        
+        // 연관 데이터 삭제 (순서 중요)
+        commentRepository.deleteByBoardId_BoardId(id); // 댓글 먼저 삭제
+        likeRepository.deleteByBoardId(id);    // 좋아요 삭제
+        // 파일 삭제
+        if (board.getStoredFilePath() != null) {
+            deletePhysicalFile(uploadDir + File.separator + board.getStoredFilePath());
+        }
+      
         boardRepository.delete(board);
         return BoardResponseDTO.builder().boardId(id).status("SUCCESS").message("삭제되었습니다.").build();
     }
-
     // 게시글 수정
     @Transactional
     public BoardResponseDTO updateBoard(Long id, BoardCreateRequest request, MultipartFile file, Long memberId, String role) throws IOException {
@@ -115,143 +147,62 @@ public class BoardService {
         if (!board.getMemberId().equals(memberId) && !"ADMIN".equals(role)) {
             throw new IllegalStateException("수정 권한이 없습니다.");
         }
-        // 텍스트 정보 업데이트
+        
         board.update(request.getTitle(), request.getContent(), request.getCategory());
-        // 파일 처리 로직
+       
         if (file != null && !file.isEmpty()) {
-            deletePhysicalFile(board.getStoredFilePath()); // 기존 파일 물리적 삭제
+            if (board.getStoredFilePath() != null) {
+                deletePhysicalFile(uploadDir + File.separator + board.getStoredFilePath());
+            }
             String originalFileName = file.getOriginalFilename();
-            String storedFilePath = saveFile(file); // 새 파일 저장 및 폴더 생성 체크
-            board.updateFile(originalFileName, storedFilePath);
-        }else if (request.getFileDeleted() != null && request.getFileDeleted()) {
-            // [추가된 로직] 사용자가 파일을 삭제하고 싶다고 명시한 경우 (DTO에 필드 추가 필요)
-            deletePhysicalFile(board.getStoredFilePath());
-            board.updateFile(null, null); // DB 정보를 NULL로 변경
+            String fullPath = saveFile(file);
+            board.updateFile(originalFileName, new File(fullPath).getName());
+        } else if (Boolean.TRUE.equals(request.getFileDeleted())) {
+            if (board.getStoredFilePath() != null) {
+                deletePhysicalFile(uploadDir + File.separator + board.getStoredFilePath());
+            }
+            board.updateFile(null, null);
         }
 
         return BoardResponseDTO.builder().boardId(id).status("SUCCESS").message("수정되었습니다.").build();
     }
-
-    // 좋아요 
+    // 좋아요 토글
     @Transactional
     public int toggleLike(Long boardId, Long memberId) {
-        Board board = boardRepository.findById(boardId).orElseThrow();
-        if (likeRepository.existsByBoardIdAndMemberId(boardId, memberId)) {
+        Board board = boardRepository.findById(boardId).orElseThrow(() -> new IllegalArgumentException("게시글이 존재하지 않습니다."));
+        
+        // 1. 이미 좋아요를 눌렀는지 확인
+        boolean exists = likeRepository.existsByBoardIdAndMemberId(boardId, memberId);
+
+        if (exists) {
+            // 2. 이미 있다면 삭제 (좋아요 취소)
             likeRepository.deleteByBoardIdAndMemberId(boardId, memberId);
-            // 직접 setLikeCount 하지 않고 엔티티 메서드 호출
-            board.updateLikeCount(false); 
+            board.updateLikeCount(false);
         } else {
-            likeRepository.save(LikeBoard.builder().boardId(boardId).memberId(memberId).build());
-            // 직접 setLikeCount 하지 않고 엔티티 메서드 호출
-            board.updateLikeCount(true); 
-        }
+            // 3. 없다면 추가 (좋아요) 중복 클릭 방지를 위해 한 번 더 체크하거나 try-catch로 DB 예외 처리 가능
+            try {
+                likeRepository.save(LikeBoard.builder().boardId(boardId).memberId(memberId).build());
+                board.updateLikeCount(true);
+            } catch (Exception e) {
+                log.warn("이미 좋아요 처리가 진행 중입니다.");
+            }
+        }// 변경된 count 반영
+        boardRepository.save(board); 
         return board.getLikeCount();
     }
 
-    // 게시글 댓글 작성 
+    // 신고 승인 시 숨김처리 메시지 수신용 
     @Transactional
-    public int addComment(Long boardId, Long memberId, String content) {
+    public void hideBoardByMessage(Long boardId) {
         Board board = boardRepository.findById(boardId)
-            .orElseThrow(()-> new IllegalArgumentException("게시글이 없습니다."));
-        commentRepository.save(Comment.builder()
-                         .boardId(boardId)
-                         .memberId(memberId)
-                         .content(content)
-                         .status("ACTIVE") // 초기 상태 설정
-                         .build());
-        // 댓글 수 증가
-        board.updateCommentCount(true); 
-        return board.getCommentCount();
+                .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다. ID: " + boardId));
+        board.hideBoard();
+        log.info("메시지 수신: 게시글 ID {} 가 숨김 처리되었습니다.", boardId);
     }
-
-    // 댓글 목록 조회
-    @Transactional(readOnly = true)
-   public List<CommentResponseDTO> getComments(Long boardId) {
-        if (!boardRepository.existsById(boardId)) throw new IllegalArgumentException("게시글 없음");
-        return commentRepository.findByBoardIdOrderByCreatedAtDesc(boardId)
-                .stream().map(CommentResponseDTO::from).toList();
-    }
-    // 게시글 신고
-    @Transactional
-    public String reportBoard(Long boardId, Long memberId, String reason) {
-        if (!boardRepository.existsById(boardId)) throw new IllegalArgumentException("존재하지 않는 게시글입니다.");
-        if (reportRepository.existsByBoardIdAndMemberId(boardId, memberId)) return "ALREADY_REPORTED";
-
-        BoardReport report = BoardReport.builder()
-                .boardId(boardId)
-                .memberId(memberId)
-                .reason(reason != null ? reason : "사유 없음")
-                .status("PENDING")
-                .build();
-        
-        reportRepository.save(report);
-        return "SUCCESS";
-    }
-
-    // 댓글 신고
-    @Transactional
-    public String reportComment(Long commentId, Long memberId, String reason) {
-        if (!commentRepository.existsById(commentId)) throw new IllegalArgumentException("댓글 없음");
-        if (reportCommentRepository.existsByCommentIdAndMemberId(commentId, memberId)) return "ALREADY_REPORTED";
-        
-        reportCommentRepository.save(ReportComment.builder()
-                .commentId(commentId)
-                .memberId(memberId)
-                .reason(reason != null ? reason : "사유 없음")
-                .status("PENDING")
-                .build());
-        return "SUCCESS";
-    }
-
-    // 신고 목록 조회들
-    @Transactional(readOnly = true)
-    public List<ReportBoardDTO> getBoardReportList() {
-        return reportRepository.findAllByOrderByCreatedAtDesc().stream()
-                .map(this::convertToReportDTO).collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public List<ReportComment> getCommentReportList() {
-        return reportCommentRepository.findAll();
-    }
-
-    // 게시글 신고 승인 처리
-    public void approveReport(Long reportId) {
-        // 1. 신고 내역 조회
-        BoardReport report = reportRepository.findById(reportId)
-                .orElseThrow(() -> new RuntimeException("신고 내역을 찾을 수 없습니다."));
-        report.approve(); // 2. 신고 상태 변경
-        // 3. 대상 게시글 상태 변경 (숨김 처리)
-        Board board = boardRepository.findById(report.getBoardId())
-                .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
-
-        // 3. RabbitMQ로 메시지 전송 (이 부분이 "전화를 거는" 역할)
-        // exchange 이름과 routingKey는 설정하신 값에 맞춰주세요.
-        rabbitTemplate.convertAndSend("board.exchange", "board.hide", board.getBoardId());
-        
-        log.info("관리자 승인: 신고 ID {} 승인. RabbitMQ로 게시글 ID {} 숨김 요청 전송", reportId, board.getBoardId());
-    }
-    // 댓글 신고 승인 처리
-    public void approveCommentReport(Long reportId) {
-        ReportComment report = reportCommentRepository.findById(reportId)
-                .orElseThrow(() -> new RuntimeException("댓글 신고 내역을 찾을 수 없습니다."));
-        
-        report.approve();
-
-        Comment comment = commentRepository.findById(report.getCommentId())
-                .orElseThrow(() -> new RuntimeException("댓글을 찾을 수 없습니다."));
-        
-        // Comment 엔티티에도 status 필드나 hidden 필드가 있다면 그에 맞춰 수정
-        comment.setStatus("HIDDEN");
-        log.info("관리자 승인: 댓글 신고 ID {} 승인 완료", reportId);
-    }
-
-// --- 내부 헬퍼 메서드 ---
-
+    // 파일 관련 보조 메서드
     private String saveFile(MultipartFile file) throws IOException {
         File folder = new File(uploadDir);
         if (!folder.exists()) folder.mkdirs();
-
         String storedFileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
         String storedFilePath = uploadDir + File.separator + storedFileName;
         file.transferTo(new File(storedFilePath));
@@ -266,19 +217,14 @@ public class BoardService {
     }
 
     private BoardDTO convertToDTO(Board board) {
+        String fileUrl = board.getStoredFilePath() != null 
+                ? "/msa/core/board/files/" + board.getStoredFilePath() 
+                : null;
         return BoardDTO.builder()
-                .boardId(board.getBoardId()).title(board.getTitle())
-                .content(board.getContent()).category(board.getCategory())
-                .memberId(board.getMemberId()).viewCount(board.getViewCount())
-                .likeCount(board.getLikeCount()).commentCount(board.getCommentCount())
-                .originalFileName(board.getOriginalFileName()).storedFilePath(board.getStoredFilePath())
+                .boardId(board.getBoardId()).title(board.getTitle()).content(board.getContent())
+                .category(board.getCategory()).memberId(board.getMemberId()).viewCount(board.getViewCount())
+                .status(board.getStatus()).likeCount(board.getLikeCount()).commentCount(board.getCommentCount())
+                .originalFileName(board.getOriginalFileName()).storedFilePath(fileUrl).artistPost(board.isArtistPost())
                 .createdAt(board.getCreatedAt()).updatedAt(board.getUpdatedAt()).build();
-    }
-
-    private ReportBoardDTO convertToReportDTO(BoardReport report) {
-        return ReportBoardDTO.builder()
-                .reportId(report.getReportId()).boardId(report.getBoardId())
-                .memberId(report.getMemberId()).reason(report.getReason())
-                .status(report.getStatus()).createdAt(report.getCreatedAt()).build();
     }
 }

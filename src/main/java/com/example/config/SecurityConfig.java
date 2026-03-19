@@ -36,7 +36,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         // 2. /error 경로를 추가하여 404/500 에러 발생 시 상세 내용을 볼 수 있게 허용
-                        .requestMatchers("/", "/login", "/shop", "/member", "/api/**", "/board/**", "/error")
+                        .requestMatchers("/", "/login", "/shop", "/member/**", "/api/**", "/board/**", "/error")
                         .permitAll()
                         .anyRequest().authenticated())
                 .build();

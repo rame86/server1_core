@@ -14,11 +14,11 @@ public class BoardDTO {
     private String category;    
     private String title;
     private String content;
+    private String status;
     
     // 작성자 식별자
     private Long memberId;     
     private Long artistId;
-    private String authorId;    // 필요한 경우 사용 (로그인 ID 등)
     
     // UI 노출용 실제 데이터 필드
     private String authorName;  // 실제 DB의 member.name이 담길 곳
@@ -40,6 +40,8 @@ public class BoardDTO {
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 
+    private boolean isLiked; // 현재 로그인한 사용자가 좋아요를 눌렀는지 여부
+   
     // MSA 응답 처리를 위한 핵심 필드
     private String replyRoutingKey; // 응답을 받을 라우팅 키 (예: "board.create.res")
     private String type;            // 요청 타입 (예: "GENERAL", "NOTICE", "PAID")

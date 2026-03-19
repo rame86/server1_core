@@ -18,10 +18,12 @@ public class RabbitMQConfig {
     public static final String PAY_REQ_ROUTING_KEY = "pay.request";
     public static final String PAY_RES_ROUTING_KEY = "pay.res.core";
     public static final String PAY_RES_QUEUE_NAME = "pay.res.core.queue";
+    
     // 관리자 페이먼트 메세지 주고받기
     // PAY_REQ_ROUTING_KEY고대로 쓰기
     public static final String ADMIN_PAY_RES_ROUTING_KEY = "admin.pay.res.core";
     public static final String ADMIN_PAY_RES_QUEUE_NAME = "admin.pay.res.core.queue";
+    
     // 이벤트관련
     public static final String EVENT_REQ_ROUTING_KEY = "admin.event.request";
     public static final String EVENT_REQ_QUEUE_NAME = "admin.event.request.queue";
