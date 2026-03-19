@@ -160,6 +160,7 @@ public class MemberService {
 		userInfo.put("token", jwtToken);
 		userInfo.put("role", member.getRole());
 		userInfo.put("balance", String.valueOf(balance));
+		userInfo.put("name", member.getName());
 
 		redisTemplate.opsForHash().putAll(redisKey, userInfo);
 		redisTemplate.expire(redisKey, Duration.ofHours(1));

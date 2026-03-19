@@ -124,5 +124,8 @@ public class AdminController {
 				.userList(userList)
 				.build());
 	}
+	
+	// 유저 상세정보
+	
 
 }
