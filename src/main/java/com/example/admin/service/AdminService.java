@@ -238,6 +238,11 @@ public class AdminService {
 		
 		log.info("-----> [거절 완료] ID: {}, 사유: {}", dto.getApprovalId(), dto.getRejectionReason());
 	}
+
+    public void approveBoardReport(Long boardId) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'approveBoardReport'");
+    }
 	
 	// artist 승인된 리스트
 	@Transactional(readOnly = true)

@@ -17,6 +17,7 @@ import com.example.admin.dto.ArtistResultDTO;
 import com.example.artist.dto.ArtistResponse;
 import com.example.artist.dto.DonationRequset;
 import com.example.artist.service.ArtistService;
+import com.example.board.dto.BoardDTO;
 import com.example.board.service.BoardService;
 import com.example.common.annotation.LoginUser;
 import com.example.member.dto.RedisMemberDTO;
@@ -57,11 +58,14 @@ public class ArtistController {
             @RequestParam(name = "category", required = false, defaultValue = "전체") String category,
             @PathVariable(name = "artistId") Long artistId) {
         
+        // [수정] 로그인 안 한 유저면 null을 보내도록 처리
+        Long memberId = (user != null) ? user.getMemberId() : null;
         log.info("-----> [BOARD LIST REQUEST] 카테고리: {}, 아티스트ID: {}, 요청자: {}", category, artistId, user.getMemberId());
         
         // BoardService에서 파라미터를 하나(category)만 받도록 수정되었으므로 이에 맞춰 호출합니다.
         // 만약 아티스트별 필터링이 반드시 필요하다면 BoardService에 artistId를 받는 로직을 추가해야 합니다.
-        return ResponseEntity.ok(boardService.getBoardList(category));
+        List<BoardDTO> list = boardService.getBoardList(category, memberId);
+        return ResponseEntity.ok(list);
     }
     
     // 후원 테스트
