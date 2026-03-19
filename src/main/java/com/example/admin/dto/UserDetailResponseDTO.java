@@ -11,12 +11,16 @@ public class UserDetailResponseDTO {
 	private Long memberId;
     private String name;
     private String email;
-    private String phone;          // (상세 전용)
-    private String address;        // (상세 전용)
-    private String lastLoginIp;    // (상세 전용)
+    private String status;
     
-    private int totalPurchases;    // (리스트에 있었지만 최신으로 새로 받기!)
-    private long pointBalance;     // (리스트에 있었지만 최신으로 새로 받기!)
-    private List<PurchaseHistoryDTO> purchaseHistory; // (상세 전용)
-    private List<PointHistoryDTO> pointHistory;       // (상세 전용)
+    private String phone; // (상세 전용)
+    private String address; // (상세 전용)
+    private String lastLoginIp; // (상세 전용)
+    private String lastLoginAt; // (상세 전용)
+    private String adminMemo; // (상세 전용)
+    
+    private int totalPurchases;
+    private long pointBalance;
+    private List<PurchaseHistoryDTO> purchaseHistory; // 구매이력
+    private List<PointHistoryDTO> pointHistory;       // 포인트이력
 }

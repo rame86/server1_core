@@ -32,6 +32,7 @@ public class Artist {
     private String communityLink;  // 아티스트별 커뮤니티 링크 (외부 링크)
     private String description;    // 소개글
     private String category;
+    private String profileImageUrl;
     private int followerCount = 0;
     
 }
