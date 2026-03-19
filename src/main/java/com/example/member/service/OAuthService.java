@@ -27,10 +27,16 @@ public class OAuthService {
 	private final SocialAccountRepository socialAccountRepository;
 
     public Map<String, Object> memberLogin(OAuthUserInfo userInfo, HttpServletResponse response) {
+    	
 		// 소셜계정으로 가입된 이력이 있는지 확인하기
 		Optional<SocialAccount> socialOpt = socialAccountRepository.findByProviderAndProviderId(userInfo.getProvider(), userInfo.getProviderId());
+		
 		// 소셜로 가입/연동된 적이 있음
 		if(socialOpt.isPresent()) {
+			Member member = socialOpt.get().getMember();
+			if("BLOCK".equals(member.getStatus())) {
+				throw new IllegalArgumentException("정지된 계정입니다. 고객센터에 문의하세요.");
+			}
 			return memberService.loginResponse(socialOpt.get().getMember(), "소셜 로그인 성공", response);
 		}
 
@@ -40,6 +46,9 @@ public class OAuthService {
 			if(memberOpt.isPresent()) {
 				// 이메일이 있지만 해당 소셜 계정은 없을때
 				Member member = memberOpt.get();
+				if("BLOCK".equals(member.getStatus())) {
+					throw new IllegalArgumentException("정지된 계정입니다. 고객센터에 문의하세요.");
+				}
 				linkSocialAccount(member, userInfo);
 				return memberService.loginResponse(member, "연동 성공", response);
 			}
