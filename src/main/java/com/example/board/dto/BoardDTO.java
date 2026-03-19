@@ -19,7 +19,6 @@ public class BoardDTO {
     // 작성자 식별자
     private Long memberId;     
     private Long artistId;
-    private String authorId;    // 필요한 경우 사용 (로그인 ID 등)
     
     // UI 노출용 실제 데이터 필드
     private String authorName;  // 실제 DB의 member.name이 담길 곳

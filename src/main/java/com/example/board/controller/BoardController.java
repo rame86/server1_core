@@ -44,6 +44,7 @@ public class BoardController {
         @LoginUser RedisMemberDTO loginUser,
         @RequestParam(name = "category", required = false) String category) {
         log.info("====> [목록 조회] 카테고리: {}", category);
+
         List<BoardDTO> list = boardService.getBoardList(category, loginUser != null ? loginUser.getMemberId() : null);
         return ResponseEntity.ok(list);
     }
@@ -52,11 +53,10 @@ public class BoardController {
     public ResponseEntity<BoardDTO> getDetail(
         @LoginUser RedisMemberDTO loginUser, 
         @PathVariable(name = "id") Long id) {
-        
+        log.info("조회 요청자 ID: {}", loginUser != null ? loginUser.getMemberId() : "비로그인");
+
         BoardDTO detail = boardService.getBoardDetail(id, loginUser != null ? loginUser.getMemberId() : null);
-        // [중요] 응답을 보내기 전에 로그를 찍어보면 누가 요청했는지 알 수 있습니다.
-    log.info("조회 요청자 ID: {}", loginUser != null ? loginUser.getMemberId() : "비로그인");
-    return ResponseEntity.ok(detail);
+        return ResponseEntity.ok(detail);
 }
 
     @PostMapping(value = "/write", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
@@ -66,9 +66,10 @@ public class BoardController {
             @RequestPart(value = "file", required = false) MultipartFile file) throws IOException {
 
         if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+       // [수정] Service의 writeBoard가 memberName을 받을 수 있도록 파라미터 유지
         BoardResponseDTO response = boardService.writeBoard(request, file, loginUser.getMemberId());
         return ResponseEntity.ok(response);
-    }
+}
 
     @PutMapping(value = "/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<BoardResponseDTO> update(

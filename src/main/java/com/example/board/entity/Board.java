@@ -23,7 +23,7 @@ public class Board {
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    private Long memberId;   
+    private Long memberId;
     private Long artistId;   
     
     @Builder.Default

@@ -8,6 +8,8 @@ import com.example.board.entity.LikeBoard;
 import com.example.board.repository.BoardRepository;
 import com.example.board.repository.LikeRepository;
 import com.example.board.repository.CommentRepository;
+import com.example.member.domain.Member;
+import com.example.member.repository.MemberRepository; // MemberRepository 경로 확인 필요
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,10 +17,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -29,20 +31,42 @@ public class BoardService {
     private final LikeRepository likeRepository;
     private final BoardRepository boardRepository; 
     private final CommentRepository commentRepository;
-       
+    private final MemberRepository memberRepository;
+    
     @Value("${file.upload.dir}")
     private String uploadDir;
 
     @Transactional(readOnly = true)
     public List<BoardDTO> getBoardList(String category, Long memberId) {
         String searchCategory = (category == null || category.isEmpty() || "전체".equals(category)) ? "전체" : category;
+        
         List<Board> boards = "전체".equals(searchCategory) ?
             boardRepository.findByStatusOrderByCreatedAtDesc("ACTIVE") : 
             boardRepository.findByCategoryAndStatusOrderByCreatedAtDesc(category, "ACTIVE");
 
+        // [핵심] 1. 게시글 목록에 있는 모든 작성자 ID를 중복 없이 모읍니다.
+        Set<Long> memberIds = boards.stream()
+                .map(Board::getMemberId)
+                .collect(Collectors.toSet());
+                
+        // [핵심] 2. DB에서 해당 ID들의 회원 정보를 한 번에 다 가져옵니다. (IN 절 쿼리 한 번 실행)
+        List<Member> members = memberRepository.findAllById(memberIds);        
+                
+        // [핵심] 3. 가져온 회원 정보를 Map<ID, 이름> 형태로 만듭니다.
+        Map<Long, String> memberNameMap = members.stream()
+                .collect(Collectors.toMap(
+                    Member::getMemberId, 
+                    Member::getName, 
+                    (existing, replacement) -> existing
+                ));
+                
         return boards.stream().map(board -> {
             BoardDTO dto = convertToDTO(board);
-            // 로그인한 사용자(memberId가 null이 아님)인 경우에만 좋아요 여부 체크
+
+           // [핵심] 4. 맵에서 작성자 ID로 이름을 찾아서 넣어줍니다. (없으면 기본값)
+            String authorName = memberNameMap.getOrDefault(board.getMemberId(), "탈퇴한 사용자");
+            dto.setAuthorName(authorName);
+            
             if (memberId != null) {
                 boolean isLiked = likeRepository.existsByBoardIdAndMemberId(board.getBoardId(), memberId);
                 dto.setLiked(isLiked);
@@ -50,25 +74,30 @@ public class BoardService {
             return dto;
         }).collect(Collectors.toList());
     }
-
     // [게시글 상세 조회] 조회수 증가 + 좋아요 여부 확인
     @Transactional
     public BoardDTO getBoardDetail(Long boardId, Long memberId) {
-    // 1. DB에서 게시글 조회
-    Board board = boardRepository.findById(boardId)
-            .orElseThrow(() -> new IllegalArgumentException("게시글 없음"));
+        // 1. DB에서 게시글 조회
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new IllegalArgumentException("게시글 없음"));
+        board.incrementViewCount();
 
-    board.incrementViewCount();
-    BoardDTO dto = convertToDTO(board);
-    
-   if (memberId != null) {
-        // LikeRepository에서 아이디와 게시글번호로 데이터가 있는지 확인
-        boolean isLiked = likeRepository.existsByBoardIdAndMemberId(boardId, memberId);
-        dto.setLiked(isLiked); // 이 결과를 리액트로 보내줌
+        BoardDTO dto = convertToDTO(board);
+
+        // [상세조회] 작성자 이름 DB 조회 후 세팅
+        Member writer = memberRepository.findByMemberId(board.getMemberId());
+        if (writer != null) {
+            dto.setAuthorName(writer.getName());
+        } else {
+            dto.setAuthorName("알 수 없는 사용자");
+        }
+        if (memberId != null) {
+            boolean isLiked = likeRepository.existsByBoardIdAndMemberId(boardId, memberId);
+            dto.setLiked(isLiked);
+        }
+        return dto;
     }
 
-    return dto;
-}
     // 게시글 작성
     @Transactional
     public BoardResponseDTO writeBoard(BoardCreateRequest request, MultipartFile file, Long memberId) throws IOException {
@@ -191,13 +220,11 @@ public class BoardService {
         String fileUrl = board.getStoredFilePath() != null 
                 ? "/msa/core/board/files/" + board.getStoredFilePath() 
                 : null;
-        String uiAuthorName = "User_" + (board.getMemberId() != null ? board.getMemberId() : "익명");
-
         return BoardDTO.builder()
                 .boardId(board.getBoardId()).title(board.getTitle()).content(board.getContent())
                 .category(board.getCategory()).memberId(board.getMemberId()).viewCount(board.getViewCount())
                 .status(board.getStatus()).likeCount(board.getLikeCount()).commentCount(board.getCommentCount())
                 .originalFileName(board.getOriginalFileName()).storedFilePath(fileUrl).artistPost(board.isArtistPost())
-                .createdAt(board.getCreatedAt()).updatedAt(board.getUpdatedAt()).authorName(uiAuthorName).build();
+                .createdAt(board.getCreatedAt()).updatedAt(board.getUpdatedAt()).build();
     }
 }
