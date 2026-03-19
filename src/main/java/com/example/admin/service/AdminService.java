@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -60,6 +61,7 @@ public class AdminService {
 	private final WebClient webClient;
 	private final ArtistRepository artistRepository;
 	private final MemberHistoryRepository memberHistoryRepository;
+	private final PasswordEncoder passwordEncoder;
 	
 	@Value("${pay.admin.url}")
     private String payAdminUrl;
@@ -384,6 +386,74 @@ public class AdminService {
 	            .purchaseHistory(paymentData.getPurchaseHistory())
 	            .pointHistory(paymentData.getPointHistory())
 	            .build();
+	}
+	
+	// user role update
+	@Transactional
+	public void updateUserRole(Long adminId, Long memberId, String role) {
+		Member member = memberRepository.findById(memberId)
+	            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다."));
+		
+		String oldRole = member.getRole();
+	    member.setRole(role);
+	    
+	    MemberHistory history = MemberHistory.builder()
+				.memberId(memberId)
+				.status("ACTIVE")
+				.reason("권한 변경: " + oldRole + " -> " + role)
+				.adminId(adminId)
+				.build();
+		memberHistoryRepository.save(history);
+		log.info("✅ 권한 변경 완료 및 히스토리 저장 성공!");	
+	}
+	
+	// user password change
+	@Transactional
+	public void resetPassword(Long adminId, Long memberId, String password) {
+		Member member = memberRepository.findById(memberId)
+	            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다."));
+		
+		String encodedPw = passwordEncoder.encode(password);
+		member.setPassword(encodedPw);
+		
+		MemberHistory history = MemberHistory.builder()
+	            .memberId(memberId)
+	            .status("ACTIVE") // 비번만 바꾼 거니 상태는 ACTIVE
+	            .reason("관리자에 의한 비밀번호 강제 초기화")
+	            .adminId(adminId)
+	            .build();
+	    memberHistoryRepository.save(history);
+	    log.info("✅ 유저 {} 비번 초기화 완료 및 기록 저장!", memberId);
+	}
+	
+	// user 강제 로그아웃키기기
+	@Transactional
+	public void forceLogout(Long adminId, Long memberId) {
+		log.info("📢 [강제 로그아웃 발령] 관리자 {}님이 유저 {}를 쫓아냅니다.", adminId, memberId);
+		// 1. Redis에 로그아웃 전용 키 생성, 필터에서 이 키가 있으면 토큰을 무효화하게 만들어야됨
+		redisTemplate.opsForValue().set("FORCE_LOGOUT:" + memberId, "true", 1, TimeUnit.HOURS);
+		memberHistoryRepository.save(MemberHistory.builder()
+	            .memberId(memberId)
+	            .status("ACTIVE") // 상태는 그대로
+	            .reason("관리자에 의한 강제 로그아웃 수행")
+	            .adminId(adminId)
+	            .build());
+	}
+	
+	// 유저 탈퇴(?) 시키기
+	@Transactional
+	public void deleteUser(Long adminId, Long memberId) {
+		Member member = memberRepository.findById(memberId)
+	            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다."));
+		member.setStatus("DELETE");
+		MemberHistory history = MemberHistory.builder()
+	            .memberId(memberId)
+	            .status("DELETE") // 비번만 바꾼 거니 상태는 ACTIVE
+	            .reason("관리자에 의한 계정 삭제 처리")
+	            .adminId(adminId)
+	            .build();
+	    memberHistoryRepository.save(history);
+	    redisTemplate.opsForValue().set("BLOCK:" + memberId, "true", 24, TimeUnit.HOURS);
 	}
 	
 }
