@@ -47,10 +47,17 @@ public class BoardController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<BoardDTO> getDetail(@PathVariable(name = "id") Long id) {
+    public ResponseEntity<BoardDTO> getDetail(
+        @LoginUser RedisMemberDTO loginUser, 
+        @PathVariable(name = "id") Long id) {
+        
         BoardDTO detail = boardService.getBoardDetail(id);
-        return ResponseEntity.ok(detail);
-    }
+
+        // [중요] 응답을 보내기 전에 로그를 찍어보면 누가 요청했는지 알 수 있습니다.
+    log.info("조회 요청자 ID: {}", loginUser != null ? loginUser.getMemberId() : "비로그인");
+    
+    return ResponseEntity.ok(detail);
+}
 
     @PostMapping(value = "/write", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<BoardResponseDTO> write(
