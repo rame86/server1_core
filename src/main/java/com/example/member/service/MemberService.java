@@ -141,19 +141,24 @@ public class MemberService {
 		String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
 		String refreshToken = jwtTokenProvider.refreshToken(member.getMemberId(), member.getRole());
 
+		// 2. 결제 정보 조회 (WebClient 헤더에 직접 토큰 주입)
+        Long balance = webClient.get()
+                .uri(paymentUrl + member.getMemberId())
+                // 결제 서버의 인증 방식에 맞춰 헤더에 토큰 추가 (예: Bearer 토큰)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)
+                // 만약 결제 서버가 헤더 대신 쿠키를 요구한다면 아래 주석을 해제하여 사용하세요.
+                // .cookie("refreshToken", refreshToken) 
+                .retrieve()
+                .bodyToMono(Long.class)
+                .onErrorResume(e -> {
+                    log.error("Payment 서버 조회 실패! ID: {}, 원인: {}", member.getMemberId(), e.getMessage());
+                    return Mono.just(0L); // 실패 시 기본값 0 처리
+                }).block();
+				
 		// Redis용 키 설정
 		String redisKey = "AUTH:MEMBER:" + member.getMemberId(); // 유저 상세 정보용 (Hash)
 		String refreshKey = "AUTH:REFRESH:" + member.getMemberId(); // 리프레시 토큰 전용 (String)
 
-		// 결제 정보 조회 (WebClient)
-		Long balance = webClient.get()
-				.uri(paymentUrl + member.getMemberId())
-				.retrieve()
-				.bodyToMono(Long.class)
-				.onErrorResume(e -> {
-					log.error("Payment 서버 조회 실패! ID: {}", member.getMemberId());
-					return Mono.just(0L);
-				}).block();
 
 		// Redis 유저 정보 Hash 저장 (token 포함)
 		Map<String, String> userInfo = new HashMap<>();
@@ -291,11 +296,9 @@ public class MemberService {
 	            .description(String.valueOf(dto.getDescription()))
 				.imageUrl(dto.getImageUrl())
 	            .status("PENDING")
-	            .imageUrl(dto.getImageUrl())
 	            .title("아티스트 승인 신청: " + dto.getArtistName())
 	            .build();
 		approvalRepository.save(approval);
-		// 여기부분 날아가도 모름
 		
 		// 멤버테이블 상태 변경
 		Member member = memberRepository.findById(memberId)
