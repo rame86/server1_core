@@ -15,6 +15,7 @@ public class Comment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "comment_id")
     private Long commentId;
 
     // ManyToOne 연관관계 매핑
@@ -22,12 +23,14 @@ public class Comment {
     @JoinColumn(name = "board_id")
     private Board boardId;
 
+    @Column(name = "member_id")
     private Long memberId;
 
     @Column(columnDefinition = "TEXT")
     private String content;
 
     @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
     @Builder.Default
@@ -37,6 +40,10 @@ public class Comment {
     // [비즈니스 로직] 상태 변경 메서드
     public void hideComment() {
         this.status = "HIDDEN";
+    }
+
+    public void updateContent(String content) {
+        this.content = content;
     }
 
 }
