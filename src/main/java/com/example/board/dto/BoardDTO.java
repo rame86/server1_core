@@ -41,6 +41,8 @@ public class BoardDTO {
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 
+    private boolean isLiked; // 현재 로그인한 사용자가 좋아요를 눌렀는지 여부
+   
     // MSA 응답 처리를 위한 핵심 필드
     private String replyRoutingKey; // 응답을 받을 라우팅 키 (예: "board.create.res")
     private String type;            // 요청 타입 (예: "GENERAL", "NOTICE", "PAID")

@@ -34,38 +34,42 @@ public class BoardService {
     private String uploadDir;
 
     @Transactional(readOnly = true)
-    public List<BoardDTO> getBoardList(String category) {
+    public List<BoardDTO> getBoardList(String category, Long memberId) {
         String searchCategory = (category == null || category.isEmpty() || "전체".equals(category)) ? "전체" : category;
         List<Board> boards = "전체".equals(searchCategory) ?
             boardRepository.findByStatusOrderByCreatedAtDesc("ACTIVE") : 
             boardRepository.findByCategoryAndStatusOrderByCreatedAtDesc(category, "ACTIVE");
-        return boards.stream().map(this::convertToDTO).collect(Collectors.toList());
+
+        return boards.stream().map(board -> {
+            BoardDTO dto = convertToDTO(board);
+            // 로그인한 사용자(memberId가 null이 아님)인 경우에만 좋아요 여부 체크
+            if (memberId != null) {
+                boolean isLiked = likeRepository.existsByBoardIdAndMemberId(board.getBoardId(), memberId);
+                dto.setLiked(isLiked);
+            }
+            return dto;
+        }).collect(Collectors.toList());
     }
 
+    // [게시글 상세 조회] 조회수 증가 + 좋아요 여부 확인
     @Transactional
-    public void hideBoardByMessage(Long boardId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다. ID: " + boardId));
-        board.hideBoard();
-        log.info("메시지 수신: 게시글 ID {} 가 숨김 처리되었습니다.", boardId);
-    }
-
-
-    @Transactional
-    public BoardDTO getBoardDetail(Long id) {
+    public BoardDTO getBoardDetail(Long boardId, Long memberId) {
     // 1. DB에서 게시글 조회
-    Board board = boardRepository.findById(id)
+    Board board = boardRepository.findById(boardId)
             .orElseThrow(() -> new IllegalArgumentException("게시글 없음"));
 
     board.incrementViewCount();
     BoardDTO dto = convertToDTO(board);
     
-    // 4. 아티스트 여부 체크 (기존 DTO에 있는 메서드)
-    dto.checkArtistStatus();
+   if (memberId != null) {
+        // LikeRepository에서 아이디와 게시글번호로 데이터가 있는지 확인
+        boolean isLiked = likeRepository.existsByBoardIdAndMemberId(boardId, memberId);
+        dto.setLiked(isLiked); // 이 결과를 리액트로 보내줌
+    }
 
     return dto;
 }
-
+    // 게시글 작성
     @Transactional
     public BoardResponseDTO writeBoard(BoardCreateRequest request, MultipartFile file, Long memberId) throws IOException {
         String originalFileName = null;
@@ -84,7 +88,7 @@ public class BoardService {
         boardRepository.save(board);
         return BoardResponseDTO.builder().boardId(board.getBoardId()).status("SUCCESS").build();
     }
-
+    // 게시글 삭제
     @Transactional
     public BoardResponseDTO deleteBoard(Long id, Long memberId, String role) {
         Board board = boardRepository.findById(id)
@@ -105,7 +109,7 @@ public class BoardService {
         boardRepository.delete(board);
         return BoardResponseDTO.builder().boardId(id).status("SUCCESS").message("삭제되었습니다.").build();
     }
-
+    // 게시글 수정
     @Transactional
     public BoardResponseDTO updateBoard(Long id, BoardCreateRequest request, MultipartFile file, Long memberId, String role) throws IOException {
         Board board = boardRepository.findById(id)
@@ -133,7 +137,7 @@ public class BoardService {
 
         return BoardResponseDTO.builder().boardId(id).status("SUCCESS").message("수정되었습니다.").build();
     }
-
+    // 좋아요 토글
     @Transactional
     public int toggleLike(Long boardId, Long memberId) {
         Board board = boardRepository.findById(boardId).orElseThrow(() -> new IllegalArgumentException("게시글이 존재하지 않습니다."));
@@ -145,26 +149,28 @@ public class BoardService {
             // 2. 이미 있다면 삭제 (좋아요 취소)
             likeRepository.deleteByBoardIdAndMemberId(boardId, memberId);
             board.updateLikeCount(false);
-            log.info("좋아요 취소: 게시글={}, 회원={}", boardId, memberId);
         } else {
-            // 3. 없다면 추가 (좋아요)
-            // 중복 클릭 방지를 위해 한 번 더 체크하거나 try-catch로 DB 예외 처리 가능
+            // 3. 없다면 추가 (좋아요) 중복 클릭 방지를 위해 한 번 더 체크하거나 try-catch로 DB 예외 처리 가능
             try {
-                likeRepository.save(LikeBoard.builder()
-                        .boardId(boardId)
-                        .memberId(memberId)
-                        .build());
+                likeRepository.save(LikeBoard.builder().boardId(boardId).memberId(memberId).build());
                 board.updateLikeCount(true);
-                log.info("좋아요 추가: 게시글={}, 회원={}", boardId, memberId);
             } catch (Exception e) {
                 log.warn("이미 좋아요 처리가 진행 중입니다.");
             }
-        }
-        // 변경된 count 반영
+        }// 변경된 count 반영
         boardRepository.save(board); 
         return board.getLikeCount();
     }
 
+    // 신고 승인 시 숨김처리 메시지 수신용 
+    @Transactional
+    public void hideBoardByMessage(Long boardId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다. ID: " + boardId));
+        board.hideBoard();
+        log.info("메시지 수신: 게시글 ID {} 가 숨김 처리되었습니다.", boardId);
+    }
+    // 파일 관련 보조 메서드
     private String saveFile(MultipartFile file) throws IOException {
         File folder = new File(uploadDir);
         if (!folder.exists()) folder.mkdirs();

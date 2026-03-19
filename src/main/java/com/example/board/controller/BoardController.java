@@ -40,9 +40,11 @@ public class BoardController {
     // --- [1. 게시글 관련 API] ---
 
     @GetMapping("/list")
-    public ResponseEntity<List<BoardDTO>> getList(@RequestParam(name = "category", required = false) String category) {
+    public ResponseEntity<List<BoardDTO>> getList(
+        @LoginUser RedisMemberDTO loginUser,
+        @RequestParam(name = "category", required = false) String category) {
         log.info("====> [목록 조회] 카테고리: {}", category);
-        List<BoardDTO> list = boardService.getBoardList(category);
+        List<BoardDTO> list = boardService.getBoardList(category, loginUser != null ? loginUser.getMemberId() : null);
         return ResponseEntity.ok(list);
     }
 
@@ -51,11 +53,9 @@ public class BoardController {
         @LoginUser RedisMemberDTO loginUser, 
         @PathVariable(name = "id") Long id) {
         
-        BoardDTO detail = boardService.getBoardDetail(id);
-
+        BoardDTO detail = boardService.getBoardDetail(id, loginUser != null ? loginUser.getMemberId() : null);
         // [중요] 응답을 보내기 전에 로그를 찍어보면 누가 요청했는지 알 수 있습니다.
     log.info("조회 요청자 ID: {}", loginUser != null ? loginUser.getMemberId() : "비로그인");
-    
     return ResponseEntity.ok(detail);
 }
 
