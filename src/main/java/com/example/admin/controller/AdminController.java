@@ -2,7 +2,10 @@ package com.example.admin.controller;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,6 +20,9 @@ import com.example.admin.dto.ArtistResultDTO;
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.SettlementDashboardResponse;
 import com.example.admin.dto.ShopResultDTO;
+import com.example.admin.dto.UserListResponseDTO;
+import com.example.admin.dto.UserManagementPageResponse;
+import com.example.admin.dto.UserSummaryDTO;
 import com.example.admin.service.AdminRefundService;
 import com.example.admin.service.AdminService;
 import com.example.common.annotation.LoginUser;
@@ -32,7 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequestMapping("/admin")
 @RequiredArgsConstructor
 public class AdminController {
-	
+
 	private final AdminService adminService;
 	private final AdminRefundService adminRefundService;
 	
@@ -108,4 +114,15 @@ public class AdminController {
 	    return ResponseEntity.ok(response);
 	}
 	
+	// 유저 통계
+	@GetMapping("/user")
+	public ResponseEntity<UserManagementPageResponse> getUserList(Pageable pageable) {
+		UserSummaryDTO summary = adminService.getUserSummary();
+		Page<UserListResponseDTO> userList = adminService.getAllUserList(pageable);
+		return ResponseEntity.ok(UserManagementPageResponse.builder()
+				.summary(summary)
+				.userList(userList)
+				.build());
+	}
+
 }

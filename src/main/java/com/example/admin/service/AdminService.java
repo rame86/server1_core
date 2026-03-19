@@ -10,6 +10,9 @@ import java.util.stream.Collectors;
 
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +26,9 @@ import com.example.admin.dto.ArtistResponseDTO;
 import com.example.admin.dto.ArtistResultDTO;
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.SettlementDashboardResponse;
+import com.example.admin.dto.UserListResponseDTO;
+import com.example.admin.dto.UserPaymentSummaryDTO;
+import com.example.admin.dto.UserSummaryDTO;
 import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
 import com.example.artist.dto.PaymentRequestDTO;
@@ -49,6 +55,9 @@ public class AdminService {
 	private final MemberRepository memberRepository;
 	private final WebClient webClient;
 	private final ArtistRepository artistRepository;
+	
+	@Value("${pay.admin.url}")
+    private String payAdminUrl;
 
 	@Transactional
 	public void processApproval(ApprovalDTO dto, String routingKey, Long adminId) {
@@ -254,7 +263,7 @@ public class AdminService {
 		
 		// 2서버 WebClient 호출
 		ArtistAccountResponse paymentData = webClient.get()
-				.uri("http://localhost:8083/wallet/artist/{artistId}", artistId)
+				.uri(payAdminUrl + "wallet/artist/{artistId}", artistId)
 				.retrieve()
 				.bodyToMono(ArtistAccountResponse.class)
 				.block();
@@ -283,6 +292,52 @@ public class AdminService {
 		Member member = memberRepository.findById(memberId).orElseThrow();
 		member.setStatus("BLOCK");
 		redisTemplate.opsForValue().set("BLOCK:" + memberId, "true", 24, TimeUnit.HOURS);
+	}
+	
+	// user 상단 카드3개
+	public UserSummaryDTO getUserSummary() {
+		return UserSummaryDTO.builder()
+				.totalUserCount(memberRepository.count())
+				.activeUserCount(memberRepository.countByStatus("ACTIVE"))
+				.blockedUserCount(memberRepository.countByStatus("BLOCK"))
+				.build();
+	}
+	
+	// user List
+	@Transactional(readOnly = true)
+	public Page<UserListResponseDTO> getAllUserList(Pageable pageable) {
+		// 멤버 페이지 가져오기
+		Page<Member> memberPage = memberRepository.findAll(pageable);
+		
+		// 현재 페이지에 있는 유저들의 ID만 리스트로 추출
+		List<Long> memberId = memberPage.getContent().stream()
+				.map(Member::getMemberId)
+				.collect(Collectors.toList());
+		
+		// pay서버에 누적 구매 횟수, 포인트 잔액 요청
+		Map<Long, UserPaymentSummaryDTO> paymentMap = webClient.post()
+				.uri(payAdminUrl + "wallet/user/summary")
+				.bodyValue(memberId)
+				.retrieve()
+				.bodyToFlux(UserPaymentSummaryDTO.class)
+				.collectMap(UserPaymentSummaryDTO::getMemberId)
+				.block();
+		
+		// 정보 합쳐서 DTO로 반환
+		return memberPage.map(member -> {
+			UserPaymentSummaryDTO payInfo = paymentMap.get(member.getMemberId());
+			Long rawBalance = (payInfo != null) ? payInfo.getPointBalance() : null;
+		    Integer rawCount = (payInfo != null) ? payInfo.getPurchaseCount() : null;
+			return UserListResponseDTO.builder()
+					.memberId(member.getMemberId())
+					.name(member.getName())
+					.email(member.getEmail())
+					.createdAt(member.getCreatedAt() != null ? member.getCreatedAt().toString() : "날짜 없음")
+					.status(member.getStatus())
+					.purchaseCount(rawCount != null ? rawCount : 0)
+		            .pointBalance(rawBalance != null ? rawBalance : 0L)
+					.build();
+		});
 	}
 	
 }
