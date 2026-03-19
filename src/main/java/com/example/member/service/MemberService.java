@@ -290,6 +290,7 @@ public class MemberService {
 	            .subCategory(String.valueOf(dto.getSubCategory()))
 	            .description(String.valueOf(dto.getDescription()))
 	            .status("PENDING")
+	            .imageUrl(dto.getImageUrl())
 	            .title("아티스트 승인 신청: " + dto.getArtistName())
 	            .build();
 		approvalRepository.save(approval);
