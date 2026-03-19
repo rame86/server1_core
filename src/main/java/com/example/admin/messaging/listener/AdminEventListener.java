@@ -30,16 +30,16 @@ public class AdminEventListener {
 	@RabbitListener(queues = RabbitMQConfig.EVENT_REQ_QUEUE_NAME)
 	public void handleEventResult(EventResultDTO dto) {
 		log.info("=====> [1서버] 2서버로부터 신청서 도착: {}", dto);
-		saveToApproval(dto, "EVENT", dto.getApprovalId(), dto.getEventTitle(), dto.getRequesterId());
+		saveToApproval(dto, "EVENT", dto.getApprovalId(), dto.getEventTitle(), dto.getRequesterId(), dto.getImageUrl());
 	}
 	
 	@RabbitListener(queues = RabbitMQConfig.SHOP_REQ_QUEUE_NAME)
 	public void handleShopRequest(ShopResultDTO dto) {
 		log.info("=====> [1서버] 2서버로부터 신청서 도착: {}", dto);
-		saveToApproval(dto, "SHOP", dto.getApprovalId(), dto.getGoodsType(), dto.getRequesterId());
+		saveToApproval(dto, "SHOP", dto.getApprovalId(), dto.getGoodsType(), dto.getRequesterId(), dto.getImageUrl());
 	}
 	
-	private void saveToApproval(Object dto, String category, Long targetId, String title, Long requesterId) {
+	private void saveToApproval(Object dto, String category, Long targetId, String title, Long requesterId, String imageUrl) {
 		try {
 			// DTO 객체를 JSON 문자열로 변환
 			String jsonContent = objectMapper.writeValueAsString(dto);
@@ -56,6 +56,7 @@ public class AdminEventListener {
 		                    ? LocalDateTime.parse(eventDto.getEventStartDate()) : null)
 		            .location(eventDto != null ? eventDto.getLocation() : null)
 		            .price(eventDto != null ? eventDto.getPrice() : null)
+		            .imageUrl(imageUrl)
 		            .build();
 							
 			approvalRepositroy.save(approval);

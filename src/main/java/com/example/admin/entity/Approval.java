@@ -39,7 +39,7 @@ public class Approval {
 	private Integer stock; // 재고
 	private String imageUrl; // 썸네일(?)
 	private String requesterName; //신청자 닉네임
-	private String subCategory; // 공식굿즈, 팬메이드
+	private String subCategory; // 공식굿즈, 팬메이드 등등....
 	private String description; // 간단한 설명
 	
 	@Column(name = "event_start_date")

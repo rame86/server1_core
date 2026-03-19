@@ -3,6 +3,7 @@ package com.example.security.filter;
 import java.io.IOException;
 import java.util.List;
 
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	
 	private final JwtTokenProvider jwtTokenProvider;
+	private final StringRedisTemplate redisTemplate;
 
     private static final String[] whiteList = {
     		"/", 
@@ -54,6 +56,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
         	if(token != null && jwtTokenProvider.validateToken(token)) {
         		String memberId = jwtTokenProvider.getSubject(token);
+        		
+        		if(Boolean.TRUE.equals(redisTemplate.hasKey("BLOCK:" + memberId))) {
+        			throw new RuntimeException("관리자에 의해 영구/일시 정지된 계정입니다.");
+        		}
+        		
         		String role = jwtTokenProvider.getRole(token);
         		
         		UsernamePasswordAuthenticationToken authentication =

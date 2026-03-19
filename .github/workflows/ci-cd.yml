@@ -1,4 +1,3 @@
-#core-service/ ci-cd.yml
 name: CI/CD Pipeline
 
 on:
@@ -43,7 +42,7 @@ jobs:
         id: ip
         run: echo "ipv4=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
 
-      # 2. GCP 인증 (GCP_SA_KEY 시크릿 필요)
+      # 2. GCP 인증
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -64,7 +63,7 @@ jobs:
             --source-ranges=${{ steps.ip.outputs.ipv4 }}/32 \
             --description="Temporary SSH access for GitHub Actions"
 
-      # 5. 파일 전송
+      # 5. docker-compose 파일 전송
       - name: Copy docker-compose to GCP
         uses: appleboy/scp-action@master
         with:
@@ -74,7 +73,7 @@ jobs:
           source: "docker-compose.yml"
           target: "/home/${{ secrets.GCP_USER }}/core-service/"
 
-      # 6. 원격 배포 실행
+      # 6. 원격 배포 실행 및 .env 파일 동적 생성
       - name: Deploy to GCP
         uses: appleboy/ssh-action@master
         with:
@@ -84,14 +83,28 @@ jobs:
           script: |            
             mkdir -p /home/${{ secrets.GCP_USER }}/core-service
             cd /home/${{ secrets.GCP_USER }}/core-service
+            
             docker network inspect msa-network >/dev/null 2>&1 || docker network create msa-network
-            echo "SPRING_PROFILES_ACTIVE=prod" > .env
-            echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env
-            echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
-            echo "RABBITMQ_USER=${{ secrets.RABBITMQ_USER }}" >> .env
-            echo "RABBITMQ_PASSWORD=${{ secrets.RABBITMQ_PASSWORD }}" >> .env
+            
+            cat <<EOF > .env
+            SPRING_PROFILES_ACTIVE=prod
+
+            SPRING_DATASOURCE_URL=jdbc:postgresql://main-db:5432/msa_core_db
+            POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            GCP_SERVER_1=${{ secrets.GCP_SERVER_1 }}
+            RABBITMQ_HOST=rabbitmq
+            RABBITMQ_PORT=${{ secrets.RABBITMQ_PORT }}
+            RABBITMQ_USER=${{ secrets.RABBITMQ_USER }}
+            RABBITMQ_PASSWORD=${{ secrets.RABBITMQ_PASSWORD }}
+            REDIS_HOST=msa-redis
+            REDIS_PORT=${{ secrets.REDIS_PORT }}
+            TZ=Asia/Seoul
+            EOF
+            
             docker compose pull
             docker compose up -d
+            
             docker image prune -f
 
       # 7. 방화벽 규칙 삭제 (성공/실패 여부 상관없이 항상 실행)

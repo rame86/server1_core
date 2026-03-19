@@ -10,7 +10,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.admin.dto.ArtistResultDTO;
+import com.example.common.annotation.LoginUser;
 import com.example.member.dto.MemberSignupRequest;
+import com.example.member.dto.RedisMemberDTO;
 import com.example.member.service.MailSenderService;
 import com.example.member.service.MemberService;
 import com.example.security.tokenProvider.JwtTokenProvider;
@@ -89,5 +92,5 @@ public class MemberController {
 	        return ResponseEntity.status(401).body(Map.of("message", e.getMessage()));
 	    }
 	}
-
+	
 }

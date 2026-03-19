@@ -62,6 +62,7 @@ public class ArtistService {
 		
 		if(existingFollow.isPresent()) {
 			followRepository.delete(existingFollow.get());
+			artist.setFollowerCount(Math.max(0, artist.getFollowerCount() - 1));
 			log.info("언팔로우 완료 : {} -> {}", follower.getName(), artist.getStageName());
 			return "UNFOLLOW_SUCCESS";
 		} else {
@@ -70,6 +71,7 @@ public class ArtistService {
 			follow.setArtist(artist);
 			follow.setCreatedAt(LocalDateTime.now());
 			followRepository.save(follow);
+			artist.setFollowerCount(artist.getFollowerCount() + 1);
 			log.info("팔로우 완료: {} -> {}", follower.getName(), artist.getStageName());
 			return "FOLLOW_SUCCESS";
 		}
