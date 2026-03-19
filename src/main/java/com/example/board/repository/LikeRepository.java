@@ -11,4 +11,8 @@ public interface LikeRepository extends JpaRepository<LikeBoard, Long> {
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional
     void deleteByBoardIdAndMemberId(Long boardId, Long memberId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Transactional
+    void deleteByBoardId(Long boardId);
 }

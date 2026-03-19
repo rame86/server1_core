@@ -6,7 +6,6 @@ import java.util.Map;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -176,7 +175,7 @@ public class AdminController {
 	    return ResponseEntity.ok("강제 로그아웃 처리가 완료되었습니다.");
 	}
 	
-	// 계정 삭제 API
+	// 계정 삭제 API.
 	@PostMapping("/user/delete")
 	public ResponseEntity<String> deleteUser(@RequestBody Map<String, Long> params, @LoginUser RedisMemberDTO user) {
 	    adminService.deleteUser(user.getMemberId(), params.get("memberId"));
@@ -184,3 +183,4 @@ public class AdminController {
 	}
 
 }
+

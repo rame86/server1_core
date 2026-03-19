@@ -1,11 +1,20 @@
 package com.example.board.repository;
 
 import com.example.board.entity.Comment;
+
+import jakarta.transaction.Transactional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+
 import java.util.List;
 
 public interface CommentRepository extends JpaRepository<Comment, Long> {
-    // 특정 게시글의 댓글 중 'ACTIVE' 상태인 것만 최신순으로 조회
-    List<Comment> findByBoardIdAndStatusOrderByCreatedAtDesc(Long boardId, String status);
-    List<Comment> findByBoardIdOrderByCreatedAtDesc(Long boardId);
+    // board 객체 안의 boardId를 참조하도록 명시
+    List<Comment> findByBoardId_BoardIdAndStatusOrderByCreatedAtDesc(Long boardId, String status);
+    List<Comment> findByBoardId_BoardIdOrderByCreatedAtDesc(Long boardId);
+
+    @Modifying
+    @Transactional
+    void deleteByBoardId_BoardId(Long boardId); // 게시글 ID로 모든 댓글 삭제
 }
