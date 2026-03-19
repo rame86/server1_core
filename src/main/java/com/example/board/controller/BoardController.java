@@ -24,6 +24,7 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
+
 @Slf4j
 @RestController
 @RequestMapping("/board")
@@ -125,10 +126,24 @@ public class BoardController {
         return ResponseEntity.ok(comments);
     }
 
+   @PutMapping("/comments/{commentId}")
+   public ResponseEntity<CommentResponseDTO> updateComment(
+        @LoginUser RedisMemberDTO loginUser,
+         @PathVariable(name = "commentId") Long commentId,
+        @RequestBody CommentRequestDTO requestDTO){
+
+        if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+       CommentResponseDTO response = boardCommentService.updateComment(commentId,requestDTO,loginUser.getMemberId()
+    );
+        return ResponseEntity.ok(response);
+        }
+   
     @DeleteMapping("/comments/{commentId}")
     public ResponseEntity<Void> deleteComment(
-            @LoginUser RedisMemberDTO loginUser,
-            @PathVariable(name = "commentId") Long commentId) {
+        @LoginUser RedisMemberDTO loginUser,
+        @PathVariable(name = "commentId") Long commentId,
+        @RequestBody CommentRequestDTO requestDTO) {
             
         if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         
