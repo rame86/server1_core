@@ -141,9 +141,11 @@ public class MemberService {
 		String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
 		String refreshToken = jwtTokenProvider.refreshToken(member.getMemberId(), member.getRole());
 
+				
 		// Redis용 키 설정
 		String redisKey = "AUTH:MEMBER:" + member.getMemberId(); // 유저 상세 정보용 (Hash)
 		String refreshKey = "AUTH:REFRESH:" + member.getMemberId(); // 리프레시 토큰 전용 (String)
+
 
 		// Redis 유저 정보 Hash 저장 (token 포함)
 		Map<String, String> userInfo = new HashMap<>();

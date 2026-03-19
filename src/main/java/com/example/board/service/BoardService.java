@@ -9,7 +9,7 @@ import com.example.board.repository.BoardRepository;
 import com.example.board.repository.LikeRepository;
 import com.example.board.repository.CommentRepository;
 import com.example.member.domain.Member;
-import com.example.member.repository.MemberRepository; // MemberRepository 경로 확인 필요
+import com.example.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,7 +39,6 @@ public class BoardService {
     @Transactional(readOnly = true)
     public List<BoardDTO> getBoardList(String category, Long memberId) {
         String searchCategory = (category == null || category.isEmpty() || "전체".equals(category)) ? "전체" : category;
-        
         List<Board> boards = "전체".equals(searchCategory) ?
             boardRepository.findByStatusOrderByCreatedAtDesc("ACTIVE") : 
             boardRepository.findByCategoryAndStatusOrderByCreatedAtDesc(category, "ACTIVE");
