@@ -175,7 +175,7 @@ public class AdminController {
 	    return ResponseEntity.ok("강제 로그아웃 처리가 완료되었습니다.");
 	}
 	
-	// 계정 삭제 API
+	// 계정 삭제 API.
 	@PostMapping("/user/delete")
 	public ResponseEntity<String> deleteUser(@RequestBody Map<String, Long> params, @LoginUser RedisMemberDTO user) {
 	    adminService.deleteUser(user.getMemberId(), params.get("memberId"));
