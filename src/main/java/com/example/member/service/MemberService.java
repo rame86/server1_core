@@ -289,11 +289,13 @@ public class MemberService {
 	            .requesterName(String.valueOf(dto.getArtistName()))
 	            .subCategory(String.valueOf(dto.getSubCategory()))
 	            .description(String.valueOf(dto.getDescription()))
+				.imageUrl(dto.getImageUrl())
 	            .status("PENDING")
 	            .imageUrl(dto.getImageUrl())
 	            .title("아티스트 승인 신청: " + dto.getArtistName())
 	            .build();
 		approvalRepository.save(approval);
+		// 여기부분 날아가도 모름
 		
 		// 멤버테이블 상태 변경
 		Member member = memberRepository.findById(memberId)
