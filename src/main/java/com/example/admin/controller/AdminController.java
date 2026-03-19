@@ -1,11 +1,11 @@
 package com.example.admin.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,6 +20,7 @@ import com.example.admin.dto.ArtistResultDTO;
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.SettlementDashboardResponse;
 import com.example.admin.dto.ShopResultDTO;
+import com.example.admin.dto.UserDetailResponseDTO;
 import com.example.admin.dto.UserListResponseDTO;
 import com.example.admin.dto.UserManagementPageResponse;
 import com.example.admin.dto.UserSummaryDTO;
@@ -126,6 +127,24 @@ public class AdminController {
 	}
 	
 	// 유저 상세정보
+	@GetMapping("/user/{memberId}")
+	public ResponseEntity<UserDetailResponseDTO> getUserDetail(@PathVariable("memberId") Long memberId) {
+		log.info("=====> [AdminController] 유저 상세 수색 요청 수신! ID: {}", memberId);
+		UserDetailResponseDTO detail = adminService.getUserDetail(memberId);
+		return ResponseEntity.ok(detail);
+	}
 	
+	// 유저 블락
+	@PostMapping("/user/block")
+	public ResponseEntity<String> blockUser(@LoginUser RedisMemberDTO user, @RequestBody Map<String, Object> params) {
+		Long memberId = Long.parseLong(params.get("memberId").toString());
+		String reason = params.get("reason").toString();
+		
+		log.info("🚨 [AdminController] 관리자 {}님이 유저 {}를 차단합니다. 사유: {}", 
+	             user.getMemberId(), memberId, reason);
+		
+		adminService.blockUser(memberId, user.getMemberId(), reason);
+		return ResponseEntity.ok("유저 차단 및 강제 로그아웃 처리가 완료되었습니다.");
+	}
 
 }

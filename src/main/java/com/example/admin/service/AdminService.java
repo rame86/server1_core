@@ -26,6 +26,8 @@ import com.example.admin.dto.ArtistResponseDTO;
 import com.example.admin.dto.ArtistResultDTO;
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.SettlementDashboardResponse;
+import com.example.admin.dto.UserDetailPaymentResponseDTO;
+import com.example.admin.dto.UserDetailResponseDTO;
 import com.example.admin.dto.UserListResponseDTO;
 import com.example.admin.dto.UserPaymentSummaryDTO;
 import com.example.admin.dto.UserSummaryDTO;
@@ -37,6 +39,8 @@ import com.example.artist.entity.Artist;
 import com.example.artist.repository.ArtistRepository;
 import com.example.config.RabbitMQConfig;
 import com.example.member.domain.Member;
+import com.example.member.domain.MemberHistory;
+import com.example.member.repository.MemberHistoryRepository;
 import com.example.member.repository.MemberRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -55,6 +59,7 @@ public class AdminService {
 	private final MemberRepository memberRepository;
 	private final WebClient webClient;
 	private final ArtistRepository artistRepository;
+	private final MemberHistoryRepository memberHistoryRepository;
 	
 	@Value("${pay.admin.url}")
     private String payAdminUrl;
@@ -288,10 +293,22 @@ public class AdminService {
 	
 	// user정지 (정지한 사람 추가하는부분 필요)
 	@Transactional
-	public void blockUser(Long memberId, Long adminId) {
-		Member member = memberRepository.findById(memberId).orElseThrow();
+	public void blockUser(Long memberId, Long adminId, String reason) {
+		log.info("🚨 [검거 발령] 유저 ID: {} 차단 시도 (사유: {})", memberId, reason);
+		Member member = memberRepository.findById(memberId)
+				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 		member.setStatus("BLOCK");
+		
+		MemberHistory history = MemberHistory.builder()
+				.memberId(memberId)
+				.status("BLOCK")
+				.reason(reason)
+				.adminId(adminId)
+				.build();
+		memberHistoryRepository.save(history);
+		
 		redisTemplate.opsForValue().set("BLOCK:" + memberId, "true", 24, TimeUnit.HOURS);
+		log.info("✅ [검거 완료] 유저 {}님은 이제 로그인이 즉시 튕겨나갑니다. ㅃㅇ!", memberId);
 	}
 	
 	// user 상단 카드3개
@@ -338,6 +355,35 @@ public class AdminService {
 		            .pointBalance(rawBalance != null ? rawBalance : 0L)
 					.build();
 		});
+	}
+	
+	// user Detail
+	@Transactional
+	public UserDetailResponseDTO getUserDetail(Long memberId) {
+		log.info("-----> [1서버] 유저 상세 정보 수색 시작 (ID: {})", memberId);
+		
+		Member member = memberRepository.findById(memberId)
+	            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다. ID: " + memberId));
+		
+		UserDetailPaymentResponseDTO paymentData = webClient.post()
+				.uri(payAdminUrl + "wallet/user/detail")
+				.bodyValue(memberId)
+				.retrieve()
+				.bodyToMono(UserDetailPaymentResponseDTO.class)
+				.block();
+		
+		return UserDetailResponseDTO.builder()
+				.memberId(member.getMemberId())
+				.name(member.getName())
+	            .email(member.getEmail())
+	            .status(member.getStatus())
+	            .phone(member.getPhone())
+	            .address(member.getAddress())
+	            .totalPurchases(paymentData.getTotalPurchases())
+	            .pointBalance(paymentData.getPointBalance())
+	            .purchaseHistory(paymentData.getPurchaseHistory())
+	            .pointHistory(paymentData.getPointHistory())
+	            .build();
 	}
 	
 }
