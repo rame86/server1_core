@@ -9,4 +9,6 @@ public class ArtistResponse {
     private String description;
     private String communityLink;
     private long followerCount;
+    private String category;
+    private String profileImageUrl;
 }
