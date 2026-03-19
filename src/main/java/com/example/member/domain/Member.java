@@ -15,6 +15,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -41,6 +42,16 @@ public class Member {
 	private LocalDateTime createdAt;
 	private String status;
 	private String nickName;
+	
+	@PrePersist
+	public void prePersist() {
+	    if (this.createdAt == null) {
+	        this.createdAt = LocalDateTime.now(); // 저장 직전에 null이면 현재 시간 슛! ㅡㅡ🚔
+	    }
+	    if (this.status == null) {
+	        this.status = "ACTIVE"; // 가입 시 상태값 누락 방지
+	    }
+	}
 	
 	// 아직은 용도가 불분명한 부가 정보들을 담는 용도로 jsonb 유지
 	@Type(JsonBinaryType.class)
