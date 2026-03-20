@@ -8,6 +8,7 @@ import java.time.OffsetDateTime;
 @Entity
 @Table(name = "board_comment", schema = "board")
 @Getter
+@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED) // JPA를 위한 기본 생성자
 @AllArgsConstructor // 빌더를 위한 전체 생성자
 @Builder // Lombok이 빌더 패턴 코드를 자동으로 생성함
