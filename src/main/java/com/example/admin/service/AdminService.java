@@ -103,6 +103,7 @@ public class AdminService {
 			// DTO로 변환
 			return AdminEventListDTO.builder()
 					.approvalId(approval.getApprovalId())
+					.artistname(approval.getRequesterName())
 					.targetId(approval.getTargetId())
 					.title(approval.getTitle())
 					.status(approval.getStatus())
