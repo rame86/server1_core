@@ -330,6 +330,7 @@ public class AdminService {
 		message.put("type", "ADMIN");
 		message.put("orderId", "GETALL");
 		message.put("allMemberId", memberId);
+		message.put("replyRoutingKey", RabbitMQConfig.PAY_RES_QUEUE_NAME);
 		
 		List<UserPaymentSummaryDTO> responseList = (List<UserPaymentSummaryDTO>) rabbitTemplate.convertSendAndReceive(
 	            RabbitMQConfig.EXCHANGE_NAME,
