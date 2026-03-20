@@ -1,6 +1,7 @@
 package com.example.admin.service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -329,6 +330,7 @@ public class AdminService {
 	}
 	
 	// user List
+	@SuppressWarnings("unchecked")
 	@Transactional(readOnly = true)
 	public Page<UserListResponseDTO> getAllUserList(Pageable pageable) {
 		// 멤버 페이지 가져오기
@@ -339,29 +341,35 @@ public class AdminService {
 				.map(Member::getMemberId)
 				.collect(Collectors.toList());
 		
-		// pay서버에 누적 구매 횟수, 포인트 잔액 요청
-		Map<Long, UserPaymentSummaryDTO> paymentMap = webClient.post()
-				.uri(payAdminUrl + "wallet/user/summary")
-				.bodyValue(memberId)
-				.retrieve()
-				.bodyToFlux(UserPaymentSummaryDTO.class)
-				.collectMap(UserPaymentSummaryDTO::getMemberId)
-				.block();
+		Map<String, Object> message = new HashMap<>();
+		message.put("type", "ADMIN");
+		message.put("orderId", "GETALL");
+		message.put("allMemberId", memberId);
 		
-		// 정보 합쳐서 DTO로 반환
+		List<UserPaymentSummaryDTO> responseList = (List<UserPaymentSummaryDTO>) rabbitTemplate.convertSendAndReceive(
+	            RabbitMQConfig.EXCHANGE_NAME,
+	            RabbitMQConfig.PAY_REQ_ROUTING_KEY,
+	            message);
+		
+		Map<Long, UserPaymentSummaryDTO> paymentMap = new HashMap<>();
+		if(responseList != null) {
+			paymentMap = responseList.stream()
+					.collect(Collectors.toMap(UserPaymentSummaryDTO::getMemberId, dto -> dto));
+		}
+		
+		Map<Long, UserPaymentSummaryDTO> finalPaymentMap = paymentMap;
 		return memberPage.map(member -> {
-			UserPaymentSummaryDTO payInfo = paymentMap.get(member.getMemberId());
-			Long rawBalance = (payInfo != null) ? payInfo.getPointBalance() : null;
-		    Integer rawCount = (payInfo != null) ? payInfo.getPurchaseCount() : null;
+			UserPaymentSummaryDTO payInfo = finalPaymentMap.get(member.getMemberId());
+			
 			return UserListResponseDTO.builder()
-					.memberId(member.getMemberId())
-					.name(member.getName())
-					.email(member.getEmail())
-					.createdAt(member.getCreatedAt() != null ? member.getCreatedAt().toString() : "날짜 없음")
-					.status(member.getStatus())
-					.purchaseCount(rawCount != null ? rawCount : 0)
-		            .pointBalance(rawBalance != null ? rawBalance : 0L)
-					.build();
+	                .memberId(member.getMemberId())
+	                .name(member.getName())
+	                .email(member.getEmail())
+	                .createdAt(member.getCreatedAt() != null ? member.getCreatedAt().toString() : "날짜 없음")
+	                .status(member.getStatus())
+	                .purchaseCount(payInfo != null ? payInfo.getPurchaseCount() : 0)
+	                .pointBalance(payInfo != null ? payInfo.getPointBalance() : 0L)
+	                .build();
 		});
 	}
 	
