@@ -160,13 +160,6 @@ public class BoardController {
 
  // --- [4. 관리자 전용 신고 관리 API (추가됨)] ---
     
-   // [관리자] 게시글 신고 조회
-    @GetMapping("/admin/reports/boards")
-    public ResponseEntity<List<ReportBoardDTO>> getAdminBoardReports(@LoginUser RedisMemberDTO loginUser) {
-        if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) return ResponseEntity.status(403).build();
-        return ResponseEntity.ok(boardReportService.getBoardReportList());
-    }
-
     // [관리자] 댓글 신고 조회
     @GetMapping("/admin/reports/comments")
     public ResponseEntity<List<ReportBoardDTO>> getAdminCommentReports(@LoginUser RedisMemberDTO loginUser) {
