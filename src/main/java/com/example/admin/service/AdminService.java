@@ -9,7 +9,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -31,12 +30,10 @@ import com.example.admin.dto.SettlementDashboardResponse;
 import com.example.admin.dto.UserDetailPaymentResponseDTO;
 import com.example.admin.dto.UserDetailResponseDTO;
 import com.example.admin.dto.UserListResponseDTO;
-import com.example.admin.dto.UserPaymentSummaryDTO;
 import com.example.admin.dto.UserSummaryDTO;
 import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
 import com.example.artist.dto.PaymentRequestDTO;
-import com.example.artist.dto.PaymentResponseDTO;
 import com.example.artist.entity.Artist;
 import com.example.artist.repository.ArtistRepository;
 import com.example.config.RabbitMQConfig;
@@ -332,31 +329,21 @@ public class AdminService {
 		message.put("allMemberId", memberId);
 		message.put("replyRoutingKey", RabbitMQConfig.PAY_RES_QUEUE_NAME);
 		
-		List<UserPaymentSummaryDTO> responseList = (List<UserPaymentSummaryDTO>) rabbitTemplate.convertSendAndReceive(
+		rabbitTemplate.convertAndSend(
 	            RabbitMQConfig.EXCHANGE_NAME,
 	            RabbitMQConfig.PAY_REQ_ROUTING_KEY,
 	            message);
 		
-		Map<Long, UserPaymentSummaryDTO> paymentMap = new HashMap<>();
-		if(responseList != null) {
-			paymentMap = responseList.stream()
-					.collect(Collectors.toMap(UserPaymentSummaryDTO::getMemberId, dto -> dto));
-		}
-		
-		Map<Long, UserPaymentSummaryDTO> finalPaymentMap = paymentMap;
-		return memberPage.map(member -> {
-			UserPaymentSummaryDTO payInfo = finalPaymentMap.get(member.getMemberId());
+		return memberPage.map(member -> UserListResponseDTO.builder()
+            .memberId(member.getMemberId())
+            .name(member.getName())
+            .email(member.getEmail())
+            .createdAt(member.getCreatedAt() != null ? member.getCreatedAt().toString() : "날짜 없음")
+            .status(member.getStatus())
+            .purchaseCount(0) // 비동기 응답이므로 초기값 설정 필요
+            .pointBalance(0L)
+            .build());
 			
-			return UserListResponseDTO.builder()
-	                .memberId(member.getMemberId())
-	                .name(member.getName())
-	                .email(member.getEmail())
-	                .createdAt(member.getCreatedAt() != null ? member.getCreatedAt().toString() : "날짜 없음")
-	                .status(member.getStatus())
-	                .purchaseCount(payInfo != null ? payInfo.getPurchaseCount() : 0)
-	                .pointBalance(payInfo != null ? payInfo.getPointBalance() : 0L)
-	                .build();
-		});
 	}
 	
 	// user Detail

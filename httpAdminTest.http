@@ -1,4 +1,4 @@
 GET http://localhost/msa/core/admin/user
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiI1Iiwicm9sZSI6IlVTRVIiLCJpYXQiOjE3NzM5OTczMTcsImV4cCI6MTc3NDAwMDkxN30.hPB_o7vzCH70CB_hvLUQwcWgbNHKWPHiUsjt_jQ2IZCLd5TDlB5BE74mYz2PFLAH
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxMyIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzc0MDAxNTg1LCJleHAiOjE3NzQwMDUxODV9.4S--MwyymMgxdEsbn7LogGY4b-DRJGBjcSjheZharJNx_FiAOuWtapgmbSoaMmWq
                         
