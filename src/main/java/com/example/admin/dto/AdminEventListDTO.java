@@ -15,6 +15,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class AdminEventListDTO {
 	private Long approvalId;
+	private String artistname;
     private Long targetId; // 2서버 식별자 ID
     private String title; 
     private String status;
