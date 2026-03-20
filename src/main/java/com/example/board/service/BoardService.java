@@ -7,6 +7,8 @@ import com.example.board.entity.Board;
 import com.example.board.entity.LikeBoard;
 import com.example.board.repository.BoardRepository;
 import com.example.board.repository.LikeRepository;
+import com.example.board.repository.ReportCommentRepository;
+import com.example.board.repository.ReportRepository;
 import com.example.board.repository.CommentRepository;
 import com.example.member.domain.Member;
 import com.example.member.repository.MemberRepository;
@@ -33,6 +35,7 @@ public class BoardService {
     private final CommentRepository commentRepository;
     private final MemberRepository memberRepository;
     
+
     @Value("${file.upload.dir}")
     private String uploadDir;
 
