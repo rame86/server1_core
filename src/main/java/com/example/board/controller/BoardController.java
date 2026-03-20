@@ -58,7 +58,7 @@ public class BoardController {
 
         BoardDTO detail = boardService.getBoardDetail(id, loginUser != null ? loginUser.getMemberId() : null);
         return ResponseEntity.ok(detail);
-}
+    }
 
     @PostMapping(value = "/write", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<BoardResponseDTO> write(
@@ -67,10 +67,9 @@ public class BoardController {
             @RequestPart(value = "file", required = false) MultipartFile file) throws IOException {
 
         if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-       // [수정] Service의 writeBoard가 memberName을 받을 수 있도록 파라미터 유지
         BoardResponseDTO response = boardService.writeBoard(request, file, loginUser.getMemberId());
         return ResponseEntity.ok(response);
-}
+    }
 
     @PutMapping(value = "/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<BoardResponseDTO> update(
@@ -134,10 +133,9 @@ public class BoardController {
 
         if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 
-       CommentResponseDTO response = boardCommentService.updateComment(commentId,requestDTO,loginUser.getMemberId()
-    );
+       CommentResponseDTO response = boardCommentService.updateComment(commentId,requestDTO,loginUser.getMemberId());
         return ResponseEntity.ok(response);
-        }
+    }
    
     @DeleteMapping("/comments/{commentId}")
     public ResponseEntity<Void> deleteComment(
@@ -169,7 +167,7 @@ public class BoardController {
         }
     }
     
-    // --- [4. 신고 및 관리자 API는 기존과 동일하게 유지하되 가독성 개선] ---
+    // --- [4. 신고 및 관리자 API] ---
 
     @PostMapping("/{id}/report")
     public ResponseEntity<String> reportBoard(
@@ -201,6 +199,8 @@ public class BoardController {
         return ResponseEntity.ok("댓글 신고가 접수되었습니다.");
     }
 
+    // --- [5. 어드민 서비스 제공용 API] ---
+
     @GetMapping("/admin/reports/boards")
     public ResponseEntity<?> getBoardReports(@LoginUser RedisMemberDTO loginUser) {
         if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) {
@@ -209,35 +209,22 @@ public class BoardController {
         return ResponseEntity.ok(boardReportService.getBoardReportList());
     }
 
-    @GetMapping("/admin/reports/comments")
-    public ResponseEntity<?> getCommentReports(@LoginUser RedisMemberDTO loginUser) {
-        if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-        return ResponseEntity.ok(boardReportService.getCommentReportList());
-    }
+    // @GetMapping("/admin/reports/comments")
+    // public ResponseEntity<?> getCommentReports(@LoginUser RedisMemberDTO loginUser) {
+    //     if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) {
+    //         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    //     }
+    //     return ResponseEntity.ok(boardReportService.getCommentReportList());
+    // }
 
-    @PutMapping("/admin/reports/boards/{reportId}/approve")
-    public ResponseEntity<String> approveBoardReport(
-            @LoginUser RedisMemberDTO loginUser, 
-            @PathVariable(name = "reportId") Long reportId) {
-            
-        if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-        boardReportService.approveBoardReport(reportId);
-        return ResponseEntity.ok("게시글 신고가 승인되었습니다.");
-    }
-
-    @PutMapping("/admin/reports/comments/{reportId}/approve")
-    public ResponseEntity<String> approveCommentReport(
-            @LoginUser RedisMemberDTO loginUser, 
-            @PathVariable(name = "reportId") Long reportId) {
-            
-        if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-        boardReportService.approveCommentReport(reportId);
-        return ResponseEntity.ok("댓글 신고가 승인되었습니다.");
+    /**
+     * [추가] 어드민 서비스에서 요청하는 신고 내역 삭제 API
+     * Admin 서비스의 restTemplate.delete 명령을 여기서 처리합니다.
+     */
+   @DeleteMapping("/admin/reports/boards/{reportId}")
+    public ResponseEntity<Void> deleteBoardReport(@PathVariable(name = "reportId") Long reportId) {
+        log.info("-----> [BoardController] 신고 내역 삭제 요청 수신: reportId={}", reportId);
+        boardReportService.deleteBoardReport(reportId);
+        return ResponseEntity.ok().build();
     }
 }

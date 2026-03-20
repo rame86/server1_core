@@ -2,18 +2,15 @@ package com.example.admin.dto;
 
 import java.time.LocalDateTime;
 
-public record BoardReportMessageDTO (
-	Long boardId,
-    String boardTitle,
-    Long memberId,
-    String nickname,
-    String category, // 신고 사유(욕설, 비방, 스팸 등등)
-    String content, // 신고 상세 내용
-    String status, // 상태(PENDING, COMPLETED 등)
-    LocalDateTime reportedAt // 신고일
+/**
+ * [Admin -> Board] 메시지 전송을 위한 최소한의 데이터 그릇
+ */
+public record BoardReportMessageDTO(
+    Long boardId,
+    String status
 ) {
-    // 이 생성자를 추가하면 AdminService2의 코드를 수정할 필요가 없습니다.
-    public BoardReportMessageDTO(Long boardId, String status) {
-        this(boardId, null, null, null, null, null, status, LocalDateTime.now());
+    // 가장 많이 쓰는 형태의 편의 생성자
+    public BoardReportMessageDTO(Long boardId) {
+        this(boardId, "HIDDEN");
     }
 }

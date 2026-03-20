@@ -1,5 +1,6 @@
 package com.example.board.service;
 
+import com.example.admin.dto.BoardReportMessageDTO;
 import com.example.board.dto.ReportBoardDTO;
 import com.example.board.entity.Board;
 import com.example.board.entity.BoardReport;
@@ -9,6 +10,8 @@ import com.example.board.repository.BoardRepository;
 import com.example.board.repository.CommentRepository;
 import com.example.board.repository.ReportCommentRepository;
 import com.example.board.repository.ReportRepository;
+import com.example.config.RabbitMQConfig;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -62,18 +65,20 @@ public class BoardReportService {
     }
 
     // 신고 목록 조회
-    @Transactional(readOnly = true)
+   @Transactional(readOnly = true)
     public List<ReportBoardDTO> getBoardReportList() {
-        return reportRepository.findAllByOrderByCreatedAtDesc().stream()
-                .map(this::convertToReportDTO).collect(Collectors.toList());
-    }
+    log.info("-----> [BoardReportService] 대기 중인 신고 목록만 조회합니다.");
+    
+    // 1. 모든 신고 내역을 가져온 뒤
+    return reportRepository.findAll().stream()
+            // 2. [중요] 상태가 "PENDING"인 것만 필터링합니다! 
+            // 이렇게 하면 이미 승인된 글이나 무관한 글이 섞이지 않습니다.
+            .filter(report -> "PENDING".equals(report.getStatus())) 
+            .map(this::convertToReportDTO)
+            .collect(Collectors.toList());
+}
 
-    @Transactional(readOnly = true)
-    public List<ReportComment> getCommentReportList() {
-        return reportCommentRepository.findAll();
-    }
-
-    // [관리자] 게시글 신고 승인 처리
+    // 게시글 신고 승인 처리
     @Transactional
     public void approveBoardReport(Long reportId) {
         BoardReport report = reportRepository.findById(reportId)
@@ -83,10 +88,17 @@ public class BoardReportService {
         Board board = boardRepository.findById(report.getBoardId())
                 .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
 
-        // RabbitMQ 메시지 전송
-        rabbitTemplate.convertAndSend("board.exchange", "board.hide", board.getBoardId());
+        // [수정] DTO 객체 생성 (전달할 데이터 포맷 통일)
+        BoardReportMessageDTO message = new BoardReportMessageDTO(board.getBoardId());
+
+        // [수정] RabbitMQ 메시지 전송 (Config 상수를 사용해야 Listener가 받을 수 있습니다)
+        rabbitTemplate.convertAndSend(
+            RabbitMQConfig.EXCHANGE_NAME,                  // "msa.direct.exchange"
+            RabbitMQConfig.BOARD_REPORT_APPROVE_ROUTING_KEY, // "board.report.approve.key"
+            message
+        );
         
-        log.info("관리자 승인: 신고 ID {} 승인. RabbitMQ로 게시글 ID {} 숨김 요청 전송", reportId, board.getBoardId());
+        log.info("-----> [BoardReportService] 관리자 승인 완료. RabbitMQ로 숨김 메시지 발행: {}", message);
     }
 
     // 댓글 신고 승인 처리
@@ -105,21 +117,36 @@ public class BoardReportService {
         log.info("관리자 승인: 댓글 신고 ID {} 승인 완료", reportId);
     }
 
+    // [관리자] 게시글 신고 내역 삭제 (추가)
+    @Transactional
+    public void deleteBoardReport(Long reportId) {
+        log.info("-----> [BoardReportService] 신고 내역 삭제 시작: reportId={}", reportId);
+        
+        // 신고 내역이 존재하는지 확인 후 삭제
+        if (!reportRepository.existsById(reportId)) {
+            throw new RuntimeException("삭제할 신고 내역이 존재하지 않습니다.");
+        }
+        
+        reportRepository.deleteById(reportId);
+        log.info("-----> [BoardReportService] 신고 내역 삭제 완료");
+    }
+    
     // 내부 헬퍼 메서드: 게시글 제목을 포함하여 변환 [수정]
     private ReportBoardDTO convertToReportDTO(BoardReport report) {
-        // 하드코딩 없이 Repository를 통해 실제 제목 조회
-        String title = boardRepository.findById(report.getBoardId())
-                .map(Board::getTitle)
-                .orElse("삭제된 게시물");
+    // Repository를 통해 실제 게시글 데이터를 가져옵니다.
+        Board board = boardRepository.findById(report.getBoardId()).orElse(null);
+        String title = (board != null) ? board.getTitle() : "삭제된 게시물";
+        String content = (board != null) ? board.getContent() : "내용을 불러올 수 없습니다."; // 본문 추가
 
         return ReportBoardDTO.builder()
                 .reportId(report.getReportId())
                 .boardId(report.getBoardId())
-                .postTitle(title) // 추가된 제목 매핑
+                .postTitle(title) 
+                .content(content) // ★ 이 필드가 들어가야 모달에 내용이 나옵니다.
                 .memberId(report.getMemberId())
                 .reason(report.getReason())
                 .status(report.getStatus())
                 .createdAt(report.getCreatedAt())
                 .build();
-    }
+        }
 }

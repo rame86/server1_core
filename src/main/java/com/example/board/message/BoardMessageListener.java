@@ -3,7 +3,6 @@ package com.example.board.message;
 import com.example.admin.dto.BoardReportMessageDTO;
 import com.example.board.service.BoardService;
 import com.example.config.RabbitMQConfig;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -22,14 +21,15 @@ public class BoardMessageListener {
         log.info(">>>> [RabbitMQ 수신] 신고 승인 메시지 도착: {}", message);
         
         try {
-            // boardId가 Record 형태라면 message.boardId()를, 일반 객체라면 getBoardId()를 사용하세요.
-            if (message.boardId() != null) {
-                // 주의: approveReport가 아닌 hideBoardByMessage를 호출해야 무한루프를 방지합니다.
-                boardService.hideBoardByMessage(message.boardId());
-                log.info(">>>> [RabbitMQ 처리완료] 게시글 ID {} 숨김 처리 완료", message.boardId());
-            }
-        } catch (Exception e) {
-            log.error(">>>> [RabbitMQ 에러] 승인 메시지 처리 중 오류 발생: {}", e.getMessage());
+        // message.boardId() 또는 message.getBoardId() 중 DTO 구조에 맞는 것을 사용하세요.
+        Long targetId = message.boardId(); 
+        
+        if (targetId != null) {
+            boardService.hideBoardByMessage(targetId);
+            log.info(">>>> [RabbitMQ 처리완료] 게시글 ID {} 숨김 처리 완료", targetId);
         }
+    } catch (Exception e) {
+        log.error(">>>> [RabbitMQ 에러] 처리 중 오류: {}", e.getMessage());
     }
+}
 }
