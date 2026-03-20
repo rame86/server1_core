@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -24,12 +25,16 @@ public class AdminBoardService {
     private final RabbitTemplate rabbitTemplate;
     private final RestTemplate restTemplate;
 
+    // application.yml 또는 환경변수에서 board 서비스의 기본 URL을 가져옵니다.
+    @Value("${service.board.url:http://localhost:8080}")
+    private String boardServiceUrl;
+
     /**
      * 1. 게시글 신고 내역 조회 (HTTP 통신)
      */
     public List<ReportBoardDTO> getBoardReports() {
-        // Board 서비스의 API 엔드포인트
-        String url = "http://localhost:8080/board/admin/reports";
+        // [수정] 하드코딩된 localhost 대신 주입받은 boardServiceUrl 변수를 사용합니다.
+        String url = boardServiceUrl + "/board/admin/reports";
         
         try {
             log.info("-----> [AdminBoardService] Board 서비스(Core)에 신고 내역 요청 중...");

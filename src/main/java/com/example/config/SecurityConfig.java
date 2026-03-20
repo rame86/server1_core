@@ -34,9 +34,8 @@ public class SecurityConfig {
                 // 1. prod 환경에서도 CORS 설정 적용
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(auth -> auth
-                        // 2. /error 경로를 추가하여 404/500 에러 발생 시 상세 내용을 볼 수 있게 허용
-                        .requestMatchers("/", "/login", "/shop", "/member/**", "/api/**", "/board/**", "/error")
+                .authorizeHttpRequests(auth -> auth                        
+                        .requestMatchers("/", "/login", "/shop", "/member/**", "/api/**", "/board/**", "/error", "/admin/**")
                         .permitAll()
                         .anyRequest().authenticated())
                 .build();
