@@ -141,21 +141,6 @@ public class AdminService {
 		}
 	}
 
-	@RabbitListener(queues = "admin.pay.res.core.queue")
-	public void receiveDashboardData(PaymentResponseDTO<SettlementDashboardResponse> response) {
-		log.info("=====> [RabbitMQ 비동기 응답 수신] 상세 데이터: {}", response);
-		
-        if ("COMPLETE".equals(response.status())) {
-            CompletableFuture<SettlementDashboardResponse> future = pendingRequests.remove("ADMIN_SETTLEMENT_REQ");
-            if (future != null) {
-                log.info("=====> [AdminService] 드디어 진짜 데이터를 찾음");
-                future.complete(response.payload()); // 여기서 기다리던 스레드가 깨어남!
-            }
-        } else {
-            log.info("=====> [AdminService] 접수 알림(PROCESSING) 더 기다림.");
-        }
-	}
-
 	// artist 승인 대기중인 목록
 	public List<ArtistResultDTO> getPendingArtistList(String category, String status) {
 		List<Approval> entityList = approvalRepository.findByCategoryAndStatus(category, status);
