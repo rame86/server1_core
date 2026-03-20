@@ -1,4 +1,4 @@
-GET http://34.64.85.123/msa/core/admin/settlement
+GET http://localhost/msa/core/admin/user
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiI1Iiwicm9sZSI6IlVTRVIiLCJpYXQiOjE3NzM5ODA4ODMsImV4cCI6MTc3Mzk4NDQ4M30.RKqMzX40NTB08eUx2m_vzkJ081FmiOCvWyBQK4OCYqaR8uLMEade9Rw2P4nwBJXM
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiI1Iiwicm9sZSI6IlVTRVIiLCJpYXQiOjE3NzM5OTczMTcsImV4cCI6MTc3NDAwMDkxN30.hPB_o7vzCH70CB_hvLUQwcWgbNHKWPHiUsjt_jQ2IZCLd5TDlB5BE74mYz2PFLAH
                         
