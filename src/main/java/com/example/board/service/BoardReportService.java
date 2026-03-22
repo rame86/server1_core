@@ -1,6 +1,7 @@
 package com.example.board.service;
 
 import com.example.admin.dto.BoardReportMessageDTO;
+import com.example.board.dto.CommentReportRequestDTO; // 신고 전용 DTO
 import com.example.board.dto.ReportBoardDTO;
 import com.example.board.entity.Board;
 import com.example.board.entity.BoardReport;
@@ -33,6 +34,8 @@ public class BoardReportService {
     private final CommentRepository commentRepository;
     private final RabbitTemplate rabbitTemplate;
 
+    // --- [1. 신고 접수 로직] ---
+    
     // 게시글 신고 접수
     @Transactional
     public String reportBoard(Long boardId, Long memberId, String reason) {
@@ -64,19 +67,28 @@ public class BoardReportService {
         return "SUCCESS";
     }
 
-    // 신고 목록 조회
+    // --- [2. 신고 목록 조회 로직 (어드민용)] ---
+
+    // 게시글 신고 목록 조회 (PEDING 상태만)
    @Transactional(readOnly = true)
     public List<ReportBoardDTO> getBoardReportList() {
     log.info("-----> [BoardReportService] 대기 중인 신고 목록만 조회합니다.");
-    
-    // 1. 모든 신고 내역을 가져온 뒤
     return reportRepository.findAll().stream()
             // 2. [중요] 상태가 "PENDING"인 것만 필터링합니다! 
-            // 이렇게 하면 이미 승인된 글이나 무관한 글이 섞이지 않습니다.
             .filter(report -> "PENDING".equals(report.getStatus())) 
             .map(this::convertToReportDTO)
             .collect(Collectors.toList());
 }
+   @Transactional(readOnly = true)
+    public List<ReportBoardDTO> getCommentReportList() {
+        log.info("-----> [BoardReportService] 대기 중인 댓글 신고 목록 조회");
+        return reportCommentRepository.findAll().stream()
+                .filter(report -> "PENDING".equals(report.getStatus()))
+                .map(this::convertToCommentReportDTO) // 댓글 전용 변환기 사용
+                .collect(Collectors.toList());
+    }
+    
+    // --- [3. 신고 승인 처리 로직] ---
 
     // 게시글 신고 승인 처리
     @Transactional
@@ -88,10 +100,10 @@ public class BoardReportService {
         Board board = boardRepository.findById(report.getBoardId())
                 .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
 
-        // [수정] DTO 객체 생성 (전달할 데이터 포맷 통일)
+        //  DTO 객체 생성 (전달할 데이터 포맷 통일)
         BoardReportMessageDTO message = new BoardReportMessageDTO(board.getBoardId());
 
-        // [수정] RabbitMQ 메시지 전송 (Config 상수를 사용해야 Listener가 받을 수 있습니다)
+        //  RabbitMQ 메시지 전송 (Config 상수를 사용해야 Listener가 받을 수 있습니다)
         rabbitTemplate.convertAndSend(
             RabbitMQConfig.EXCHANGE_NAME,                  // "msa.direct.exchange"
             RabbitMQConfig.BOARD_REPORT_APPROVE_ROUTING_KEY, // "board.report.approve.key"
@@ -113,15 +125,15 @@ public class BoardReportService {
                 .orElseThrow(() -> new RuntimeException("댓글을 찾을 수 없습니다."));
         
         comment.hideComment();
-        
         log.info("관리자 승인: 댓글 신고 ID {} 승인 완료", reportId);
     }
 
-    // [관리자] 게시글 신고 내역 삭제 (추가)
+    // --- [4. 신고 내역 삭제 로직] ---
+
     @Transactional
     public void deleteBoardReport(Long reportId) {
         log.info("-----> [BoardReportService] 신고 내역 삭제 시작: reportId={}", reportId);
-        
+
         // 신고 내역이 존재하는지 확인 후 삭제
         if (!reportRepository.existsById(reportId)) {
             throw new RuntimeException("삭제할 신고 내역이 존재하지 않습니다.");
@@ -131,22 +143,35 @@ public class BoardReportService {
         log.info("-----> [BoardReportService] 신고 내역 삭제 완료");
     }
     
-    // 내부 헬퍼 메서드: 게시글 제목을 포함하여 변환 [수정]
-    private ReportBoardDTO convertToReportDTO(BoardReport report) {
-    // Repository를 통해 실제 게시글 데이터를 가져옵니다.
-        Board board = boardRepository.findById(report.getBoardId()).orElse(null);
-        String title = (board != null) ? board.getTitle() : "삭제된 게시물";
-        String content = (board != null) ? board.getContent() : "내용을 불러올 수 없습니다."; // 본문 추가
+    // --- [5. DTO 변환 헬퍼 메서드] ---
 
+    // 게시글 신고 변환
+    private ReportBoardDTO convertToReportDTO(BoardReport report) {
+        Board board = boardRepository.findById(report.getBoardId()).orElse(null);
         return ReportBoardDTO.builder()
                 .reportId(report.getReportId())
                 .boardId(report.getBoardId())
-                .postTitle(title) 
-                .content(content) // ★ 이 필드가 들어가야 모달에 내용이 나옵니다.
+                .postTitle(board != null ? board.getTitle() : "삭제된 게시물")
+                .content(board != null ? board.getContent() : "내용을 불러올 수 없습니다.")
                 .memberId(report.getMemberId())
                 .reason(report.getReason())
                 .status(report.getStatus())
                 .createdAt(report.getCreatedAt())
                 .build();
-        }
+    }
+
+    // 댓글 신고 변환 (추가됨)
+    private ReportBoardDTO convertToCommentReportDTO(ReportComment report) {
+        Comment comment = commentRepository.findById(report.getCommentId()).orElse(null);
+        return ReportBoardDTO.builder()
+                .reportId(report.getReportId())
+                .boardId(null) // 댓글이므로 boardId 대신 null
+                .postTitle("댓글 신고 내역") // 리스트 제목에 표시될 내용
+                .content(comment != null ? comment.getContent() : "삭제된 댓글입니다.")
+                .memberId(report.getMemberId())
+                .reason(report.getReason())
+                .status(report.getStatus())
+                .createdAt(report.getCreatedAt())
+                .build();
+    }
 }
