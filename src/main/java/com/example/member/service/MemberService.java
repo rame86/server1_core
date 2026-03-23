@@ -20,6 +20,7 @@ import com.example.admin.repository.ApprovalRepository;
 import com.example.member.domain.Member;
 import com.example.member.domain.SocialAccount;
 import com.example.member.dto.MemberSignupRequest;
+import com.example.member.dto.MemberUpdateRequestDTO;
 import com.example.member.repository.MemberRepository;
 import com.example.member.repository.SocialAccountRepository;
 import com.example.security.tokenProvider.JwtTokenProvider;
@@ -323,6 +324,14 @@ public class MemberService {
 						"아티스트 신청이 거절된 지 얼마 되지 않았습니다. " + availableDate + " 이후에 다시 신청해주세요!");
 			}
 		}
+	}
+	
+	// 회원정보 변경
+	@Transactional
+	public void updateMemberInfo(Long memberId, MemberUpdateRequestDTO dto) {
+		Member member = memberRepository.findById(memberId)
+				.orElseThrow(() -> new IllegalArgumentException("해당 사용자를 찾을 수 없습니다."));
+		member.updateProfile(dto);
 	}
 
 }

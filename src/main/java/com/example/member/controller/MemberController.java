@@ -4,6 +4,8 @@ import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.admin.dto.ArtistResultDTO;
 import com.example.common.annotation.LoginUser;
 import com.example.member.dto.MemberSignupRequest;
+import com.example.member.dto.MemberUpdateRequestDTO;
 import com.example.member.dto.RedisMemberDTO;
 import com.example.member.service.MailSenderService;
 import com.example.member.service.MemberService;
@@ -91,6 +94,16 @@ public class MemberController {
 	    } catch (IllegalArgumentException e) {
 	        return ResponseEntity.status(401).body(Map.of("message", e.getMessage()));
 	    }
+	}
+	
+	@PostMapping("/update")
+	public ResponseEntity<?> updateMember(@LoginUser RedisMemberDTO loginUser, @RequestBody MemberUpdateRequestDTO dto) {
+		try {
+			memberService.updateMemberInfo(loginUser.getMemberId(), dto);
+			return ResponseEntity.ok(Map.of("message", "회원 정보가 수정되었습니다."));
+		} catch(Exception e) {
+			return ResponseEntity.badRequest().body(Map.of("message", "수정 실패: " + e.getMessage()));
+		}
 	}
 	
 }

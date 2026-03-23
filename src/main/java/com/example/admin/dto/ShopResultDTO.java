@@ -22,7 +22,9 @@ public class ShopResultDTO implements ApprovalDTO {
     private String goodsType; // 상품 타입
     private String description; // 상품 설명
     private Integer price; // 가격
-    private Integer stock; // 재고
+    private String color; // 색상
+    private String size; // 사이즈
+    private Integer stockQuantity; // 재고 수량
     private String imageUrl; // 상품 이미지 경로
     
     private String status; // 상태 (PENDING, CONFIRMED, FAILED)

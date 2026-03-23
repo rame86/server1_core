@@ -72,6 +72,9 @@ dependencies {
     
     // WebClient 사용을 위한 WebFlux 의존성 추가
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+	// Web소켓
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'
     
     // FeignClient 의존성 추가
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'

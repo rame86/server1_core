@@ -7,11 +7,13 @@ import java.util.Map;
 
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.ShopResultDTO;
 import com.example.admin.dto.UserListResponseDTO;
+import com.example.admin.dto.UserPaymentSummaryDTO;
 import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
 import com.example.config.RabbitMQConfig;
@@ -28,6 +30,7 @@ public class AdminEventListener {
 	private final RabbitTemplate rabbitTemplate;
 	private final ApprovalRepository approvalRepositroy;
 	private final ObjectMapper objectMapper; // JSON 변환기
+	private final SimpMessagingTemplate messagingTemplate;
 	
 	@RabbitListener(queues = RabbitMQConfig.EVENT_REQ_QUEUE_NAME)
 	public void handleEventResult(EventResultDTO dto) {
@@ -80,6 +83,17 @@ public class AdminEventListener {
         message.put("message", adminMessage);
         
         rabbitTemplate.convertAndSend("amq.topic", "notification.admin", message);
+	}
+
+	@RabbitListener(queues = RabbitMQConfig.PAY_RES_QUEUE_NAME)
+	public void handleUserPaymentSummary(List<UserPaymentSummaryDTO> responseList) {
+		log.info("=====> [1서버] 결제 정보 응답 도착: {}건", responseList.size());
+		try {
+			messagingTemplate.convertAndSend("/topic/user-stats", responseList);
+			log.info("=====> [WebSocket] 관리자 화면으로 실시간 결제 데이터 전송 완료");
+		} catch (Exception e) {
+			log.error("=====> [1서버] WebSocket 전송 중 오류: {}", e.getMessage());
+		}
 	}
 	
 	@RabbitListener(queues = RabbitMQConfig.ADMIN_PAY_RES_QUEUE_NAME) // 2서버가 답장 쏘는 큐!
