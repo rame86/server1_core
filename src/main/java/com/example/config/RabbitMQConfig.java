@@ -53,6 +53,14 @@ public class RabbitMQConfig {
     public static final String REFUND_RES_ROUTING_KEY = "refund.res.core";
     public static final String REFUND_RES_QUEUE_NAME = "refund.res.core.queue";
     
+    // 대시보드 데이터 응답 관련
+    public static final String DASHBOARD_RES_ROUTING_KEY = "dashboard.res.core";
+    public static final String DASHBOARD_RES_QUEUE_NAME = "dashboard.res.core.queue";
+    
+    // 유저 대시보드 결제 데이터 응답 전용
+    public static final String USER_DASHBOARD_PAY_RES_ROUTING_KEY = "user.dashboard.pay.res";
+    public static final String USER_DASHBOARD_PAY_RES_QUEUE_NAME = "user.dashboard.pay.res.queue";
+    
 
     @Bean
     public DirectExchange exchange() {
@@ -175,6 +183,28 @@ public class RabbitMQConfig {
     @Bean
     public Binding refundReplyBinding(@Qualifier("refundReplyQueue") Queue queue, DirectExchange exchange) {
         return BindingBuilder.bind(queue).to(exchange).with(REFUND_RES_ROUTING_KEY);
+    }
+
+    // 대시보드 응답
+    @Bean
+    public Queue dashboardReplyQueue() {
+        return new Queue(DASHBOARD_RES_QUEUE_NAME, true);
+    }
+
+    @Bean
+    public Binding dashboardReplyBinding(@Qualifier("dashboardReplyQueue") Queue queue, DirectExchange exchange) {
+        return BindingBuilder.bind(queue).to(exchange).with(DASHBOARD_RES_ROUTING_KEY);
+    }
+
+    // 유저 대시보드 결제 응답 전용 큐
+    @Bean
+    public Queue userDashboardPayReplyQueue() {
+        return new Queue(USER_DASHBOARD_PAY_RES_QUEUE_NAME, true);
+    }
+
+    @Bean
+    public Binding userDashboardPayReplyBinding(@Qualifier("userDashboardPayReplyQueue") Queue queue, DirectExchange exchange) {
+        return BindingBuilder.bind(queue).to(exchange).with(USER_DASHBOARD_PAY_RES_ROUTING_KEY);
     }
  
 

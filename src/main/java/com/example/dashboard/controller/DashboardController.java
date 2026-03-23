@@ -1,49 +1,44 @@
 package com.example.dashboard.controller;
 
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import com.example.config.RabbitMQConfig;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
+import com.example.dashboard.service.UserDashboardService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/dashboard")
+@RequiredArgsConstructor
 public class DashboardController {
 
-    private final RabbitTemplate rabbitTemplate;
+    private final UserDashboardService userDashboardService;
 
-    public DashboardController(RabbitTemplate rabbitTemplate) {
-        this.rabbitTemplate = rabbitTemplate;
-    }
-
+    /**
+     * 유저 대시보드 로드 시 호출되는 엔드포인트.
+     * Pay 서비스에 MQ로 유저 결제/포인트 데이터를 요청.
+     * Pay 서비스는 응답을 user.dashboard.pay.res 큐로 보내고,
+     * UserDashboardPayListener가 받아 STOMP /topic/user-dashboard/{memberId}로 전달.
+     */
     @PostMapping("/dashboard-queue")
     public ResponseEntity<String> triggerDashboardQueue(@RequestBody Map<String, Object> request) {
-        return handleQueueSignal(request, "USER");
-    }
-
-    private ResponseEntity<String> handleQueueSignal(Map<String, Object> request, String role) {
         try {
-            String memberId = String.valueOf(request.get("memberId"));
-            
-            // 전송할 메시지 생성
-            Map<String, Object> message = new HashMap<>();
-            message.put("memberId", memberId);
-            message.put("action", "FETCH_DASHBOARD");
-            message.put("role", role);
+            Object memberIdRaw = request.get("memberId");
+            if (memberIdRaw == null) {
+                return ResponseEntity.badRequest().body("memberId가 필요합니다.");
+            }
 
-            // 각 서비스로 큐 발송
-            rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.PAY_REQ_ROUTING_KEY, message);
-            rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.EVENT_REQ_ROUTING_KEY, message);
-            rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.SHOP_REQ_ROUTING_KEY, message);
-            
-            return ResponseEntity.ok("Dashboard fetch signal sent to queues successfully.");
+            Long memberId = Long.valueOf(String.valueOf(memberIdRaw));
+            userDashboardService.requestUserDashboardData(memberId);
+
+            return ResponseEntity.ok("대시보드 데이터 요청 완료. 웹소켓으로 수신 대기 중.");
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Failed to send dashboard fetch signal: " + e.getMessage());
+            log.error("[DashboardController] 오류: {}", e.getMessage());
+            return ResponseEntity.internalServerError().body("오류: " + e.getMessage());
         }
     }
 }
