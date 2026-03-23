@@ -2,7 +2,6 @@ package com.example.admin.controller;
 
 import java.util.List;
 import java.util.Map;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.example.admin.service.AdminBoardService;
@@ -68,16 +67,21 @@ public class AdminBoardController {
     public ResponseEntity<Void> approveCommentReport(
             @LoginUser RedisMemberDTO loginUser,
             @PathVariable(name = "reportId") Long reportId,
-            @RequestBody Map<String, Long> body) {
+            @RequestBody(required = false) Map<String, Object> body) {
         
         if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) {
             return ResponseEntity.status(403).build();
         }
 
         log.info("-----> [Admin] 댓글 승인 요청: reportId={}", reportId);
-        adminBoardService.approveCommentReport(reportId);
-        
-        return ResponseEntity.ok().build();
+        try {
+            // 전달된 reportId를 사용하여 서비스 호출
+            adminBoardService.approveCommentReport(reportId, loginUser.getMemberId());
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            log.error("-----> [Admin] 댓글 승인 중 오류 발생: {}", e.getMessage());
+            return ResponseEntity.status(500).build();
+        }
     }
     
     // 신고 내역 삭제 (게시글/댓글 공용 또는 분리 가능) DELETE /msa/admin/board/report/{reportId}

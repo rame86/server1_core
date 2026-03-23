@@ -4,14 +4,12 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
-// [확인] 설정 클래스 및 엔티티/레포지토리 임포트
 import com.example.config.RabbitMQConfig;
 import com.example.admin.dto.BoardReportMessageDTO;
 import com.example.admin.dto.ReportBoardDTO;
@@ -21,7 +19,6 @@ import com.example.board.entity.BoardReport;
 import com.example.board.entity.ReportComment; // 댓글 신고 엔티티 추가
 import com.example.board.repository.ReportRepository;
 import com.example.board.repository.ReportCommentRepository; // 댓글 신고 레포지토리 추가
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -104,30 +101,26 @@ public class AdminBoardService {
 
     // 댓글 신고 승인
     @Transactional
-    public void approveCommentReport(Long reportId) {
+    public void approveCommentReport(Long reportId, Long adminId) {
         log.info("-----> [AdminBoardService] 댓글 승인 시작. 리포트ID: {}", reportId);
 
-        // 1) 댓글 신고 상태 변경
         ReportComment report = reportCommentRepository.findById(reportId)
-                .orElseThrow(() -> new RuntimeException("해당 댓글 신고 내역을 찾을 수 없습니다."));
+                .orElseThrow(() -> new RuntimeException("해당 댓글 신고 내역을 찾을 수 없습니다. ID: " + reportId));
         
         report.approve(); 
         reportCommentRepository.save(report);
 
-        // 2) 실제 댓글 숨김 로직 호출 (Board 서비스와 통신)
-        // 만약 같은 서버라면 직접 BoardReportService.approveCommentReport 호출도 가능하지만, 
-        // MSA 구조상 RestTemplate을 사용하는 것이 원칙입니다.
         String url = boardServiceUrl + "/board/admin/reports/comments/" + reportId + "/approve";
         try {
-            restTemplate.put(url, null); // Board 서비스의 승인 로직 호출
-            log.info("-----> [AdminBoardService] Board 서비스 댓글 승인 통신 성공");
+            restTemplate.put(url, null);
+            log.info("-----> [AdminBoardService] Board 서비스 통신 성공");
         } catch (Exception e) {
             log.error("-----> [AdminBoardService] Board 서비스 통신 실패: {}", e.getMessage());
-            throw new RuntimeException("댓글 서비스와의 통신 오류로 승인이 실패했습니다.");
+            throw new RuntimeException("댓글 서비스와 통신할 수 없습니다.");
         }
 
-        // 3) 관리자 서비스 승인 이력 저장 (adminId는 하드코딩 혹은 세션 정보 활용)
-        saveApprovalLog(reportId, 1L, "댓글 신고 승인 (Report ID: " + reportId + ")");
+        // [핵심 수정] 아래 정의된 saveApprovalLog의 파라미터 개수에 맞게 호출 (3개 전달)
+        saveApprovalLog(reportId, adminId, "댓글 신고 승인 (Report ID: " + reportId + ")");
     }
 
 

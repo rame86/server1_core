@@ -51,7 +51,21 @@ public class BoardReportController {
         return ResponseEntity.ok("댓글 신고가 접수되었습니다.");
     }
 
-    // --- [2. 어드민 전용 API] ---
+    @PutMapping("/comments/{reportId}/approve")
+    public ResponseEntity<Void> approveCommentReport(@PathVariable(name = "reportId") Long reportId) {
+        log.info("-----> [Board 서비스] 댓글 신고 승인 요청 수신: reportId={}", reportId);
+        
+        try {
+            // 여기에 실제 DB의 댓글 상태를 변경하거나 숨기는 로직을 넣으세요.
+            // 예: commentService.hideCommentByReport(reportId);
+            
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            log.error("-----> [Board 서비스] 댓글 승인 처리 중 오류: {}", e.getMessage());
+            return ResponseEntity.status(500).build();
+        }
+    }  
+        // --- [2. 어드민 전용 API] ---
 
     @GetMapping("/admin/reports/boards")
     public ResponseEntity<?> getBoardReports(@LoginUser RedisMemberDTO loginUser) {
