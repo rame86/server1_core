@@ -327,6 +327,14 @@ public class MemberService {
 			}
 		}
 	}
+	
+	// 회원정보 변경
+	@Transactional
+	public void updateMemberInfo(Long memberId, MemberUpdateRequestDTO dto) {
+		Member member = memberRepository.findById(memberId)
+				.orElseThrow(() -> new IllegalArgumentException("해당 사용자를 찾을 수 없습니다."));
+		member.updateProfile(dto);
+	}
 
 	// 개인정보 조회
 	public MemberInfoResponseDTO getMyInfo(Long memberId) {

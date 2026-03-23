@@ -42,7 +42,10 @@ public class Comment {
     public void hideComment() {
         this.status = "HIDDEN";
     }
-
+    public void setStatus(String status) {
+    this.status = status;
+}
+    
     public void updateContent(String content) {
         this.content = content;
     }

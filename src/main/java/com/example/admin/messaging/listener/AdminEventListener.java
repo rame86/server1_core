@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.ShopResultDTO;
+import com.example.admin.dto.UserListResponseDTO;
 import com.example.admin.dto.UserPaymentSummaryDTO;
 import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;

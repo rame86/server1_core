@@ -7,8 +7,6 @@ import com.example.board.entity.Board;
 import com.example.board.entity.LikeBoard;
 import com.example.board.repository.BoardRepository;
 import com.example.board.repository.LikeRepository;
-import com.example.board.repository.ReportCommentRepository;
-import com.example.board.repository.ReportRepository;
 import com.example.board.repository.CommentRepository;
 import com.example.member.domain.Member;
 import com.example.member.repository.MemberRepository;
@@ -46,16 +44,14 @@ public class BoardService {
             boardRepository.findByStatusOrderByCreatedAtDesc("ACTIVE") : 
             boardRepository.findByCategoryAndStatusOrderByCreatedAtDesc(category, "ACTIVE");
 
-        // [핵심] 1. 게시글 목록에 있는 모든 작성자 ID를 중복 없이 모읍니다.
+        // 게시글 목록에 있는 모든 작성자 ID를 중복 없이 모읍니다.
         Set<Long> memberIds = boards.stream()
                 .map(Board::getMemberId)
                 .collect(Collectors.toSet());
                 
-        // [핵심] 2. DB에서 해당 ID들의 회원 정보를 한 번에 다 가져옵니다. (IN 절 쿼리 한 번 실행)
-        List<Member> members = memberRepository.findAllById(memberIds);        
-                
-        // [핵심] 3. 가져온 회원 정보를 Map<ID, 이름> 형태로 만듭니다.
-        Map<Long, String> memberNameMap = members.stream()
+          
+        // 가져온 회원 정보를 Map<ID, 이름> 형태로 만듭니다.
+        Map<Long, String> memberNameMap = memberRepository.findAllById(memberIds).stream()
                 .collect(Collectors.toMap(
                     Member::getMemberId, 
                     Member::getName, 
@@ -63,19 +59,16 @@ public class BoardService {
                 ));
                 
         return boards.stream().map(board -> {
-            BoardDTO dto = convertToDTO(board);
-
-           // [핵심] 4. 맵에서 작성자 ID로 이름을 찾아서 넣어줍니다. (없으면 기본값)
-            String authorName = memberNameMap.getOrDefault(board.getMemberId(), "탈퇴한 사용자");
-            dto.setAuthorName(authorName);
+           BoardDTO dto = convertToDTO(board);
+            dto.setAuthorName(memberNameMap.getOrDefault(board.getMemberId(), "탈퇴한 사용자"));
             
             if (memberId != null) {
-                boolean isLiked = likeRepository.existsByBoardIdAndMemberId(board.getBoardId(), memberId);
-                dto.setLiked(isLiked);
+                dto.setLiked(likeRepository.existsByBoardIdAndMemberId(board.getBoardId(), memberId));
             }
             return dto;
         }).collect(Collectors.toList());
     }
+
     // [게시글 상세 조회] 조회수 증가 + 좋아요 여부 확인
     @Transactional
     public BoardDTO getBoardDetail(Long boardId, Long memberId) {
@@ -140,6 +133,17 @@ public class BoardService {
         boardRepository.delete(board);
         return BoardResponseDTO.builder().boardId(id).status("SUCCESS").message("삭제되었습니다.").build();
     }
+
+    // [중요] 게시글 숨김 처리 (신고 승인 시 호출용)
+    @Transactional
+    public void hideBoard(Long boardId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다. ID: " + boardId));
+        board.hideBoard(); // status = "HIDDEN" 변경 로직
+        log.info("-----> [BoardService] 게시글 ID {} 가 숨김 처리되었습니다.", boardId);
+    }
+
+
     // 게시글 수정
     @Transactional
     public BoardResponseDTO updateBoard(Long id, BoardCreateRequest request, MultipartFile file, Long memberId, String role) throws IOException {
@@ -193,14 +197,6 @@ public class BoardService {
         return board.getLikeCount();
     }
 
-    // 신고 승인 시 숨김처리 메시지 수신용 
-    @Transactional
-    public void hideBoardByMessage(Long boardId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다. ID: " + boardId));
-        board.hideBoard();
-        log.info("메시지 수신: 게시글 ID {} 가 숨김 처리되었습니다.", boardId);
-    }
     // 파일 관련 보조 메서드
     private String saveFile(MultipartFile file) throws IOException {
         File folder = new File(uploadDir);
