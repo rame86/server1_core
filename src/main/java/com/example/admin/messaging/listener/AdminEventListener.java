@@ -2,6 +2,7 @@ package com.example.admin.messaging.listener;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.ShopResultDTO;
+import com.example.admin.dto.UserListResponseDTO;
 import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
 import com.example.config.RabbitMQConfig;
@@ -78,6 +80,21 @@ public class AdminEventListener {
         message.put("message", adminMessage);
         
         rabbitTemplate.convertAndSend("amq.topic", "notification.admin", message);
+	}
+	
+	@RabbitListener(queues = RabbitMQConfig.ADMIN_PAY_RES_QUEUE_NAME) // 2서버가 답장 쏘는 큐!
+	public void handleUserPaymentResponse(List<UserListResponseDTO> responseList) {
+	    log.info("📢 [1서버 비동기 리스너] 2서버에서 보낸 결제 데이터 도착! 건수: {}", responseList.size());
+
+	    try {
+	        for (UserListResponseDTO dto : responseList) {
+	            // 🚔 비동기식의 핵심: 받은 데이터를 DB에 업데이트해야 나중에 화면에 나와!
+	            // 예: memberRepository.updatePaymentInfo(dto.getMemberId(), dto.getPointBalance(), dto.getPurchaseCount());
+	            log.info("유저 {}님의 잔액 {}원 업데이트 완료!", dto.getMemberId(), dto.getPointBalance());
+	        }
+	    } catch (Exception e) {
+	        log.error("❌ [1서버] 비동기 데이터 처리 중 오류: {}", e.getMessage());
+	    }
 	}
 	
 }
