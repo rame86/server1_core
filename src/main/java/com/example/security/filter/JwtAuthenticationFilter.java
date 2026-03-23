@@ -31,7 +31,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String[] whiteList = {
     		"/", 
     		"/event", 
-    		"/member/**", 
+    		"/member/login",            // 로그인 (허용)
+    	    "/member/signup",           // 회원가입 (허용)
+    	    "/member/SendVerification", // 인증메일 (허용)
+    	    "/member/refresh",
     		"/dbtest", 
     		"/api/**", 
     		"/test/**"

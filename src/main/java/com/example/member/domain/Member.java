@@ -7,6 +7,8 @@ import java.util.Map;
 
 import org.hibernate.annotations.Type;
 
+import com.example.member.dto.MemberUpdateRequestDTO;
+
 import io.hypersistence.utils.hibernate.type.json.JsonBinaryType;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -61,5 +63,14 @@ public class Member {
 	// 한 명이 여러 소셜 계정을 가질 수 있음
 	@OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<SocialAccount> socialAccounts = new ArrayList<>();
+	
+	// 회원 정보 수정을 위한 업데이트 메서드
+	public void updateProfile(MemberUpdateRequestDTO dto) {
+	    this.name = dto.getName();
+	    this.phone = dto.getPhone();
+	    this.nickName = dto.getNickName();
+	    this.age = dto.getAge();
+	    this.address = dto.getAddress();
+	}
 
 }

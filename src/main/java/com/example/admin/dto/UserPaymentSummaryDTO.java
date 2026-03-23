@@ -1,5 +1,7 @@
 package com.example.admin.dto;
 
+import java.math.BigDecimal;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.Getter;
@@ -11,5 +13,5 @@ public class UserPaymentSummaryDTO {
 	private Long memberId;
     private Integer purchaseCount;
     @JsonProperty("balance")
-    private Long pointBalance;
+    private BigDecimal pointBalance;
 }
