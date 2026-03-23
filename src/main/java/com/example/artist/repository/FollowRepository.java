@@ -1,5 +1,6 @@
 package com.example.artist.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,4 +15,7 @@ public interface FollowRepository extends JpaRepository<Follow, Long>{
 	
 	// 팔로우 중복 확인
 	Optional<Follow> findByMemberAndArtist(Member memberId, Artist artistId);
+
+	// 내가 팔로우한 아티스트 목록
+	List<Follow> findAllByMember(Member member);
 }

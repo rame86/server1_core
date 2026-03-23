@@ -366,7 +366,7 @@ public class AdminService {
 		message.put("type", "ADMIN");
 		message.put("orderId", "GETALL");
 		message.put("allMemberId", memberId);
-		message.put("replyRoutingKey", RabbitMQConfig.PAY_RES_QUEUE_NAME);
+		message.put("replyRoutingKey", RabbitMQConfig.ADMIN_PAY_RES_ROUTING_KEY);
 		
 		rabbitTemplate.convertAndSend(
 	            RabbitMQConfig.EXCHANGE_NAME,
