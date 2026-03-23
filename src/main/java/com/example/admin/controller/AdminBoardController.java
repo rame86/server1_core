@@ -13,7 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RestController
-@RequestMapping("admin/board")
+@RequestMapping("/admin/board")
 @RequiredArgsConstructor
 public class AdminBoardController {
 
@@ -31,15 +31,10 @@ public class AdminBoardController {
     // 2. 댓글 신고 목록 조회 (GET /admin/board/reports/comments)
     @GetMapping("/reports/comments")
     public ResponseEntity<List<ReportBoardDTO>> getCommentReports(@LoginUser RedisMemberDTO loginUser) {
-        log.info("-----> [Admin] 댓글 신고 목록 조회 요청 수신");
         if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) {
-            log.warn("-----> [Admin] 권한 없음 또는 로그인 정보 없음");
             return ResponseEntity.status(403).build();
         }
-        
-        List<ReportBoardDTO> reports = adminBoardService.getCommentReports();
-        log.info("-----> [Admin] 댓글 신고 목록 반환 개수: {}", reports.size());
-        return ResponseEntity.ok(reports);
+        return ResponseEntity.ok(adminBoardService.getCommentReports());
     }
     
     // 게시글 신고 승인 (숨김 처리)  PUT /msa/core/admin/board/report/{reportId}/approve
@@ -47,9 +42,7 @@ public class AdminBoardController {
     public ResponseEntity<Void> approveReport(
             @LoginUser RedisMemberDTO loginUser,
             @PathVariable(name = "reportId") Long reportId,
-            @RequestBody java.util.Map<String, Long> body) {
-        
-        log.info("-----> [AdminBoardController] 승인 요청 수신: reportId={}, boardId={}", reportId, body.get("boardId"));
+            @RequestBody Map<String, Long> body) {
         
         if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) {
             return ResponseEntity.status(403).build();
@@ -57,8 +50,6 @@ public class AdminBoardController {
         
         Long boardId = body.get("boardId");
         adminBoardService.approveBoardReport(reportId, boardId, loginUser.getMemberId());
-        
-        // [중요] 성공 시 200 OK 응답을 확실히 반환하여 리액트의 catch문으로 빠지지 않게 합니다.
         return ResponseEntity.ok().build();
     }
 
@@ -66,22 +57,15 @@ public class AdminBoardController {
     @PutMapping("/report/comment/{reportId}/approve")
     public ResponseEntity<Void> approveCommentReport(
             @LoginUser RedisMemberDTO loginUser,
-            @PathVariable(name = "reportId") Long reportId,
-            @RequestBody(required = false) Map<String, Object> body) {
+            @PathVariable(name = "reportId") Long reportId) {
         
         if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) {
             return ResponseEntity.status(403).build();
         }
 
-        log.info("-----> [Admin] 댓글 승인 요청: reportId={}", reportId);
-        try {
-            // 전달된 reportId를 사용하여 서비스 호출
-            adminBoardService.approveCommentReport(reportId, loginUser.getMemberId());
-            return ResponseEntity.ok().build();
-        } catch (Exception e) {
-            log.error("-----> [Admin] 댓글 승인 중 오류 발생: {}", e.getMessage());
-            return ResponseEntity.status(500).build();
-        }
+        log.info("-----> [Admin] 댓글 승인 요청 수신: reportId={}", reportId);
+        adminBoardService.approveCommentReport(reportId, loginUser.getMemberId());
+        return ResponseEntity.ok().build();
     }
     
     // 신고 내역 삭제 (게시글/댓글 공용 또는 분리 가능) DELETE /msa/admin/board/report/{reportId}
