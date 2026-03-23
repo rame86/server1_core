@@ -181,6 +181,13 @@ public class AdminController {
 	    adminService.deleteUser(user.getMemberId(), params.get("memberId"));
 	    return ResponseEntity.ok("계정이 삭제 처리되었습니다.");
 	}
+	
+	// 샵 승인 대기 목록
+	@GetMapping("/shop/approvalList")
+	public ResponseEntity<List<ShopResultDTO>> getPendingShop() {
+		List<ShopResultDTO> pendingList = adminService.getPendingShopList("SHOP", "PENDING");
+		return ResponseEntity.ok(pendingList);
+	}
 
 }
 

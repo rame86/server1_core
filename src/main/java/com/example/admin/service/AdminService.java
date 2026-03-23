@@ -27,6 +27,7 @@ import com.example.admin.dto.ArtistResponseDTO;
 import com.example.admin.dto.ArtistResultDTO;
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.SettlementDashboardResponse;
+import com.example.admin.dto.ShopResultDTO;
 import com.example.admin.dto.UserDetailPaymentResponseDTO;
 import com.example.admin.dto.UserDetailResponseDTO;
 import com.example.admin.dto.UserListResponseDTO;
@@ -60,6 +61,7 @@ public class AdminService {
 	private final ArtistRepository artistRepository;
 	private final MemberHistoryRepository memberHistoryRepository;
 	private final PasswordEncoder passwordEncoder;
+	private final com.fasterxml.jackson.databind.ObjectMapper objectMapper; // JSON 파싱용
 	
 	@Value("${pay.admin.url}")
     private String payAdminUrl;
@@ -152,6 +154,44 @@ public class AdminService {
 				.rejectionReason(entity.getRejectionReason())
 				.build())
 				.collect(Collectors.toList());
+	}
+
+	// 굿즈(Shop) 승인 대기 목록
+	public List<ShopResultDTO> getPendingShopList(String category, String status) {
+		List<Approval> entityList = approvalRepository.findByCategoryAndStatus(category, status);
+		return entityList.stream().map(entity -> {
+			try {
+				// contentJson에 저장된 상세 정보를 ShopResultDTO로 복원
+				ShopResultDTO dto = objectMapper.readValue(entity.getContentJson(), ShopResultDTO.class);
+				
+				// 엔티티의 기본 필드(ID, 상태, 날짜 등)로 덮어쓰기 (최신성 유지)
+				return ShopResultDTO.builder()
+						.approvalId(entity.getApprovalId())
+						.goodsId(entity.getTargetId())
+						.requesterId(entity.getArtistId())
+						.requesterName(entity.getRequesterName())
+						.goodsName(entity.getTitle())
+						.goodsType(entity.getSubCategory() != null ? entity.getSubCategory() : (dto != null ? dto.getGoodsType() : "UNKNOWN"))
+						.description(entity.getDescription())
+						.price(entity.getPrice() != null ? entity.getPrice().intValue() : (dto != null ? dto.getPrice() : 0))
+						.color(dto != null ? dto.getColor() : null)
+						.size(dto != null ? dto.getSize() : null)
+						.stockQuantity(dto != null ? dto.getStockQuantity() : 0)
+						.imageUrl(entity.getImageUrl())
+						.status(entity.getStatus())
+						.createdAt(entity.getCreatedAt().toString())
+						.rejectionReason(entity.getRejectionReason())
+						.build();
+			} catch (Exception e) {
+				log.error("Failed to parse shop approval JSON: {}", e.getMessage());
+				// 파싱 실패 시 기본 정보라도 반환
+				return ShopResultDTO.builder()
+						.approvalId(entity.getApprovalId())
+						.goodsName(entity.getTitle())
+						.status(entity.getStatus())
+						.build();
+			}
+		}).collect(Collectors.toList());
 	}
 	
 	// artist 승인
@@ -312,7 +352,6 @@ public class AdminService {
 	}
 	
 	// user List
-	@SuppressWarnings("unchecked")
 	@Transactional(readOnly = true)
 	public Page<UserListResponseDTO> getAllUserList(Pageable pageable) {
 		// 멤버 페이지 가져오기
