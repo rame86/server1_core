@@ -10,6 +10,7 @@ import lombok.*;
 @ToString
 public class CommentRequestDTO {
     
+    private Long commentId;
     private Long boardId;   // [추가] 게시글 식별자
     private Long memberId;  // [추가] 작성자 식별자
     private String content; // 댓글 내용

@@ -1,24 +1,27 @@
 package com.example.admin.service;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
-import com.example.config.RabbitMQConfig;
-import com.example.admin.dto.BoardReportMessageDTO;
 import com.example.admin.dto.ReportBoardDTO;
 import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
+import com.example.board.entity.Board;
 import com.example.board.entity.BoardReport;
-import com.example.board.entity.ReportComment; // 댓글 신고 엔티티 추가
+import com.example.board.entity.Comment;
+import com.example.board.entity.ReportComment;
+import com.example.board.repository.BoardRepository;
+import com.example.board.repository.CommentRepository;
 import com.example.board.repository.ReportRepository;
-import com.example.board.repository.ReportCommentRepository; // 댓글 신고 레포지토리 추가
+import com.example.board.repository.ReportCommentRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -27,116 +30,164 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class AdminBoardService {
 
-    private final RabbitTemplate rabbitTemplate;
-    private final RestTemplate restTemplate;
     private final ApprovalRepository approvalRepository;
-    private final ReportRepository reportRepository; // 신고 상태 변경을 위해 주입
-    private final ReportCommentRepository reportCommentRepository; // 주입 추가
+    private final ReportRepository reportRepository;
+    private final ReportCommentRepository reportCommentRepository;
+    private final BoardRepository boardRepository;
+    private final CommentRepository commentRepository;
 
     @Value("${service.board.url:http://localhost:8080}")
     private String boardServiceUrl;
 
-    // 신고 내역 조회
+    // --- [1. 게시글 신고 내역 조회] ---
     public List<ReportBoardDTO> getBoardReports() {
-        String url = boardServiceUrl + "/board/admin/reports/boards";
+        log.info("-----> [AdminBoardService] 직접 DB에서 게시글 신고 내역 조회");
         try {
-            ReportBoardDTO[] response = restTemplate.getForObject(url, ReportBoardDTO[].class);
-            return response != null ? Arrays.asList(response) : Collections.emptyList();
-        } catch (Exception e) {
-            log.error("-----> [AdminBoardService] 내역 조회 실패: {}", e.getMessage());
-            return Collections.emptyList();
-        }
+        return reportRepository.findAll().stream()
+                .filter(report -> "PENDING".equals(report.getStatus()))
+                // [추가] 실제 게시글이 존재하는지 확인 (없으면 목록에서 제외)
+                .filter(report -> boardRepository.existsById(report.getBoardId())) 
+                .map(this::convertToBoardReportDTO)
+                .collect(Collectors.toList());
+    } catch (Exception e) {
+        log.error("-----> [AdminBoardService] 게시글 신고 조회 에러: {}", e.getMessage());
+        return Collections.emptyList();
     }
+}
 
-    // 댓글 신고 내역 조회
+    // --- [2. 댓글 신고 내역 조회] ---
     public List<ReportBoardDTO> getCommentReports() {
-        String url = boardServiceUrl + "/board/admin/reports/comments"; // Board 서비스의 댓글 신고 API 호출
-        try {
-            ReportBoardDTO[] response = restTemplate.getForObject(url, ReportBoardDTO[].class);
-            return response != null ? Arrays.asList(response) : Collections.emptyList();
-        } catch (Exception e) {
-            log.error("-----> [AdminBoardService] 댓글 내역 조회 실패: {}", e.getMessage());
-            return Collections.emptyList();
-        }
+    log.info("-----> [AdminBoardService] 직접 DB에서 댓글 신고 내역 조회 및 유효성 검사");
+    try {
+        return reportCommentRepository.findAll().stream()
+                .filter(report -> "PENDING".equals(report.getStatus()))
+                // [추가] 실제 댓글이 존재하는지 확인 (없으면 목록에서 제외)
+                .filter(report -> commentRepository.existsById(report.getCommentId()))
+                .map(this::convertToCommentReportDTO)
+                .collect(Collectors.toList());
+    } catch (Exception e) {
+        log.error("-----> [AdminBoardService] 댓글 신고 조회 에러: {}", e.getMessage());
+        return Collections.emptyList();
     }
+}
 
-    // 게시글 신고 승인
-    @Transactional
-    public void approveBoardReport(Long reportId, Long boardId, Long adminId) {
-        log.info("-----> [AdminBoardService] 승인 프로세스 시작. 리포트ID: {}, 게시글ID: {}", reportId, boardId);
-
-        // 1) [DB 수정] 신고 내역(board_report)의 상태를 APPROVED로 변경
-        BoardReport report = reportRepository.findById(reportId)
-                .orElseThrow(() -> new RuntimeException("해당 신고 내역을 찾을 수 없습니다."));
-        
-        report.approve(); // status = "APPROVED"
-        reportRepository.save(report); 
-        log.info("-----> [AdminBoardService] 신고 상태 변경 완료 (ID: {})", reportId);
-
-        // 2) [DB 저장] 관리자 서비스의 승인 이력 저장
-        Approval approval = Approval.builder()
-                .category("BOARD_REPORT")
-                .targetId(reportId)
-                .status("CONFIRMED")
-                .adminId(adminId)
-                .title("게시글 신고 승인 (Board ID: " + boardId + ")")
-                .processedAt(LocalDateTime.now())
+    // --- [DTO 변환 도우미 메서드] ---
+    private ReportBoardDTO convertToBoardReportDTO(BoardReport report) {
+        Board board = boardRepository.findById(report.getBoardId()).orElse(null);
+        return ReportBoardDTO.builder()
+                .reportId(report.getReportId())
+                .boardId(report.getBoardId())
+                .postTitle(board != null ? board.getTitle() : "삭제된 게시물")
+                .content(board != null ? board.getContent() : "내용 없음")
+                .memberId(report.getMemberId())
+                .reason(report.getReason())
+                .status(report.getStatus())
+                .createdAt(report.getCreatedAt())
                 .build();
-        approvalRepository.save(approval);
-
-        // 3) [RabbitMQ] 메시지 발행 (상수 사용 및 동적 boardId 전달)
-        BoardReportMessageDTO message = new BoardReportMessageDTO(boardId);
-        try {
-            rabbitTemplate.convertAndSend(
-                RabbitMQConfig.EXCHANGE_NAME, 
-                RabbitMQConfig.BOARD_REPORT_APPROVE_ROUTING_KEY, 
-                message
-            );
-            log.info("-----> [AdminBoardService] RabbitMQ 메시지 발행 성공: {}", message);
-        } catch (Exception e) {
-            log.error("-----> [AdminBoardService] 메시지 발행 실패: {}", e.getMessage());
-            throw new RuntimeException("메시지 발행 실패로 승인 처리가 중단되었습니다.");
-        }
     }
 
-    // 댓글 신고 승인
+    private ReportBoardDTO convertToCommentReportDTO(ReportComment report) {
+        Comment comment = commentRepository.findById(report.getCommentId()).orElse(null);
+        return ReportBoardDTO.builder()
+                .reportId(report.getReportId())
+                .boardId(null) // 댓글 신고이므로 boardId는 null 또는 별도 처리
+                .postTitle("댓글 신고")
+                .content(comment != null ? comment.getContent() : "삭제된 댓글")
+                .memberId(report.getMemberId())
+                .reason(report.getReason())
+                .status(report.getStatus())
+                .createdAt(report.getCreatedAt())
+                .build();
+    }
+
+    /**
+     * 3. 게시글 신고 승인 처리
+     */
+   @Transactional
+public void approveBoardReport(Long reportId, Long boardId, Long adminId) {
+    log.info("-----> [AdminBoardService] 게시글 승인 로직 시작! reportId: {}, boardId: {}", reportId, boardId);
+
+    // 1) 신고서 확인
+    BoardReport report = reportRepository.findById(reportId)
+            .orElseThrow(() -> new RuntimeException("해당 신고 내역을 찾을 수 없습니다."));
+
+    // 2) 실제 게시글 조회 및 처리
+    Board board = boardRepository.findById(boardId).orElse(null);
+
+    if (board == null) {
+        // [핵심 추가] 게시글이 이미 DB에 없다면 신고 내역을 삭제하고 종료
+        log.warn("-----> [AdminBoardService] 대상 게시글(ID: {})이 이미 존재하지 않습니다. 신고 내역을 삭제합니다.", boardId);
+        reportRepository.delete(report); 
+        return; // 로직 종료
+    }
+
+    // 3) 게시글이 존재한다면 정상적으로 승인/숨김 처리
+    report.approve(); 
+    board.hideBoard(); 
+
+    // 4) 관리자 승인 이력 저장
+    saveApprovalLog(reportId, adminId, "게시글 신고 승인 (Board ID: " + boardId + ")");
+    
+    log.info("-----> [AdminBoardService] 게시글 승인 및 HIDDEN 처리 완료");
+}
+
+    /**
+     * 4. 댓글 신고 승인 처리
+     */
     @Transactional
     public void approveCommentReport(Long reportId, Long adminId) {
-        log.info("-----> [AdminBoardService] 댓글 승인 시작. 리포트ID: {}", reportId);
+        log.info(">>>> [AdminBoardService] 댓글 승인 로직 시작! reportId: {}, adminId: {}", reportId, adminId);
 
+        // 1. 신고 내역 조회
         ReportComment report = reportCommentRepository.findById(reportId)
-                .orElseThrow(() -> new RuntimeException("해당 댓글 신고 내역을 찾을 수 없습니다. ID: " + reportId));
+                .orElseThrow(() -> new RuntimeException("신고 내역을 찾을 수 없습니다."));
+
+        // 2. 대상 댓글 조회
+        Long commentId = report.getCommentId();
+        Comment comment = commentRepository.findById(commentId).orElse(null);
+
+        // [핵심 추가] 댓글이 이미 삭제되어 DB에 없는 경우
+        if (comment == null) {
+            log.warn(">>>> [AdminBoardService] 대상 댓글(ID: {})이 이미 존재하지 않습니다. 신고 내역을 정리합니다.", commentId);
+            reportCommentRepository.delete(report); // 신고 내역 삭제
+            return; // 로직 종료 (에러 없이 리스트에서 사라짐)
+        }
+
+        // 3. 댓글이 존재하면 정상 승인 처리
+        report.approve(); // 신고서 상태 APPROVED로 변경
+        comment.hideComment(); // 댓글 상태 HIDDEN으로 변경
+
+        // 4. 승인 이력 저장
+        saveApprovalLog(reportId, adminId, "댓글 신고 승인 (Comment ID: " + commentId + ")");
         
-        report.approve(); 
-        reportCommentRepository.save(report);
-
-        String url = boardServiceUrl + "/board/admin/reports/comments/" + reportId + "/approve";
-        try {
-            restTemplate.put(url, null);
-            log.info("-----> [AdminBoardService] Board 서비스 통신 성공");
-        } catch (Exception e) {
-            log.error("-----> [AdminBoardService] Board 서비스 통신 실패: {}", e.getMessage());
-            throw new RuntimeException("댓글 서비스와 통신할 수 없습니다.");
-        }
-
-        // [핵심 수정] 아래 정의된 saveApprovalLog의 파라미터 개수에 맞게 호출 (3개 전달)
-        saveApprovalLog(reportId, adminId, "댓글 신고 승인 (Report ID: " + reportId + ")");
+        log.info(">>>> [AdminBoardService] 댓글 승인 및 HIDDEN 처리 완료");
     }
 
-
-    //신고 내역 삭제
+    // 5. 신고 내역 삭제
+    @Transactional
     public void deleteBoardReport(Long reportId) {
-        String url = boardServiceUrl + "/board/admin/reports/boards/" + reportId;
-        try {
-            log.info("-----> [AdminBoardService] Board 서비스로 신고 삭제 요청: reportId={}", reportId);
-            restTemplate.delete(url);
-            log.info("-----> [AdminBoardService] 신고 삭제 성공");
-        } catch (Exception e) {
-            log.error("-----> [AdminBoardService] 신고 삭제 실패: {}", e.getMessage());
-            throw new RuntimeException("게시판 서비스와의 통신 중 오류가 발생했습니다.");
+        log.info("-----> [AdminBoardService] 신고 내역 삭제 요청 수신: reportId={}", reportId);
+
+        // 1. 게시글 신고 테이블에서 확인
+        BoardReport report = reportRepository.findById(reportId).orElse(null);
+        if (report != null) {
+            reportRepository.delete(report);
+            log.info("-----> [AdminBoardService] 게시글 신고 내역(ID: {}) 삭제 완료", reportId);
+            return;
         }
+
+        // 2. 댓글 신고 테이블에서 확인
+        ReportComment commentReport = reportCommentRepository.findById(reportId).orElse(null);
+        if (commentReport != null) {
+            reportCommentRepository.delete(commentReport);
+            log.info("-----> [AdminBoardService] 댓글 신고 내역(ID: {}) 삭제 완료", reportId);
+            return;
+        }
+
+        // 3. 둘 다 없을 경우에만 예외 발생
+        log.warn("-----> [AdminBoardService] 삭제할 신고 내역이 없습니다. ID: {}", reportId);
     }
-    // 공통 이력 저장 메서드 (중복 제거)
+
     private void saveApprovalLog(Long targetId, Long adminId, String title) {
         Approval approval = Approval.builder()
                 .category("REPORT")

@@ -4,6 +4,7 @@ import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -47,6 +48,10 @@ public class RabbitMQConfig {
     public static final String BOARD_REPORT_APPROVE_QUEUE_NAME = "board.report.approve.queue";
     public static final String BOARD_REPORT_APPROVE_ROUTING_KEY = "board.report.approve.key";
     
+    // [추가] 댓글 신고 승인 관련
+    public static final String COMMENT_REPORT_APPROVE_QUEUE_NAME = "comment.report.approve.queue";
+    public static final String COMMENT_REPORT_APPROVE_ROUTING_KEY = "comment.report.approve.key";
+
     // 환불 요청 관련
     public static final String REFUND_REQ_ROUTING_KEY = "refund.req.core";
     public static final String REFUND_REQ_QUEUE_NAME = "refund.req.core.queue";
@@ -123,23 +128,37 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(queue).to(exchange).with(SHOP_RES_ROUTING_KEY);
     }
 
-    // 게시판(Board) 관련 Bean 추가
+    // 게시판(Board) 신고 큐
     @Bean
     public Queue boardRequestQueue() {
         return new Queue(BOARD_REQ_QUEUE_NAME, true);
     }
 
-    // [추가] 게시판 신고 승인 관련 Bean
+    // [추가] 게시판 신고 Bean 등록
     @Bean
    public Queue boardReportApproveQueue() {
         return new Queue(BOARD_REPORT_APPROVE_QUEUE_NAME, true);
     }
-    // [추가] 신고 승인 큐와 익스체인지를 연결하는 바인딩 (이게 있어야 메시지가 전달됩니다)
+    
+    // [추가] 댓글 신고 큐 빈 등록
+    @Bean
+    public Queue commentReportApproveQueue() {
+    return new Queue(COMMENT_REPORT_APPROVE_QUEUE_NAME, true);
+}
+
+    // [추가] 게시글 신고 승인 큐와 익스체인지를 연결하는 바인딩 (이게 있어야 메시지가 전달됩니다)
     @Bean
     public Binding boardReportApproveBinding(@Qualifier("boardReportApproveQueue") Queue queue, DirectExchange exchange) {
         return BindingBuilder.bind(queue).to(exchange).with(BOARD_REPORT_APPROVE_ROUTING_KEY);
     }
     
+    // [추가] 댓글 신고 바인딩 (Exchange와 Queue 연결)
+    @Bean
+    public Binding commentReportApproveBinding(@Qualifier("commentReportApproveQueue") Queue queue, DirectExchange exchange) {
+    return BindingBuilder.bind(queue)
+            .to(exchange)
+            .with(COMMENT_REPORT_APPROVE_ROUTING_KEY);
+}
     @Bean
     public Binding boardRequestBinding(@Qualifier("boardRequestQueue") Queue queue, DirectExchange exchange) {
         return BindingBuilder.bind(queue).to(exchange).with(BOARD_REQ_ROUTING_KEY);

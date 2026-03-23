@@ -38,7 +38,9 @@ public class BoardReport {
         this.createdAt = LocalDateTime.now();
         if(this.status == null) this.status = "PENDING"; // 저장 시 기본값 설정
     }
-
+    public void setStatus(String status) {
+    this.status = status;
+}
     // 승인 상태 변경 메서드
     public void approve(){
         this.status = "APPROVED";
