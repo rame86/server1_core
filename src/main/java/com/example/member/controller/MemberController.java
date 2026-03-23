@@ -5,7 +5,6 @@ import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,8 +13,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.admin.dto.ArtistResultDTO;
 import com.example.common.annotation.LoginUser;
+import com.example.member.dto.MemberInfoResponseDTO;
 import com.example.member.dto.MemberSignupRequest;
 import com.example.member.dto.MemberUpdateRequestDTO;
+import com.example.member.dto.PasswordUpdateRequestDTO;
 import com.example.member.dto.RedisMemberDTO;
 import com.example.member.service.MailSenderService;
 import com.example.member.service.MemberService;
@@ -96,14 +97,44 @@ public class MemberController {
 	    }
 	}
 	
+
+
+	// 개인정보 조회
+	@GetMapping("/my-info")
+	public ResponseEntity<MemberInfoResponseDTO> getMyInfo(@LoginUser RedisMemberDTO user) {
+		if (user == null) {
+			return ResponseEntity.status(401).build();
+		}
+		MemberInfoResponseDTO info = memberService.getMyInfo(user.getMemberId());
+		return ResponseEntity.ok(info);
+	}
+
+	// 개인정보 수정
 	@PostMapping("/update")
-	public ResponseEntity<?> updateMember(@LoginUser RedisMemberDTO loginUser, @RequestBody MemberUpdateRequestDTO dto) {
+	public ResponseEntity<?> updateMemberInfo(@LoginUser RedisMemberDTO user, @RequestBody MemberUpdateRequestDTO dto) {
+		if (user == null) {
+			return ResponseEntity.status(401).build();
+		}
 		try {
-			memberService.updateMemberInfo(loginUser.getMemberId(), dto);
-			return ResponseEntity.ok(Map.of("message", "회원 정보가 수정되었습니다."));
-		} catch(Exception e) {
-			return ResponseEntity.badRequest().body(Map.of("message", "수정 실패: " + e.getMessage()));
+			memberService.updateMemberInfo(user.getMemberId(), dto);
+			return ResponseEntity.ok(Map.of("message", "정보가 성공적으로 수정되었습니다."));
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
 		}
 	}
-	
+
+	// 비밀번호 변경
+	@PostMapping("/password")
+	public ResponseEntity<?> updatePassword(@LoginUser RedisMemberDTO user, @RequestBody PasswordUpdateRequestDTO dto) {
+		if (user == null) {
+			return ResponseEntity.status(401).build();
+		}
+		try {
+			memberService.updatePassword(user.getMemberId(), dto);
+			return ResponseEntity.ok(Map.of("message", "비밀번호가 성공적으로 변경되었습니다."));
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+		}
+	}
+
 }

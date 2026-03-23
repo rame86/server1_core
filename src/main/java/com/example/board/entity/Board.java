@@ -95,4 +95,8 @@ public class Board {
         this.commentCount = increment ? this.commentCount + 1 : Math.max(0, this.commentCount - 1);
     }
 
+    public void setStatus(String string) {
+        this.status = status;
+    }
+
 }

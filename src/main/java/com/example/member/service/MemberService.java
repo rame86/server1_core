@@ -19,8 +19,10 @@ import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
 import com.example.member.domain.Member;
 import com.example.member.domain.SocialAccount;
+import com.example.member.dto.MemberInfoResponseDTO;
 import com.example.member.dto.MemberSignupRequest;
 import com.example.member.dto.MemberUpdateRequestDTO;
+import com.example.member.dto.PasswordUpdateRequestDTO;
 import com.example.member.repository.MemberRepository;
 import com.example.member.repository.SocialAccountRepository;
 import com.example.security.tokenProvider.JwtTokenProvider;
@@ -332,6 +334,60 @@ public class MemberService {
 		Member member = memberRepository.findById(memberId)
 				.orElseThrow(() -> new IllegalArgumentException("해당 사용자를 찾을 수 없습니다."));
 		member.updateProfile(dto);
+	}
+
+	// 개인정보 조회
+	public MemberInfoResponseDTO getMyInfo(Long memberId) {
+		Member member = memberRepository.findById(memberId)
+				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+		
+		String profileImageUrl = null;
+		if (member.getInfo() != null && member.getInfo().containsKey("profileImageUrl")) {
+			profileImageUrl = String.valueOf(member.getInfo().get("profileImageUrl"));
+		}
+
+		return MemberInfoResponseDTO.builder()
+				.email(member.getEmail())
+				.name(member.getName())
+				.phone(member.getPhone())
+				.age(member.getAge())
+				.address(member.getAddress())
+				.profileImageUrl(profileImageUrl)
+				.build();
+	}
+
+	// 개인정보 수정
+	@Transactional
+	public void updateMemberInfo(Long memberId, MemberUpdateRequestDTO dto) {
+		Member member = memberRepository.findById(memberId)
+				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+		if (dto.getName() != null) member.setName(dto.getName());
+		if (dto.getPhone() != null) member.setPhone(dto.getPhone());
+		if (dto.getAge() != null) member.setAge(dto.getAge());
+		if (dto.getAddress() != null) member.setAddress(dto.getAddress());
+
+		if (dto.getProfileImageUrl() != null && !dto.getProfileImageUrl().isEmpty()) {
+			Map<String, Object> info = member.getInfo();
+			if (info == null) {
+				info = new HashMap<>();
+			}
+			info.put("profileImageUrl", dto.getProfileImageUrl());
+			member.setInfo(info);
+		}
+	}
+
+	// 비밀번호 변경
+	@Transactional
+	public void updatePassword(Long memberId, PasswordUpdateRequestDTO dto) {
+		Member member = memberRepository.findById(memberId)
+				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+		if (!passwordEncoder.matches(dto.getCurrentPassword(), member.getPassword())) {
+			throw new IllegalArgumentException("현재 비밀번호가 일치하지 않습니다.");
+		}
+
+		member.setPassword(passwordEncoder.encode(dto.getNewPassword()));
 	}
 
 }
