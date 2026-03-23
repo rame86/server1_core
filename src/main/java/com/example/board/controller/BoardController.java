@@ -22,8 +22,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.Map;
-
 
 @Slf4j
 @RestController
@@ -39,13 +37,11 @@ public class BoardController {
     private String uploadDir;
 
     // --- [1. 게시글 관련 API] ---
-
     @GetMapping("/list")
     public ResponseEntity<List<BoardDTO>> getList(
         @LoginUser RedisMemberDTO loginUser,
         @RequestParam(name = "category", required = false) String category) {
         log.info("====> [목록 조회] 카테고리: {}", category);
-
         List<BoardDTO> list = boardService.getBoardList(category, loginUser != null ? loginUser.getMemberId() : null);
         return ResponseEntity.ok(list);
     }
@@ -54,8 +50,6 @@ public class BoardController {
     public ResponseEntity<BoardDTO> getDetail(
         @LoginUser RedisMemberDTO loginUser, 
         @PathVariable(name = "id") Long id) {
-        log.info("조회 요청자 ID: {}", loginUser != null ? loginUser.getMemberId() : "비로그인");
-
         BoardDTO detail = boardService.getBoardDetail(id, loginUser != null ? loginUser.getMemberId() : null);
         return ResponseEntity.ok(detail);
     }
@@ -104,7 +98,6 @@ public class BoardController {
     }
 
     // --- [2. 댓글 관련 API] ---
-
     @PostMapping("/{id}/comments")
     public ResponseEntity<CommentResponseDTO> addComment(
             @PathVariable(name = "id") Long boardId,
@@ -140,8 +133,7 @@ public class BoardController {
     @DeleteMapping("/comments/{commentId}")
     public ResponseEntity<Void> deleteComment(
         @LoginUser RedisMemberDTO loginUser,
-        @PathVariable(name = "commentId") Long commentId,
-        @RequestBody CommentRequestDTO requestDTO) {
+        @PathVariable(name = "commentId") Long commentId) {
             
         if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         
@@ -150,7 +142,6 @@ public class BoardController {
     }
     
     // --- [3. 파일 제공 API] ---
-
     @GetMapping("/files/{fileName}")
     public ResponseEntity<Resource> serveFile(@PathVariable(name = "fileName") String fileName) {
         try {
@@ -166,65 +157,21 @@ public class BoardController {
             return ResponseEntity.internalServerError().build();
         }
     }
+
+ // --- [4. 관리자 전용 신고 관리 API (추가됨)] ---
     
-    // --- [4. 신고 및 관리자 API] ---
-
-    @PostMapping("/{id}/report")
-    public ResponseEntity<String> reportBoard(
-            @LoginUser RedisMemberDTO loginUser,
-            @PathVariable(name = "id") Long id,
-            @RequestBody Map<String, String> body) {
-
-        if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        
-        String result = boardReportService.reportBoard(id, loginUser.getMemberId(), body.get("reason"));
-        if ("ALREADY_REPORTED".equals(result)) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("이미 신고한 게시글입니다.");
-        }
-        return ResponseEntity.ok("신고가 접수되었습니다.");
+    // [관리자] 댓글 신고 조회
+    @GetMapping("/admin/reports/comments")
+    public ResponseEntity<List<ReportBoardDTO>> getAdminCommentReports(@LoginUser RedisMemberDTO loginUser) {
+        if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) return ResponseEntity.status(403).build();
+        return ResponseEntity.ok(boardReportService.getCommentReportList());
     }
 
-    @PostMapping("/comments/{commentId}/report")
-    public ResponseEntity<String> reportComment(
-            @LoginUser RedisMemberDTO loginUser,
-            @PathVariable(name = "commentId") Long commentId,
-            @RequestBody Map<String, String> body) {
-
-        if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        
-        String result = boardReportService.reportComment(commentId, loginUser.getMemberId(), body.get("reason"));
-        if ("ALREADY_REPORTED".equals(result)) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("이미 신고한 댓글입니다.");
-        }
-        return ResponseEntity.ok("댓글 신고가 접수되었습니다.");
-    }
-
-    // --- [5. 어드민 서비스 제공용 API] ---
-
-    @GetMapping("/admin/reports/boards")
-    public ResponseEntity<?> getBoardReports(@LoginUser RedisMemberDTO loginUser) {
-        if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-        return ResponseEntity.ok(boardReportService.getBoardReportList());
-    }
-
-    // @GetMapping("/admin/reports/comments")
-    // public ResponseEntity<?> getCommentReports(@LoginUser RedisMemberDTO loginUser) {
-    //     if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) {
-    //         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-    //     }
-    //     return ResponseEntity.ok(boardReportService.getCommentReportList());
-    // }
-
-    /**
-     * [추가] 어드민 서비스에서 요청하는 신고 내역 삭제 API
-     * Admin 서비스의 restTemplate.delete 명령을 여기서 처리합니다.
-     */
-   @DeleteMapping("/admin/reports/boards/{reportId}")
-    public ResponseEntity<Void> deleteBoardReport(@PathVariable(name = "reportId") Long reportId) {
-        log.info("-----> [BoardController] 신고 내역 삭제 요청 수신: reportId={}", reportId);
-        boardReportService.deleteBoardReport(reportId);
+    // [관리자] 댓글 신고 승인
+    @PutMapping("/admin/reports/comments/{reportId}/approve")
+    public ResponseEntity<Void> approveCommentReport(@LoginUser RedisMemberDTO loginUser, @PathVariable(name = "reportId") Long reportId) {
+        if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) return ResponseEntity.status(403).build();
+        boardReportService.approveCommentReport(reportId);
         return ResponseEntity.ok().build();
     }
 }
