@@ -3,6 +3,7 @@ package com.example.board.controller;
 import com.example.board.service.BoardCommentService;
 import com.example.board.service.BoardReportService;
 import com.example.board.service.BoardService;
+import com.example.admin.dto.ReportBoardDTO;
 import com.example.board.dto.*;
 import com.example.common.annotation.LoginUser;
 import com.example.member.dto.RedisMemberDTO;
@@ -121,7 +122,7 @@ public class BoardController {
    @PutMapping("/comments/{commentId}")
    public ResponseEntity<CommentResponseDTO> updateComment(
         @LoginUser RedisMemberDTO loginUser,
-         @PathVariable(name = "commentId") Long commentId,
+        @PathVariable(name = "commentId") Long commentId,
         @RequestBody CommentRequestDTO requestDTO){
 
         if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -158,20 +159,24 @@ public class BoardController {
         }
     }
 
- // --- [4. 관리자 전용 신고 관리 API (추가됨)] ---
-    
-    // [관리자] 댓글 신고 조회
-    @GetMapping("/admin/reports/comments")
-    public ResponseEntity<List<ReportBoardDTO>> getAdminCommentReports(@LoginUser RedisMemberDTO loginUser) {
-        if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) return ResponseEntity.status(403).build();
-        return ResponseEntity.ok(boardReportService.getCommentReportList());
+    // --- [4. 사용자용 신고 접수 API] ---
+    @PostMapping("/{id}/report/submit")
+    public ResponseEntity<Void> reportBoard(
+            @LoginUser RedisMemberDTO loginUser,
+            @PathVariable(name = "id") Long boardId,
+            @RequestBody ReportBoardDTO request) {
+        if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        boardReportService.reportBoard(boardId, loginUser.getMemberId(), request.getReason());
+        return ResponseEntity.ok().build();
     }
 
-    // [관리자] 댓글 신고 승인
-    @PutMapping("/admin/reports/comments/{reportId}/approve")
-    public ResponseEntity<Void> approveCommentReport(@LoginUser RedisMemberDTO loginUser, @PathVariable(name = "reportId") Long reportId) {
-        if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) return ResponseEntity.status(403).build();
-        boardReportService.approveCommentReport(reportId);
+    @PostMapping("/comments/{commentId}/report/submit")
+    public ResponseEntity<Void> reportComment(
+            @LoginUser RedisMemberDTO loginUser,
+            @PathVariable(name = "commentId") Long commentId,
+            @RequestBody ReportBoardDTO request) {
+        if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        boardReportService.reportComment(commentId, loginUser.getMemberId(), request.getReason());
         return ResponseEntity.ok().build();
     }
 }
