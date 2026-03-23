@@ -21,6 +21,64 @@ public class BoardReportController {
 
     private final BoardReportService boardReportService;
 
+    @PostMapping("/report/board")
+    public ResponseEntity<String> createBoardReport(
+            @LoginUser RedisMemberDTO loginUser,
+            @RequestBody Map<String, Object> payload) {
+        
+        if (loginUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        try {
+            Long boardId = Long.parseLong(payload.get("boardId").toString());
+            String reason = (String) payload.get("reason");
+            
+            log.info("-----> [신고 접수] 사용자: {}, 게시글: {}", loginUser.getMemberId(), boardId);
+            
+            // 기존에 작성하신 Service의 reportBoard 호출
+            String result = boardReportService.reportBoard(boardId, loginUser.getMemberId(), reason);
+            
+            if ("SUCCESS".equals(result)) {
+                return ResponseEntity.ok("신고가 성공적으로 접수되었습니다.");
+            } else {
+                return ResponseEntity.badRequest().body("이미 신고한 게시글입니다.");
+            }
+        } catch (Exception e) {
+            log.error("-----> [에러] 게시글 신고 저장 실패: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("신고 처리 중 오류 발생");
+        }
+    }
+    
+    @PostMapping("/report/comment")
+    public ResponseEntity<String> createCommentReport(
+            @LoginUser RedisMemberDTO loginUser,
+            @RequestBody Map<String, Object> payload) {
+        
+        if (loginUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        try {
+            Long commentId = Long.parseLong(payload.get("commentId").toString());
+            String reason = (String) payload.get("reason");
+
+            log.info("-----> [신고 접수] 사용자: {}, 댓글: {}", loginUser.getMemberId(), commentId);
+            
+            String result = boardReportService.reportComment(commentId, loginUser.getMemberId(), reason);
+            
+            if ("SUCCESS".equals(result)) {
+                return ResponseEntity.ok("댓글 신고가 접수되었습니다.");
+            } else {
+                return ResponseEntity.badRequest().body("이미 신고한 댓글입니다.");
+            }
+        } catch (Exception e) {
+            log.error("-----> [에러] 댓글 신고 저장 실패: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("신고 처리 중 오류 발생");
+        }
+    }
+
+    
     /**
      * 게시글 신고 목록 조회
      * 요청 경로: GET /board/admin/reports
