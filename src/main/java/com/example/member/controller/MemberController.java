@@ -4,6 +4,7 @@ import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -96,8 +97,6 @@ public class MemberController {
 	    }
 	}
 	
-	}
-	
 	// 개인정보 조회
 	@GetMapping("/my-info")
 	public ResponseEntity<MemberInfoResponseDTO> getMyInfo(@LoginUser RedisMemberDTO user) {
@@ -135,5 +134,4 @@ public class MemberController {
 			return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
 		}
 	}
-	
 }

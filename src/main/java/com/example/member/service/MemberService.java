@@ -19,12 +19,12 @@ import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
 import com.example.member.domain.Member;
 import com.example.member.domain.SocialAccount;
-import com.example.member.dto.MemberSignupRequest;
-import com.example.member.repository.MemberRepository;
-import com.example.member.repository.SocialAccountRepository;
 import com.example.member.dto.MemberInfoResponseDTO;
+import com.example.member.dto.MemberSignupRequest;
 import com.example.member.dto.MemberUpdateRequestDTO;
 import com.example.member.dto.PasswordUpdateRequestDTO;
+import com.example.member.repository.MemberRepository;
+import com.example.member.repository.SocialAccountRepository;
 import com.example.security.tokenProvider.JwtTokenProvider;
 
 import jakarta.servlet.http.HttpServletResponse;
@@ -317,6 +317,42 @@ public class MemberService {
 		Optional<Approval> latestReject = approvalRepository
 				.findFirstByArtistIdAndCategoryAndStatusOrderByProcessedAtDesc(
 						memberId, "ARTIST", "REJECTED");
+		if(latestReject.isPresent()) {
+			LocalDateTime lastProcessed = latestReject.get().getProcessedAt();
+			if (lastProcessed == null) return;
+			if(lastProcessed.plusDays(7).isAfter(LocalDateTime.now())) {
+				String availableDate = lastProcessed.plusDays(7).toLocalDate().toString();
+				throw new IllegalStateException(
+						"아티스트 신청이 거절된 지 얼마 되지 않았습니다. " + availableDate + " 이후에 다시 신청해주세요!");
+			}
+		}
+	}
+
+	// 개인정보 조회
+	public MemberInfoResponseDTO getMyInfo(Long memberId) {
+		Member member = memberRepository.findById(memberId)
+				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+		
+		String profileImageUrl = null;
+		if (member.getInfo() != null && member.getInfo().containsKey("profileImageUrl")) {
+			profileImageUrl = String.valueOf(member.getInfo().get("profileImageUrl"));
+		}
+
+		return MemberInfoResponseDTO.builder()
+				.email(member.getEmail())
+				.name(member.getName())
+				.phone(member.getPhone())
+				.age(member.getAge())
+				.address(member.getAddress())
+				.profileImageUrl(profileImageUrl)
+				.build();
+	}
+
+	// 개인정보 수정
+	@Transactional
+	public void updateMemberInfo(Long memberId, MemberUpdateRequestDTO dto) {
+		Member member = memberRepository.findById(memberId)
+				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
 		if (dto.getName() != null) member.setName(dto.getName());
 		if (dto.getPhone() != null) member.setPhone(dto.getPhone());
