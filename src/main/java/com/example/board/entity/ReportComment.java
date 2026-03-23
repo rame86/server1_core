@@ -42,4 +42,8 @@ public class ReportComment {
     public void approve(){
         this.status = "APPROVED";
     }
+
+    public void setStatus(String status) {
+    this.status = status;
+}
 }

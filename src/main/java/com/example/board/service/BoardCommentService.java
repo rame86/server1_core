@@ -77,7 +77,7 @@ public class BoardCommentService {
                     return convertToCommentDTO(comment, authorName);
                 })
                 .toList();
-}
+        }
         // 댓글 수정
         @Transactional
         public CommentResponseDTO updateComment(Long commentId, CommentRequestDTO requestDTO, Long memberId){

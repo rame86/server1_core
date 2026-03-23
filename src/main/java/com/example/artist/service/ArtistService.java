@@ -51,6 +51,22 @@ public class ArtistService {
             return dto;
         }).collect(Collectors.toList());
 	}
+
+	@Transactional(readOnly = true)
+	public List<ArtistResponse> getFollowedArtists(Long memberId) {
+		Member member = memberRepository.findByMemberId(memberId);
+		return followRepository.findAllByMember(member).stream().map(follow -> {
+			Artist artist = follow.getArtist();
+			ArtistResponse dto = new ArtistResponse();
+			dto.setMemberId(artist.getMemberId());
+			dto.setStageName(artist.getStageName());
+			dto.setDescription(artist.getDescription());
+			dto.setCommunityLink(artist.getCommunityLink());
+			dto.setProfileImageUrl(artist.getProfileImageUrl());
+			dto.setFollowerCount(followRepository.countByArtist(artist));
+			return dto;
+		}).collect(Collectors.toList());
+	}
 	
 	@Transactional
 	public String toggleFollow(Long memberId, Long artistId) {

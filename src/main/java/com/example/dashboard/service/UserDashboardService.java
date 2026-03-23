@@ -38,10 +38,9 @@ public class UserDashboardService {
         message.put("replyRoutingKey", RabbitMQConfig.USER_DASHBOARD_PAY_RES_ROUTING_KEY);
 
         rabbitTemplate.convertAndSend(
-            RabbitMQConfig.EXCHANGE_NAME,
-            RabbitMQConfig.PAY_REQ_ROUTING_KEY,
-            message
-        );
+                RabbitMQConfig.EXCHANGE_NAME,
+                RabbitMQConfig.PAY_REQ_ROUTING_KEY,
+                message);
 
         log.info("=====> [UserDashboardService] Pay 서비스로 MQ 요청 완료 (memberId: {})", memberId);
     }
