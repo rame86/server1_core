@@ -366,7 +366,6 @@ public class MemberService {
 		if (dto.getPhone() != null) member.setPhone(dto.getPhone());
 		if (dto.getAge() != null) member.setAge(dto.getAge());
 		if (dto.getAddress() != null) member.setAddress(dto.getAddress());
-
 		if (dto.getProfileImageUrl() != null && !dto.getProfileImageUrl().isEmpty()) {
 			Map<String, Object> info = member.getInfo();
 			if (info == null) {
