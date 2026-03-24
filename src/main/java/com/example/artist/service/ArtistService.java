@@ -52,6 +52,21 @@ public class ArtistService {
         }).collect(Collectors.toList());
 	}
 
+	/**
+     * [추가] 아티스트 상세 조회 메서드
+     */
+    @Transactional(readOnly = true)
+    public ArtistResponse getArtistById(Long artistId) {
+        log.info("-----> [Service] 아티스트 상세 조회 시작: {}", artistId);
+        Artist artist = artistRepository.findByMemberId(artistId);
+        
+        if (artist == null) {
+            log.error("해당 ID의 아티스트를 찾을 수 없습니다: {}", artistId);
+            throw new RuntimeException("Artist not found"); 
+        }
+        return convertToResponse(artist);
+    }
+
 	@Transactional(readOnly = true)
 	public List<ArtistResponse> getFollowedArtists(Long memberId) {
 		Member member = memberRepository.findByMemberId(memberId);
@@ -127,5 +142,20 @@ public class ArtistService {
 		log.info("-----> [도네이션 요청 완료] 주문번호: {}", orderId);
 		return orderId;
 	}
+
+	/**
+     * [추가] 엔티티를 DTO로 변환하는 공통 메서드 (중복 코드 제거)
+     */
+    private ArtistResponse convertToResponse(Artist artist) {
+        ArtistResponse dto = new ArtistResponse();
+        dto.setMemberId(artist.getMemberId());
+        dto.setStageName(artist.getStageName());
+        dto.setDescription(artist.getDescription());
+        dto.setCommunityLink(artist.getCommunityLink());
+        dto.setProfileImageUrl(artist.getProfileImageUrl());
+        // 추가로 필요한 필드 (CoverImage 등)가 있다면 여기에 세팅하세요.
+        dto.setFollowerCount(followRepository.countByArtist(artist));
+        return dto;
+    }
 	
 }
