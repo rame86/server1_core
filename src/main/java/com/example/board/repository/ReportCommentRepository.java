@@ -14,4 +14,7 @@ public interface ReportCommentRepository extends JpaRepository<ReportComment, Lo
 
     // [추가] 전달받은 댓글 ID 리스트에 해당하는 모든 신고 내역을 가져옵니다.
     List<ReportComment> findByCommentIdIn(List<Long> commentIds);
+
+    void deleteByCommentId(Long commentId);
+    void deleteByCommentIdIn(List<Long> commentIds);
 }
