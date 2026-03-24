@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import com.example.common.resolver.LoginUserArgumentResolver;
@@ -35,7 +36,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(
-            org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry registry) {
+            ResourceHandlerRegistry registry) {
         String uploadPath = fileUploadDir;
         if (!uploadPath.endsWith("/")) {
             uploadPath += "/";
