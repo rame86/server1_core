@@ -1,6 +1,7 @@
 package com.example.member.service;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -16,8 +17,10 @@ import org.springframework.web.reactive.function.client.WebClient;
 import com.example.admin.dto.ArtistResultDTO;
 import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
+import com.example.artist.repository.ArtistRepository;
 import com.example.member.domain.Member;
 import com.example.member.domain.SocialAccount;
+import com.example.member.dto.MemberInfoResponseDTO;
 import com.example.member.dto.MemberSignupRequest;
 import com.example.member.dto.MemberUpdateRequestDTO;
 import com.example.member.dto.PasswordUpdateRequestDTO;
@@ -45,6 +48,7 @@ public class MemberService {
 	private final MailSenderService mailSenderService;
 	private final WebClient webClient;
 	private final ApprovalRepository approvalRepository;
+	private final ArtistRepository artistRepository;
 
 	@Value("${pay.url}")
 	private String paymentUrl;
@@ -315,16 +319,63 @@ public class MemberService {
 		Optional<Approval> latestReject = approvalRepository
 				.findFirstByArtistIdAndCategoryAndStatusOrderByProcessedAtDesc(
 						memberId, "ARTIST", "REJECTED");
-
-
+		if(latestReject.isPresent()) {
+			LocalDateTime lastProcessed = latestReject.get().getProcessedAt();
+			if (lastProcessed == null) return;
+			if(lastProcessed.plusDays(7).isAfter(LocalDateTime.now())) {
+				String availableDate = lastProcessed.plusDays(7).toLocalDate().toString();
+				throw new IllegalStateException(
+						"아티스트 신청이 거절된 지 얼마 되지 않았습니다. " + availableDate + " 이후에 다시 신청해주세요!");
+			}
+		}
 	}
-	
-	// 회원정보 변경
+
+	// 개인정보 조회
+	public MemberInfoResponseDTO getMyInfo(Long memberId) {
+		Member member = memberRepository.findById(memberId)
+				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+		
+		String profileImageUrl = null;
+		if (member.getInfo() != null && member.getInfo().containsKey("profileImageUrl")) {
+			profileImageUrl = String.valueOf(member.getInfo().get("profileImageUrl"));
+		}
+
+		return MemberInfoResponseDTO.builder()
+				.email(member.getEmail())
+				.name(member.getName())
+				.phone(member.getPhone())
+				.age(member.getAge())
+				.address(member.getAddress())
+				.profileImageUrl(profileImageUrl)
+				.build();
+	}
+
+	// 개인정보 수정
 	@Transactional
 	public void updateMemberInfo(Long memberId, MemberUpdateRequestDTO dto) {
 		Member member = memberRepository.findById(memberId)
-				.orElseThrow(() -> new IllegalArgumentException("해당 사용자를 찾을 수 없습니다."));
-		member.updateProfile(dto);
+				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+		if (dto.getName() != null) member.setName(dto.getName());
+		if (dto.getPhone() != null) member.setPhone(dto.getPhone());
+		if (dto.getAge() != null) member.setAge(dto.getAge());
+		if (dto.getAddress() != null) member.setAddress(dto.getAddress());
+		if (dto.getProfileImageUrl() != null && !dto.getProfileImageUrl().isEmpty()) {
+			Map<String, Object> info = member.getInfo();
+			if (info == null) {
+				info = new HashMap<>();
+			}
+			info.put("profileImageUrl", dto.getProfileImageUrl());
+			member.setInfo(info);
+
+			// 아티스트인 경우 아티스트의 프로필 이미지도 함께 업데이트
+			artistRepository.findById(memberId).ifPresent(artist -> {
+				artist.setProfileImageUrl(dto.getProfileImageUrl());
+				artistRepository.save(artist);
+				log.info("-----> 아티스트 프로필 이미지 동기화 완료 (Artist ID: {})", memberId);
+			});
+		}
+
 	}
 
 	// 비밀번호 변경
@@ -332,11 +383,9 @@ public class MemberService {
 	public void updatePassword(Long memberId, PasswordUpdateRequestDTO dto) {
 		Member member = memberRepository.findById(memberId)
 				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
-
 		if (!passwordEncoder.matches(dto.getCurrentPassword(), member.getPassword())) {
 			throw new IllegalArgumentException("현재 비밀번호가 일치하지 않습니다.");
 		}
-
 		member.setPassword(passwordEncoder.encode(dto.getNewPassword()));
 	}
 
