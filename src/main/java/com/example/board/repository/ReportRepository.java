@@ -13,5 +13,6 @@ public interface ReportRepository extends JpaRepository<BoardReport, Long> {
     // [중요] 실제 '신고 테이블'에서 중복 신고 여부를 확인하는 로직
     boolean existsByBoardIdAndMemberId(Long boardId, Long memberId);
 
-
+    // 삭제
+    void deleteByBoardId(Long boardId);
 }
