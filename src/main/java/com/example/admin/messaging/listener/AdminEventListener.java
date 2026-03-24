@@ -89,6 +89,33 @@ public class AdminEventListener {
         rabbitTemplate.convertAndSend("amq.topic", "notification.admin", message);
     }
 
+
+	@RabbitListener(queues = RabbitMQConfig.PAY_RES_QUEUE_NAME)
+	public void handleUserPaymentSummary(List<UserPaymentSummaryDTO> responseList) {
+		log.info("=====> [1서버] 결제 정보 응답 도착: {}건", responseList.size());
+		try {
+			messagingTemplate.convertAndSend("/topic/user-stats", responseList);
+			log.info("=====> [WebSocket] 관리자 화면으로 실시간 결제 데이터 전송 완료");
+		} catch (Exception e) {
+			log.error("=====> [1서버] WebSocket 전송 중 오류: {}", e.getMessage());
+		}
+	}
+	
+	@RabbitListener(queues = RabbitMQConfig.ADMIN_PAY_RES_QUEUE_NAME) // 2서버가 답장 쏘는 큐!
+	public void handleUserPaymentResponse(List<UserListResponseDTO> responseList) {
+	    log.info("📢 [1서버 비동기 리스너] 2서버에서 보낸 결제 데이터 도착! 건수: {}", responseList.size());
+
+	    try {
+	        for (UserListResponseDTO dto : responseList) {
+	            // 🚔 비동기식의 핵심: 받은 데이터를 DB에 업데이트해야 나중에 화면에 나와!
+	            // 예: memberRepository.updatePaymentInfo(dto.getMemberId(), dto.getPointBalance(), dto.getPurchaseCount());
+	            log.info("유저 {}님의 잔액 {}원 업데이트 완료!", dto.getMemberId(), dto.getPointBalance());
+	        }
+	    } catch (Exception e) {
+	        log.error("❌ [1서버] 비동기 데이터 처리 중 오류: {}", e.getMessage());
+	    }
+	}
+	
     @RabbitListener(queues = RabbitMQConfig.ADMIN_PAY_RES_QUEUE_NAME)
     public void handleUserPaymentSummary(Map<String, Object> response) {
         log.info("=====> [1서버] 결제 정보 응답 도착");
@@ -120,4 +147,5 @@ public class AdminEventListener {
             log.error("=====> [1서버] WebSocket 전송 중 오류: {}", e.getMessage());
         }
     }
+    
 }

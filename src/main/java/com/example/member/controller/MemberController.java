@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.example.admin.dto.ArtistResultDTO;
 import com.example.common.annotation.LoginUser;
 import com.example.common.service.FileUploadService;
 import com.example.member.dto.MemberInfoResponseDTO;
@@ -100,8 +99,6 @@ public class MemberController {
 	    }
 	}
 	
-
-
 	// 개인정보 조회
 	@GetMapping("/my-info")
 	public ResponseEntity<MemberInfoResponseDTO> getMyInfo(@LoginUser RedisMemberDTO user) {

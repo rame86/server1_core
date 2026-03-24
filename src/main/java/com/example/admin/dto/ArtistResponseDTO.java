@@ -22,6 +22,8 @@ public class ArtistResponseDTO {
     private String imageUrl;      
     private String createdAt;   
     private String status;
+    private String email;
+    private String phone;
     
     // 활동 통계
     private int followerCount;
