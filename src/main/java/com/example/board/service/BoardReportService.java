@@ -1,8 +1,6 @@
 package com.example.board.service;
 
-import com.example.admin.dto.BoardReportMessageDTO;
-import com.example.board.dto.CommentReportRequestDTO; // 신고 전용 DTO
-import com.example.board.dto.ReportBoardDTO;
+import com.example.admin.dto.ReportBoardDTO;
 import com.example.board.entity.Board;
 import com.example.board.entity.BoardReport;
 import com.example.board.entity.Comment;
@@ -11,12 +9,8 @@ import com.example.board.repository.BoardRepository;
 import com.example.board.repository.CommentRepository;
 import com.example.board.repository.ReportCommentRepository;
 import com.example.board.repository.ReportRepository;
-import com.example.config.RabbitMQConfig;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,11 +26,8 @@ public class BoardReportService {
     private final ReportCommentRepository reportCommentRepository;
     private final BoardRepository boardRepository;
     private final CommentRepository commentRepository;
-    private final RabbitTemplate rabbitTemplate;
 
-    // --- [1. 신고 접수 로직] ---
-    
-    // 게시글 신고 접수
+    // --- [1. 신고 접수 로직] --- (사용자가 호출)
     @Transactional
     public String reportBoard(Long boardId, Long memberId, String reason) {
         if (!boardRepository.existsById(boardId)) throw new IllegalArgumentException("존재하지 않는 게시글입니다.");
@@ -52,7 +43,6 @@ public class BoardReportService {
         return "SUCCESS";
     }
 
-    // 댓글 신고 접수
     @Transactional
     public String reportComment(Long commentId, Long memberId, String reason) {
         if (!commentRepository.existsById(commentId)) throw new IllegalArgumentException("댓글 없음");
@@ -67,92 +57,107 @@ public class BoardReportService {
         return "SUCCESS";
     }
 
-    // --- [2. 신고 목록 조회 로직 (어드민용)] ---
+    // --- [2. 상태 변경 핵심 로직] --- (Admin API에서 호출)
 
-    // 게시글 신고 목록 조회 (PEDING 상태만)
-   @Transactional(readOnly = true)
-    public List<ReportBoardDTO> getBoardReportList() {
-    log.info("-----> [BoardReportService] 대기 중인 신고 목록만 조회합니다.");
-    return reportRepository.findAll().stream()
-            // 2. [중요] 상태가 "PENDING"인 것만 필터링합니다! 
-            .filter(report -> "PENDING".equals(report.getStatus())) 
-            .map(this::convertToReportDTO)
-            .collect(Collectors.toList());
-}
-   @Transactional(readOnly = true)
-    public List<ReportBoardDTO> getCommentReportList() {
-        log.info("-----> [BoardReportService] 대기 중인 댓글 신고 목록 조회");
-        return reportCommentRepository.findAll().stream()
-                .filter(report -> "PENDING".equals(report.getStatus()))
-                .map(this::convertToCommentReportDTO) // 댓글 전용 변환기 사용
-                .collect(Collectors.toList());
-    }
-    
-    // --- [3. 신고 승인 처리 로직] ---
-
-    // 게시글 신고 승인 처리
+    // [추가] 게시글 신고 승인 처리
     @Transactional
-    public void approveBoardReport(Long reportId) {
+    public void approveBoardReport(Long reportId, Long boardId) {
         BoardReport report = reportRepository.findById(reportId)
-                .orElseThrow(() -> new RuntimeException("신고 내역을 찾을 수 없습니다."));
-        report.approve(); 
-
-        Board board = boardRepository.findById(report.getBoardId())
-                .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
-
-        //  DTO 객체 생성 (전달할 데이터 포맷 통일)
-        BoardReportMessageDTO message = new BoardReportMessageDTO(board.getBoardId());
-
-        //  RabbitMQ 메시지 전송 (Config 상수를 사용해야 Listener가 받을 수 있습니다)
-        rabbitTemplate.convertAndSend(
-            RabbitMQConfig.EXCHANGE_NAME,                  // "msa.direct.exchange"
-            RabbitMQConfig.BOARD_REPORT_APPROVE_ROUTING_KEY, // "board.report.approve.key"
-            message
-        );
+                .orElseThrow(() -> new IllegalArgumentException("해당 신고 내역이 없습니다. ID: " + reportId));
         
-        log.info("-----> [BoardReportService] 관리자 승인 완료. RabbitMQ로 숨김 메시지 발행: {}", message);
+        // 1. 신고 상태를 승인(APPROVED)으로 변경
+        report.setStatus("APPROVED");
+        
+        // 2. 실제 게시글 숨김 처리
+        hideBoard(boardId);
+        
+        log.info("-----> [BoardReportService] 게시글 신고 승인 및 숨김 완료: reportId={}, boardId={}", reportId, boardId);
     }
 
     // 댓글 신고 승인 처리
     @Transactional
     public void approveCommentReport(Long reportId) {
         ReportComment report = reportCommentRepository.findById(reportId)
-                .orElseThrow(() -> new RuntimeException("댓글 신고 내역을 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("해당 신고 내역이 없습니다. ID: " + reportId));
         
-        report.approve();
-
-        Comment comment = commentRepository.findById(report.getCommentId())
-                .orElseThrow(() -> new RuntimeException("댓글을 찾을 수 없습니다."));
+        // 1. 신고 상태를 승인(APPROVED)으로 변경
+        report.setStatus("APPROVED");
         
-        comment.hideComment();
-        log.info("관리자 승인: 댓글 신고 ID {} 승인 완료", reportId);
-    }
-
-    // --- [4. 신고 내역 삭제 로직] ---
-
-    @Transactional
-    public void deleteBoardReport(Long reportId) {
-        log.info("-----> [BoardReportService] 신고 내역 삭제 시작: reportId={}", reportId);
-
-        // 신고 내역이 존재하는지 확인 후 삭제
-        if (!reportRepository.existsById(reportId)) {
-            throw new RuntimeException("삭제할 신고 내역이 존재하지 않습니다.");
-        }
+        // 2. 실제 댓글 숨김 처리
+        hideComment(report.getCommentId());
         
-        reportRepository.deleteById(reportId);
-        log.info("-----> [BoardReportService] 신고 내역 삭제 완료");
+        log.info("-----> [BoardReportService] 댓글 신고 승인 및 숨김 완료: reportId={}", reportId);
     }
     
-    // --- [5. DTO 변환 헬퍼 메서드] ---
+    // 신고 내역 삭제 처리
+    @Transactional
+    public void deleteBoardReport(Long reportId) {
+        if (!reportRepository.existsById(reportId)) {
+            throw new IllegalArgumentException("삭제할 신고 내역이 없습니다. ID: " + reportId);
+        }
+        reportRepository.deleteById(reportId);
+        log.info("-----> [BoardReportService] 신고 내역 삭제 완료: reportId={}", reportId);
+    }
+    
+    // 게시글을 숨김 처리하고 관련 신고를 완료 상태로 변경
+    @Transactional
+    public void hideBoard(Long boardId) {
+        boardRepository.findById(boardId).ifPresent(board -> {
+            board.hideBoard(); // status = "HIDDEN"
+            log.info("-----> [BoardReportService] 게시글 숨김 완료: {}", boardId);
+            
+            // 해당 게시글에 달린 댓글들의 모든 신고 내역도 정리
+            resolveCommentReportsByBoardId(boardId);
+        });
+    }
 
-    // 게시글 신고 변환
+    // 댓글을 숨김 처리
+    @Transactional
+    public void hideComment(Long commentId) {
+        commentRepository.findById(commentId).ifPresent(comment -> {
+            comment.setStatus("HIDDEN");
+            log.info("-----> [BoardReportService] 댓글 숨김 완료: {}", commentId);
+        });
+    }
+
+    // 특정 게시글의 모든 댓글 신고를 정리
+    @Transactional
+    public void resolveCommentReportsByBoardId(Long boardId) {
+        List<Comment> comments = commentRepository.findByBoardId_BoardIdOrderByCreatedAtDesc(boardId);
+        List<Long> commentIds = comments.stream().map(Comment::getCommentId).toList();
+
+        if (!commentIds.isEmpty()) {
+            reportCommentRepository.findByCommentIdIn(commentIds)
+                    .forEach(report -> report.setStatus("RESOLVED"));
+            log.info("-----> [BoardReportService] 게시글 {}의 댓글 신고 {}건 정리 완료", boardId, commentIds.size());
+        }
+    }
+
+    // --- [3. 신고 목록 조회 로직] --- (Admin 용)
+    @Transactional(readOnly = true)
+    public List<ReportBoardDTO> getBoardReportList() {
+        return reportRepository.findAll().stream()
+                .filter(report -> "PENDING".equals(report.getStatus())) 
+                .map(this::convertToReportDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReportBoardDTO> getCommentReportList() {
+        return reportCommentRepository.findAll().stream()
+                .filter(report -> "PENDING".equals(report.getStatus()))
+                .map(this::convertToCommentReportDTO)
+                .collect(Collectors.toList());
+    }
+
+    // --- [4. 기타 DTO 변환] ---
     private ReportBoardDTO convertToReportDTO(BoardReport report) {
         Board board = boardRepository.findById(report.getBoardId()).orElse(null);
         return ReportBoardDTO.builder()
                 .reportId(report.getReportId())
                 .boardId(report.getBoardId())
                 .postTitle(board != null ? board.getTitle() : "삭제된 게시물")
-                .content(board != null ? board.getContent() : "내용을 불러올 수 없습니다.")
+                .content(board != null ? board.getContent() : "내용 없음")
                 .memberId(report.getMemberId())
                 .reason(report.getReason())
                 .status(report.getStatus())
@@ -160,14 +165,13 @@ public class BoardReportService {
                 .build();
     }
 
-    // 댓글 신고 변환 (추가됨)
     private ReportBoardDTO convertToCommentReportDTO(ReportComment report) {
         Comment comment = commentRepository.findById(report.getCommentId()).orElse(null);
         return ReportBoardDTO.builder()
                 .reportId(report.getReportId())
-                .boardId(null) // 댓글이므로 boardId 대신 null
-                .postTitle("댓글 신고 내역") // 리스트 제목에 표시될 내용
-                .content(comment != null ? comment.getContent() : "삭제된 댓글입니다.")
+                .boardId(null)
+                .postTitle("댓글 신고")
+                .content(comment != null ? comment.getContent() : "삭제된 댓글")
                 .memberId(report.getMemberId())
                 .reason(report.getReason())
                 .status(report.getStatus())

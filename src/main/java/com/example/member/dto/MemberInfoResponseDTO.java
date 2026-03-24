@@ -1,11 +1,12 @@
 package com.example.member.dto;
 
+import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 @Getter
-@NoArgsConstructor
-public class MemberUpdateRequestDTO {
+@Builder
+public class MemberInfoResponseDTO {
+    private String email;
     private String name;
     private String phone;
     private String age;

@@ -17,6 +17,7 @@ import com.example.admin.dto.UserPaymentSummaryDTO;
 import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
 import com.example.config.RabbitMQConfig;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
@@ -26,64 +27,64 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @RequiredArgsConstructor
 public class AdminEventListener {
-	
-	private final RabbitTemplate rabbitTemplate;
-	private final ApprovalRepository approvalRepositroy;
-	private final ObjectMapper objectMapper; // JSON 변환기
-	private final SimpMessagingTemplate messagingTemplate;
-	
-	@RabbitListener(queues = RabbitMQConfig.EVENT_REQ_QUEUE_NAME)
-	public void handleEventResult(EventResultDTO dto) {
-		log.info("=====> [1서버] 2서버로부터 신청서 도착: {}", dto);
-		saveToApproval(dto, "EVENT", dto.getApprovalId(), dto.getEventTitle(), dto.getRequesterId(), dto.getImageUrl());
-	}
-	
-	@RabbitListener(queues = RabbitMQConfig.SHOP_REQ_QUEUE_NAME)
-	public void handleShopRequest(ShopResultDTO dto) {
-		log.info("=====> [1서버] 2서버로부터 신청서 도착: {}", dto);
-		saveToApproval(dto, "SHOP", dto.getApprovalId(), dto.getGoodsType(), dto.getRequesterId(), dto.getImageUrl());
-	}
-	
-	private void saveToApproval(Object dto, String category, Long targetId, String title, Long requesterId, String imageUrl) {
-		try {
-			// DTO 객체를 JSON 문자열로 변환
-			String jsonContent = objectMapper.writeValueAsString(dto);
-			EventResultDTO eventDto = (dto instanceof EventResultDTO) ? (EventResultDTO) dto : null;
-			
-			Approval approval = Approval.builder()
-					.category(category)
-					.targetId(targetId)
-					.title(title)
-					.status("PENDING")
-					.contentJson(jsonContent)
-					.artistId(requesterId)
-					.eventStartDate(eventDto != null && eventDto.getEventStartDate() != null 
-		                    ? LocalDateTime.parse(eventDto.getEventStartDate()) : null)
-		            .location(eventDto != null ? eventDto.getLocation() : null)
-		            .price(eventDto != null ? eventDto.getPrice() : null)
-		            .imageUrl(imageUrl)
-		            .build();
-							
-			approvalRepositroy.save(approval);
-			log.info("=====> [1서버 DB] {} 신청 데이터 저장 완료!", category);
-			
-			sendAdminNotification(title, requesterId, category);
-		} catch(Exception e) {
-			log.error("=====> [1서버] 저장 중 오류 발생: {}", e.getMessage());
-		}
-	}
-	
-	private void sendAdminNotification(String title, Long requesterId, String category) {
-		String typeName = category.equals("EVENT") ? "EVENT" : "SHOP";
-		String adminMessage = "새로운 " + typeName + " [" + title + "] 신청이 들어왔습니다.";
-		
-		Map<String, String> message = new HashMap<>();
-		message.put("type", "NEW_REQUEST");
+    
+    private final RabbitTemplate rabbitTemplate;
+    private final ApprovalRepository approvalRepositroy;
+    private final ObjectMapper objectMapper; // JSON 변환기
+    private final SimpMessagingTemplate messagingTemplate;
+    
+    @RabbitListener(queues = RabbitMQConfig.EVENT_REQ_QUEUE_NAME)
+    public void handleEventResult(EventResultDTO dto) {
+        log.info("=====> [1서버] 2서버로부터 신청서 도착: {}", dto);
+        saveToApproval(dto, "EVENT", dto.getApprovalId(), dto.getEventTitle(), dto.getRequesterId(), dto.getImageUrl());
+    }
+    
+    @RabbitListener(queues = RabbitMQConfig.SHOP_REQ_QUEUE_NAME)
+    public void handleShopRequest(ShopResultDTO dto) {
+        log.info("=====> [1서버] 2서버로부터 신청서 도착: {}", dto);
+        saveToApproval(dto, "SHOP", dto.getApprovalId(), dto.getGoodsType(), dto.getRequesterId(), dto.getImageUrl());
+    }
+    
+    private void saveToApproval(Object dto, String category, Long targetId, String title, Long requesterId, String imageUrl) {
+        try {
+            // DTO 객체를 JSON 문자열로 변환
+            String jsonContent = objectMapper.writeValueAsString(dto);
+            EventResultDTO eventDto = (dto instanceof EventResultDTO) ? (EventResultDTO) dto : null;
+            
+            Approval approval = Approval.builder()
+                    .category(category)
+                    .targetId(targetId)
+                    .title(title)
+                    .status("PENDING")
+                    .contentJson(jsonContent)
+                    .artistId(requesterId)
+                    .eventStartDate(eventDto != null && eventDto.getEventStartDate() != null 
+                            ? LocalDateTime.parse(eventDto.getEventStartDate()) : null)
+                    .location(eventDto != null ? eventDto.getLocation() : null)
+                    .price(eventDto != null ? eventDto.getPrice() : null)
+                    .imageUrl(imageUrl)
+                    .build();
+                            
+            approvalRepositroy.save(approval);
+            log.info("=====> [1서버 DB] {} 신청 데이터 저장 완료!", category);
+            
+            sendAdminNotification(title, requesterId, category);
+        } catch(Exception e) {
+            log.error("=====> [1서버] 저장 중 오류 발생: {}", e.getMessage());
+        }
+    }
+    
+    private void sendAdminNotification(String title, Long requesterId, String category) {
+        String typeName = category.equals("EVENT") ? "EVENT" : "SHOP";
+        String adminMessage = "새로운 " + typeName + " [" + title + "] 신청이 들어왔습니다.";
+        
+        Map<String, String> message = new HashMap<>();
+        message.put("type", "NEW_REQUEST");
         message.put("category", category);
         message.put("message", adminMessage);
         
         rabbitTemplate.convertAndSend("amq.topic", "notification.admin", message);
-	}
+    }
 
 	@RabbitListener(queues = RabbitMQConfig.PAY_RES_QUEUE_NAME)
 	public void handleUserPaymentSummary(List<UserPaymentSummaryDTO> responseList) {
@@ -111,4 +112,32 @@ public class AdminEventListener {
 	    }
 	}
 	
+
+    // 변경 부분: DTO 안 만들고 Map으로 통째로 받아서 내부 알맹이(리스트)만 파싱함
+    @RabbitListener(queues = RabbitMQConfig.ADMIN_PAY_RES_QUEUE_NAME)
+    public void handleUserPaymentSummary(Map<String, Object> response) {
+        log.info("=====> [1서버] 결제 정보 응답 도착");
+        try {
+            // 1. 2서버에서 보낸 응답 중 실제 데이터만 빼내기 (보통 payload 필드에 담김)
+            Object rawData = response.getOrDefault("payload", response.get("data"));
+            
+            if (rawData != null) {
+                // 2. ObjectMapper를 써서 List<UserPaymentSummaryDTO>로 강제 변환
+                List<UserPaymentSummaryDTO> list = objectMapper.convertValue(
+                    rawData, 
+                    new TypeReference<List<UserPaymentSummaryDTO>>() {}
+                );
+                
+                // 3. 웹소켓으로 배열 전송
+                messagingTemplate.convertAndSend("/topic/user-stats", list);
+                log.info("=====> [WebSocket] 관리자 화면으로 실시간 결제 데이터 전송 완료 ({}건)", list.size());
+            } else {
+                log.warn("=====> [1서버] 수신된 응답에 유저 데이터(payload)가 없음. 원본: {}", response);
+            }
+        } catch (Exception e) {
+            log.error("=====> [1서버] WebSocket 전송 중 오류: {}", e.getMessage());
+        }
+    }
+    
 }
+
