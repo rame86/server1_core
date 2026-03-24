@@ -309,9 +309,11 @@ public class AdminService {
 		// 1서버 정보 호출
 		Approval approval = approvalRepository.findById(approvalId)
 				.orElseThrow(() -> new IllegalArgumentException("해당 기록이 없습니다. ID: " + approvalId));
-		Member member = memberRepository.findById(artistId)
-				.orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다. ID: " + artistId));
-		Artist artist = artistRepository.findById(artistId)
+		
+		Artist artist = artistRepository.findByArtistId(artistId)
+	            .orElseThrow(() -> new IllegalArgumentException("아티스트를 찾을 수 없습니다. ID: " + artistId));
+		
+		Member member = memberRepository.findById(artist.getMemberId())
 				.orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다. ID: " + artistId));
 		
 		// 2서버 WebClient 호출
