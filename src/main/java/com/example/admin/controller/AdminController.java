@@ -100,6 +100,13 @@ public class AdminController {
 		return ResponseEntity.ok(activeList);
 	}
 	
+	// 거절된 아티스트 목록
+	@GetMapping("/artist/rejectionList")
+	public ResponseEntity<List<ArtistResultDTO>> getRejectedArtist() {
+	    List<ArtistResultDTO> rejectionList = adminService.getPendingArtistList("ARTIST", "REJECTED");
+	    return ResponseEntity.ok(rejectionList);
+	}
+	
 	// 아티스트 상세 정보
 	@GetMapping("/artist/{approvalId}/{artistId}")
 	public ResponseEntity<ArtistResponseDTO> getArtistDetail(
