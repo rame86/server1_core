@@ -12,7 +12,7 @@ services:
       - msa-network    
     volumes:
       # 호스트 서버 스토리지와 컨테이너 내부 이미지 저장 경로 연결 (GCP Server 1 -> Core Service)
-      - /home/ssrabw/images/core:/app/resources/static/images
+      - /home/ssrabw/images/core:/app/resources/static/images/core
     environment:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATA_REDIS_HOST: msa-redis
