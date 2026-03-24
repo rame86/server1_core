@@ -1,5 +1,6 @@
 package com.example.board.service;
 
+import com.example.artist.entity.Artist;
 import com.example.board.dto.BoardCreateRequest;
 import com.example.board.dto.BoardDTO;
 import com.example.board.dto.BoardResponseDTO;
