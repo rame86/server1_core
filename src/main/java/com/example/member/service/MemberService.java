@@ -17,6 +17,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import com.example.admin.dto.ArtistResultDTO;
 import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
+import com.example.artist.repository.ArtistRepository;
 import com.example.member.domain.Member;
 import com.example.member.domain.SocialAccount;
 import com.example.member.dto.MemberInfoResponseDTO;
@@ -47,6 +48,7 @@ public class MemberService {
 	private final MailSenderService mailSenderService;
 	private final WebClient webClient;
 	private final ApprovalRepository approvalRepository;
+	private final ArtistRepository artistRepository;
 
 	@Value("${pay.url}")
 	private String paymentUrl;
@@ -365,6 +367,13 @@ public class MemberService {
 			}
 			info.put("profileImageUrl", dto.getProfileImageUrl());
 			member.setInfo(info);
+
+			// 아티스트인 경우 아티스트의 프로필 이미지도 함께 업데이트
+			artistRepository.findById(memberId).ifPresent(artist -> {
+				artist.setProfileImageUrl(dto.getProfileImageUrl());
+				artistRepository.save(artist);
+				log.info("-----> 아티스트 프로필 이미지 동기화 완료 (Artist ID: {})", memberId);
+			});
 		}
 	}
 
