@@ -20,4 +20,5 @@ public class ArtistResultDTO {
     private String createdAt; // 신청 일시    
     private String status; // PENDING, CONFIRMED, FAILED
     private String rejectionReason; // 거절 사유
+    private String processedAt;
 }
