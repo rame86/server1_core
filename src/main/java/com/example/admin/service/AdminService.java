@@ -1,5 +1,6 @@
 package com.example.admin.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -47,6 +48,7 @@ import com.example.member.repository.MemberRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @Service
@@ -168,6 +170,7 @@ public class AdminService {
 				.imageUrl(entity.getImageUrl())
 				.status(entity.getStatus())
 				.createdAt(entity.getCreatedAt().toString())
+				.processedAt(entity.getProcessedAt() != null ? entity.getProcessedAt().toString() : entity.getProcessedAt().toString())
 				.rejectionReason(entity.getRejectionReason())
 				.build())
 				.collect(Collectors.toList());
@@ -321,6 +324,7 @@ public class AdminService {
 				.uri(payAdminUrl + "wallet/artist/{artistId}", artistId)
 				.retrieve()
 				.bodyToMono(ArtistAccountResponse.class)
+				.onErrorResume(e -> Mono.just(new ArtistAccountResponse(BigDecimal.ZERO, BigDecimal.ZERO)))
 				.block();
 		
 		return ArtistResponseDTO.builder()
@@ -331,6 +335,8 @@ public class AdminService {
 				.description(approval.getDescription())
 				.createdAt(approval.getCreatedAt().toString())
 				.status(approval.getStatus())
+				.email(member.getEmail())
+				.phone(member.getPhone())
 				.followerCount(artist.getFollowerCount())
 				.totalBalance(paymentData.getTotalBalance())
 				.withdrawableBalance(paymentData.getWithdrawableBalance())
