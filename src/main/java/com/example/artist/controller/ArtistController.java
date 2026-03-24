@@ -18,6 +18,7 @@ import com.example.artist.dto.ArtistResponse;
 import com.example.artist.dto.DonationRequset;
 import com.example.artist.service.ArtistService;
 import com.example.board.dto.BoardDTO;
+import com.example.board.service.ArtistBoardService;
 import com.example.board.service.BoardService;
 import com.example.common.annotation.LoginUser;
 import com.example.member.dto.RedisMemberDTO;
@@ -33,7 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ArtistController {
     
     private final ArtistService artistService;
-    private final BoardService boardService;
+    private final ArtistBoardService artistBoardService;
     private final MemberService memberService;
 
     @GetMapping("/list")
@@ -54,10 +55,46 @@ public class ArtistController {
         return ResponseEntity.ok(artistService.toggleFollow(user.getMemberId(), artistId));
     }
     
+    // 아티스트 상세정보 조회
+    @GetMapping("/{id}")
+    public ResponseEntity<ArtistResponse> getArtistDetail(@PathVariable("id") Long id) {
+        log.info("-----> [ARTIST DETAIL REQUEST] 아티스트ID: {}", id);
+        ArtistResponse artist = artistService.getArtistById(id); // 서비스에 메서드 구현 필요
+        return ResponseEntity.ok(artist);
+    }
+     
     /**
+     * [추가] 아티스트별 팬레터(게시글) 목록 조회
+     * GET /artist/{id}/fan-letters
+     */
+    @GetMapping("/{id}/fan-letters")
+    public ResponseEntity<?> getArtistFanLetters(
+            @LoginUser RedisMemberDTO user,
+            @PathVariable("id") Long id) {
+        
+        Long memberId = (user != null) ? user.getMemberId() : null;
+        log.info("-----> [FAN-LETTERS REQUEST] 아티스트ID: {}", id);
+        
+        // 기존 boardService를 활용하거나 아티스트별 필터링 로직 호출
+        List<BoardDTO> list = artistBoardService.getBoardListByArtist(id, memberId); 
+        return ResponseEntity.ok(list);
+    }
+
+    /**
+     * [추가] 아티스트별 공지사항 조회
+     * GET /artist/{id}/notices
+     */
+    @GetMapping("/{id}/notices")
+    public ResponseEntity<?> getArtistNotices(@PathVariable("id") Long id) {
+        log.info("-----> [NOTICES REQUEST] 아티스트ID: {}", id);
+        List<BoardDTO> notices = artistBoardService.getNoticeListByArtist(id); // 서비스 구현 필요
+        return ResponseEntity.ok(notices);
+    }
+
+     /**
      * 아티스트별 게시판 목록 조회
      * BoardService의 getBoardList(String category) 정의에 맞춰 호출부를 수정했습니다.
-     */
+     
     @GetMapping("/board/{artistId}")
     public ResponseEntity<?> getArtistBoard(
             @LoginUser RedisMemberDTO user,
@@ -72,7 +109,7 @@ public class ArtistController {
         // 만약 아티스트별 필터링이 반드시 필요하다면 BoardService에 artistId를 받는 로직을 추가해야 합니다.
         List<BoardDTO> list = boardService.getBoardList(category, memberId);
         return ResponseEntity.ok(list);
-    }
+    }*/
     
     // 후원 테스트
     @PostMapping("/donate")
