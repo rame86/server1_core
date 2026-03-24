@@ -4,15 +4,21 @@ import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.admin.dto.ArtistResultDTO;
 import com.example.common.annotation.LoginUser;
+import com.example.common.service.FileUploadService;
+import com.example.member.dto.MemberInfoResponseDTO;
 import com.example.member.dto.MemberSignupRequest;
+import com.example.member.dto.MemberUpdateRequestDTO;
+import com.example.member.dto.PasswordUpdateRequestDTO;
 import com.example.member.dto.RedisMemberDTO;
 import com.example.member.service.MailSenderService;
 import com.example.member.service.MemberService;
@@ -32,6 +38,7 @@ public class MemberController {
 	private final MemberService memberService;
 	private final MailSenderService mailSenderService;
 	private final JwtTokenProvider jwtTokenProvider;
+	private final FileUploadService fileUploadService;
 	
 	// 인증 메일 발송
 	@PostMapping("/SendVerification")
@@ -93,4 +100,58 @@ public class MemberController {
 	    }
 	}
 	
+
+
+	// 개인정보 조회
+	@GetMapping("/my-info")
+	public ResponseEntity<MemberInfoResponseDTO> getMyInfo(@LoginUser RedisMemberDTO user) {
+		if (user == null) {
+			return ResponseEntity.status(401).build();
+		}
+		MemberInfoResponseDTO info = memberService.getMyInfo(user.getMemberId());
+		return ResponseEntity.ok(info);
+	}
+
+	// 개인정보 수정
+	@PostMapping("/update")
+	public ResponseEntity<?> updateMemberInfo(@LoginUser RedisMemberDTO user, @RequestBody MemberUpdateRequestDTO dto) {
+		if (user == null) {
+			return ResponseEntity.status(401).build();
+		}
+		try {
+			memberService.updateMemberInfo(user.getMemberId(), dto);
+			return ResponseEntity.ok(Map.of("message", "정보가 성공적으로 수정되었습니다."));
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+		}
+	}
+
+	// 프로필 이미지 업로드
+	@PostMapping("/profile/image")
+	public ResponseEntity<?> uploadProfileImage(@LoginUser RedisMemberDTO user, @RequestParam("profileImage") MultipartFile file) {
+		if (user == null) {
+			return ResponseEntity.status(401).build();
+		}
+		try {
+			String url = fileUploadService.uploadImage(file, "profile");
+			return ResponseEntity.ok(Map.of("url", url));
+		} catch (Exception e) {
+			return ResponseEntity.internalServerError().body(Map.of("message", "이미지 업로드에 실패했습니다."));
+		}
+	}
+
+	// 비밀번호 변경
+	@PostMapping("/password")
+	public ResponseEntity<?> updatePassword(@LoginUser RedisMemberDTO user, @RequestBody PasswordUpdateRequestDTO dto) {
+		if (user == null) {
+			return ResponseEntity.status(401).build();
+		}
+		try {
+			memberService.updatePassword(user.getMemberId(), dto);
+			return ResponseEntity.ok(Map.of("message", "비밀번호가 성공적으로 변경되었습니다."));
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+		}
+	}
+
 }

@@ -40,6 +40,12 @@ public class ArtistController {
     public ResponseEntity<List<ArtistResponse>> getList() {
         return ResponseEntity.ok(artistService.getAllArtist());
     }
+
+    @GetMapping("/my-follows")
+    public ResponseEntity<List<ArtistResponse>> getMyFollows(@LoginUser RedisMemberDTO user) {
+        if (user == null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(artistService.getFollowedArtists(user.getMemberId()));
+    }
     
     @PostMapping("/follow/{artistId}")
     public ResponseEntity<String> followArtist(

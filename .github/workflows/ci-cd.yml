@@ -1,4 +1,4 @@
-
+#Core Service/ CI-CD
 name: CI/CD Pipeline
 
 on:
@@ -82,6 +82,9 @@ jobs:
           username: ${{ secrets.GCP_USER }}
           key: ${{ secrets.GCP_KEY }}                  
           script: |            
+            # [예외 처리] 도커 볼륨 마운트 전 호스트 디렉토리를 미리 생성하여 root 권한으로 폴더가 생성되는 문제 방지
+            mkdir -p /home/${{ secrets.GCP_USER }}/images/core
+            
             mkdir -p /home/${{ secrets.GCP_USER }}/core-service
             cd /home/${{ secrets.GCP_USER }}/core-service
             

@@ -27,4 +27,5 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .setAllowedOriginPatterns("*") // 테스트 시 모든 도메인 허용 (운영 시 제한 필요)
                 .withSockJS(); // SockJS 지원 (브라우저 호환성)
     }
+    
 }
