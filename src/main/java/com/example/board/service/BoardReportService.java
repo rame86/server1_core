@@ -113,17 +113,19 @@ public class BoardReportService {
         // 1. 게시글 관련 신고 내역 삭제
         reportRepository.deleteByBoardId(boardId);
         
-        // 2. 해당 게시글에 달린 모든 댓글의 신고 내역 삭제
+        // 2. 좋아요 내역 삭제
+        likeRepository.deleteByBoardId(boardId);
+        
+        // 3. 해당 게시글에 달린 모든 댓글의 신고 내역 삭제
         List<Comment> comments = commentRepository.findByBoardId_BoardIdOrderByCreatedAtDesc(boardId);
         if (!comments.isEmpty()) {
             List<Long> commentIds = comments.stream().map(Comment::getCommentId).toList();
+            // 댓글 신고 내역 먼저 삭제
             reportCommentRepository.deleteByCommentIdIn(commentIds);
-            // 3. 댓글 본체 삭제
-            commentRepository.deleteAllInBatch(comments);
+            // 댓글 본체 삭제 (Batch 삭제보다는 안전하게 연관 관계를 고려하여 처리)
+            commentRepository.deleteAll(comments); 
         }
-       // 4. 좋아요 내rence 삭제
-        likeRepository.deleteByBoardId(boardId);
-
+       
         // 5. 물리 파일 삭제
         if (board.getStoredFilePath() != null) {
         deletePhysicalFile(uploadDir + File.separator + board.getStoredFilePath());
