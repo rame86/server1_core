@@ -48,8 +48,7 @@ public class BoardService {
         Set<Long> memberIds = boards.stream()
                 .map(Board::getMemberId)
                 .collect(Collectors.toSet());
-                
-          
+         
         // 가져온 회원 정보를 Map<ID, 이름> 형태로 만듭니다.
         Map<Long, String> memberNameMap = memberRepository.findAllById(memberIds).stream()
                 .collect(Collectors.toMap(
@@ -57,8 +56,7 @@ public class BoardService {
                     Member::getName, 
                     (existing, replacement) -> existing
                 ));
-                
-        return boards.stream().map(board -> {
+       return boards.stream().map(board -> {
            BoardDTO dto = convertToDTO(board);
             dto.setAuthorName(memberNameMap.getOrDefault(board.getMemberId(), "탈퇴한 사용자"));
             
@@ -104,7 +102,6 @@ public class BoardService {
             String fullPath = saveFile(file);
             storedFileName = new File(fullPath).getName();
         }
-
         Board board = Board.builder()
                 .title(request.getTitle()).content(request.getContent())
                 .category(request.getCategory()).memberId(memberId)
@@ -121,7 +118,6 @@ public class BoardService {
         if (!board.getMemberId().equals(memberId) && !"ADMIN".equals(role)) {
             throw new IllegalStateException("삭제 권한이 없습니다.");
         }
-        
         // 연관 데이터 삭제 (순서 중요)
         commentRepository.deleteByBoardId_BoardId(id); // 댓글 먼저 삭제
         likeRepository.deleteByBoardId(id);    // 좋아요 삭제
@@ -129,7 +125,6 @@ public class BoardService {
         if (board.getStoredFilePath() != null) {
             deletePhysicalFile(uploadDir + File.separator + board.getStoredFilePath());
         }
-      
         boardRepository.delete(board);
         return BoardResponseDTO.builder().boardId(id).status("SUCCESS").message("삭제되었습니다.").build();
     }
@@ -142,7 +137,6 @@ public class BoardService {
         board.hideBoard(); // status = "HIDDEN" 변경 로직
         log.info("-----> [BoardService] 게시글 ID {} 가 숨김 처리되었습니다.", boardId);
     }
-
 
     // 게시글 수정
     @Transactional
@@ -169,7 +163,6 @@ public class BoardService {
             }
             board.updateFile(null, null);
         }
-
         return BoardResponseDTO.builder().boardId(id).status("SUCCESS").message("수정되었습니다.").build();
     }
     // 좋아요 토글
