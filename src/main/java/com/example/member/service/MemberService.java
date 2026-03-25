@@ -323,9 +323,12 @@ public class MemberService {
 				.subCategory(String.valueOf(dto.getSubCategory()))
 				.description(String.valueOf(dto.getDescription()))
 				.imageUrl(dto.getImageUrl())
-				.status("PENDING")
-				.title("아티스트 승인 신청: " + dto.getArtistName())
-				.build();
+	      .status("PENDING")
+	      .title("아티스트 승인 신청: " + dto.getArtistName())
+	      .fandomImage(dto.getFandomImage())
+	      .fandomName(dto.getFandomName())
+	      .build();
+
 		approvalRepository.save(approval);
 
 		// 멤버테이블 상태 변경
