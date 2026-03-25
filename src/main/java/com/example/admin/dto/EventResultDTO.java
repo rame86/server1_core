@@ -33,4 +33,6 @@ public class EventResultDTO implements ApprovalDTO {
     private String location; // 장소
     private Long price; // 금액
     private String imageUrl;
+    private String eventEndDate;
+    private String eventDate;
 }

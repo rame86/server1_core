@@ -21,4 +21,6 @@ public class ArtistResultDTO {
     private String status; // PENDING, CONFIRMED, FAILED
     private String rejectionReason; // 거절 사유
     private String processedAt;
+    private String fandomImage;
+    private String fandomName;
 }

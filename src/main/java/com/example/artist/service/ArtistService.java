@@ -48,6 +48,10 @@ public class ArtistService {
             dto.setDescription(artist.getDescription());
             dto.setCommunityLink(artist.getCommunityLink());
             dto.setFollowerCount(followRepository.countByArtist(artist));
+            dto.setCategory(artist.getCategory());
+            dto.setProfileImageUrl(artist.getProfileImageUrl());
+            dto.setFandomImage(artist.getFandomImage());
+            dto.setFandomName(artist.getFandomName());
             return dto;
         }).collect(Collectors.toList());
 	}
@@ -153,8 +157,10 @@ public class ArtistService {
         dto.setDescription(artist.getDescription());
         dto.setCommunityLink(artist.getCommunityLink());
         dto.setProfileImageUrl(artist.getProfileImageUrl());
-        // 추가로 필요한 필드 (CoverImage 등)가 있다면 여기에 세팅하세요.
         dto.setFollowerCount(followRepository.countByArtist(artist));
+        dto.setCategory(artist.getCategory());
+        dto.setFandomImage(artist.getFandomImage());
+        dto.setFandomName(artist.getFandomName());
         return dto;
     }
 	
