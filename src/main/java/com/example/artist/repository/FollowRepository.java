@@ -18,4 +18,8 @@ public interface FollowRepository extends JpaRepository<Follow, Long>{
 
 	// 내가 팔로우한 아티스트 목록
 	List<Follow> findAllByMember(Member member);
+
+	// Follow 엔티티 내부의 필드명(followerId, artistId)과 일치해야 합니다.
+	boolean existsByMember_MemberIdAndArtist_ArtistId(Long memberId, Long artistId);
+
 }

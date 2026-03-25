@@ -42,9 +42,7 @@ public class BoardDTO {
 
     private boolean isLiked; // 현재 로그인한 사용자가 좋아요를 눌렀는지 여부
    
-    /**
-     * Role 정보를 바탕으로 아티스트 여부를 자동으로 판단하는 편의 메서드
-     */
+    // Role 정보를 바탕으로 아티스트 여부를 자동으로 판단하는 편의 메서드
     public void checkArtistStatus() {
         if ("ARTIST".equals(this.authorRole)) {
             this.artistPost = true;
