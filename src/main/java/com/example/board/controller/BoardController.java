@@ -18,8 +18,11 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.util.UriUtils;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -47,6 +50,7 @@ public class BoardController {
         return ResponseEntity.ok(list);
     }
 
+    // 게시글 보기
     @GetMapping("/{id}")
     public ResponseEntity<BoardDTO> getDetail(
         @LoginUser RedisMemberDTO loginUser, 
@@ -54,7 +58,7 @@ public class BoardController {
         BoardDTO detail = boardService.getBoardDetail(id, loginUser != null ? loginUser.getMemberId() : null);
         return ResponseEntity.ok(detail);
     }
-
+     // 게시글 작성
     @PostMapping(value = "/write", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<BoardResponseDTO> write(
             @LoginUser RedisMemberDTO loginUser,
@@ -65,7 +69,7 @@ public class BoardController {
         BoardResponseDTO response = boardService.writeBoard(request, file, loginUser.getMemberId());
         return ResponseEntity.ok(response);
     }
-
+    
     @PutMapping(value = "/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<BoardResponseDTO> update(
             @LoginUser RedisMemberDTO loginUser,
@@ -77,7 +81,7 @@ public class BoardController {
         BoardResponseDTO response = boardService.updateBoard(id, request, file, loginUser.getMemberId(), loginUser.getRole());
         return ResponseEntity.ok(response);
     }
-
+    // 게시글 삭제
     @DeleteMapping("/{id}")
     public ResponseEntity<BoardResponseDTO> delete(
             @LoginUser RedisMemberDTO loginUser,
@@ -87,7 +91,7 @@ public class BoardController {
         BoardResponseDTO response = boardService.deleteBoard(id, loginUser.getMemberId(), loginUser.getRole());
         return ResponseEntity.ok(response);
     }
-
+    // 게시글 좋아요
     @PostMapping("/{id}/like")
     public ResponseEntity<Integer> toggleLike(
             @LoginUser RedisMemberDTO loginUser,
@@ -127,7 +131,7 @@ public class BoardController {
 
         if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 
-       CommentResponseDTO response = boardCommentService.updateComment(commentId,requestDTO,loginUser.getMemberId());
+        CommentResponseDTO response = boardCommentService.updateComment(commentId,requestDTO,loginUser.getMemberId());
         return ResponseEntity.ok(response);
     }
    
@@ -142,19 +146,36 @@ public class BoardController {
         return ResponseEntity.noContent().build();
     }
     
-    // --- [3. 파일 제공 API] ---
-    @GetMapping("/files/{fileName}")
+    // 파일 API
+    @GetMapping({"/files/{fileName}", "/files/download/{fileName}"})
     public ResponseEntity<Resource> serveFile(@PathVariable(name = "fileName") String fileName) {
         try {
-            Path path = Paths.get(uploadDir).resolve(fileName);
-            Resource resource = new UrlResource(path.toUri());
-            if (resource.exists() || resource.isReadable()) {
-                return ResponseEntity.ok()
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
-                        .body(resource);
+            // 1. 만약 fileName에 'download/'가 포함되어 넘어온다면 파일명만 추출
+            String actualFileName = fileName;
+            if (fileName.contains("/")) {
+                actualFileName = fileName.substring(fileName.lastIndexOf("/") + 1);
             }
-            return ResponseEntity.notFound().build();
+
+            Path filePath = Paths.get(uploadDir).resolve(actualFileName).normalize();
+            Resource resource = new UrlResource(filePath.toUri());
+            
+            log.info("-----> [파일 탐색] 실제 경로: {}", filePath.toAbsolutePath());
+
+            if (resource.exists() && resource.isReadable()) {
+                String encodedFileName = UriUtils.encode(actualFileName, StandardCharsets.UTF_8);
+                String contentType = Files.probeContentType(filePath);
+                if (contentType == null) contentType = "application/octet-stream";
+
+                return ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(contentType))
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + encodedFileName + "\"")
+                        .body(resource);
+            } else {
+                log.error("-----> [파일 찾기 실패] 폴더에 파일이 없습니다: {}", filePath.toAbsolutePath());
+                return ResponseEntity.notFound().build();
+            }
         } catch (Exception e) {
+            log.error("-----> [서버 에러] 파일 서빙 중 결함 발생", e);
             return ResponseEntity.internalServerError().build();
         }
     }
