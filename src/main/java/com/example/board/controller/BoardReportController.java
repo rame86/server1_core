@@ -21,10 +21,58 @@ public class BoardReportController {
 
     private final BoardReportService boardReportService;
 
-    /**
-     * 게시글 신고 목록 조회
-     * 요청 경로: GET /board/admin/reports
-     */
+    //--- [1. 사용자용 신고 접수 API] ---
+    @PostMapping("/report/board")
+    public ResponseEntity<String> createBoardReport(
+            @LoginUser RedisMemberDTO loginUser,
+            @RequestBody Map<String, Object> payload) {
+        if (loginUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        try {
+            Long boardId = Long.parseLong(payload.get("boardId").toString());
+            String reason = (String) payload.get("reason");
+            
+            log.info("-----> [신고 접수] 사용자: {}, 게시글: {}", loginUser.getMemberId(), boardId);
+            // Service의 reportBoard 호출
+            String result = boardReportService.reportBoard(boardId, loginUser.getMemberId(), reason);
+            if ("SUCCESS".equals(result)) {
+                return ResponseEntity.ok("신고가 성공적으로 접수되었습니다.");
+            } else {
+                return ResponseEntity.badRequest().body("이미 신고한 게시글입니다.");
+            }
+        } catch (Exception e) {
+            log.error("-----> [에러] 게시글 신고 저장 실패: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("신고 처리 중 오류 발생");
+        }
+    }
+ 
+    @PostMapping("/report/comment")
+    public ResponseEntity<String> createCommentReport(
+            @LoginUser RedisMemberDTO loginUser,
+            @RequestBody Map<String, Object> payload) {
+        if (loginUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        try {
+            Long commentId = Long.parseLong(payload.get("commentId").toString());
+            String reason = (String) payload.get("reason");
+            log.info("-----> [신고 접수] 사용자: {}, 댓글: {}", loginUser.getMemberId(), commentId);
+            
+            String result = boardReportService.reportComment(commentId, loginUser.getMemberId(), reason);
+            if ("SUCCESS".equals(result)) {
+                return ResponseEntity.ok("댓글 신고가 접수되었습니다.");
+            } else {
+                return ResponseEntity.badRequest().body("이미 신고한 댓글입니다.");
+            }
+        } catch (Exception e) {
+            log.error("-----> [에러] 댓글 신고 저장 실패: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("신고 처리 중 오류 발생");
+        }
+    }
+
+    // --- [2. 관리자용 조회/처리 API] --- GET /board/admin/reports
     @GetMapping("/reports")
     public ResponseEntity<List<ReportBoardDTO>> getBoardReports(@LoginUser RedisMemberDTO loginUser) {
         if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) {
@@ -34,10 +82,7 @@ public class BoardReportController {
         return ResponseEntity.ok(boardReportService.getBoardReportList());
     }
 
-    /**
-     * 댓글 신고 목록 조회
-     * 요청 경로: GET /board/admin/reports/comments
-     */
+    //댓글 신고 목록 조회 요청 경로: GET /board/admin/reports/comments
     @GetMapping("/reports/comments")
     public ResponseEntity<List<ReportBoardDTO>> getCommentReports(@LoginUser RedisMemberDTO loginUser) {
         if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) {
@@ -47,10 +92,7 @@ public class BoardReportController {
         return ResponseEntity.ok(boardReportService.getCommentReportList());
     }
 
-    /**
-     * 게시글 신고 승인
-     * 요청 경로: PUT /board/admin/report/{reportId}/approve
-     */
+    //게시글 신고 승인 요청 경로: PUT /board/admin/report/{reportId}/approve
     @PutMapping("/report/{reportId}/approve")
     public ResponseEntity<Void> approveBoardReport(
             @LoginUser RedisMemberDTO loginUser,
@@ -60,16 +102,12 @@ public class BoardReportController {
         if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-
         Long boardId = body.get("boardId");
         boardReportService.approveBoardReport(reportId, boardId);
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * 댓글 신고 승인
-     * 요청 경로: PUT /board/admin/report/comment/{reportId}/approve
-     */
+    // 댓글 신고 승인 요청 경로: PUT /board/admin/report/comment/{reportId}/approve
     @PutMapping("/report/comment/{reportId}/approve")
     public ResponseEntity<Void> approveCommentReport(
             @LoginUser RedisMemberDTO loginUser,
@@ -78,25 +116,44 @@ public class BoardReportController {
         if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-
         boardReportService.approveCommentReport(reportId);
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * 신고 내역 삭제
-     * 요청 경로: DELETE /board/admin/reports/boards/{reportId}
-     */
+    // 신고 내역 삭제 요청 경로: DELETE /board/admin/reports/boards/{reportId}
     @DeleteMapping("/reports/boards/{reportId}")
     public ResponseEntity<Void> deleteBoardReport(
             @LoginUser RedisMemberDTO loginUser,
             @PathVariable(name = "reportId") Long reportId) {
-
         if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-
         boardReportService.deleteBoardReport(reportId);
+        return ResponseEntity.ok().build();
+    }
+
+    // 게시글 영구 삭제 요청 경로: DELETE /board/admin/boards/{boardId}
+    @DeleteMapping("/boards/{boardId}")
+    public ResponseEntity<Void> hardDeleteBoard(
+            @LoginUser RedisMemberDTO loginUser,
+            @PathVariable(name = "boardId") Long boardId) {
+        if (loginUser == null || !"ADMIN".equals(loginUser.getRole())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        log.info("-----> [Admin] 게시글 영구 삭제 요청: boardId={}", boardId);
+        boardReportService.hardDeleteBoard(boardId); // Service에 이 메서드를 만들어야 합니다.
+        return ResponseEntity.ok().build();
+    }
+    // 댓글 영구 삭제 요청 경로 : DELETE /board/admin/comments/{commentId}
+    @DeleteMapping("/comments/{commentId}")
+    public ResponseEntity<Void> hardDeleteComment(
+            @LoginUser RedisMemberDTO loginUser,
+            @PathVariable(name = "commentId") Long commentId) {
+        if(loginUser == null || !"ADMIN".equals(loginUser.getRole())){
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        log.info("--->[Admin] 댓글 영구 삭제 요청: commentId={}", commentId);
+        boardReportService.hardDeleteComment(commentId);
         return ResponseEntity.ok().build();
     }
 }

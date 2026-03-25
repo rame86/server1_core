@@ -2,6 +2,7 @@ package com.example.artist.entity;
 
 import com.example.member.domain.Member;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
@@ -28,8 +29,6 @@ public class Artist {
     @JoinColumn(name = "member_id")
     private Member member;
 	
-	private Long artistId;
-	
 	private String stageName;      // 활동명
     private String communityLink;  // 아티스트별 커뮤니티 링크 (외부 링크)
     private String description;    // 소개글
@@ -37,4 +36,7 @@ public class Artist {
     private String profileImageUrl;
     private int followerCount = 0;
     
+    // Artist.java
+    @Column(name = "artist_id") // DB의 artist_id 컬럼과 매칭
+    private Long artistId;
 }

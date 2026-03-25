@@ -34,8 +34,9 @@ public class SecurityConfig {
                 // 1. prod 환경에서도 CORS 설정 적용
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(auth -> auth                        
-                        .requestMatchers("/", "/login", "/shop", "/member/**", "/api/**", "/board/**", "/error", "/admin/**", "/dashboard/**", "/artist/**")
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/", "/login", "/shop", "/member/**", "/api/**", "/board/**", "/error",
+                                "/admin/**", "/dashboard/**", "/artist/**", "/images/core/**")
                         .permitAll()
                         .anyRequest().authenticated())
                 .build();

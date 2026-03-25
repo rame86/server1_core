@@ -20,6 +20,12 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
     // [아티스트별] 카테고리 + 아티스트 일치 + 상태가 ACTIVE인 데이터만 조회
     List<Board> findByCategoryAndArtistIdAndStatusOrderByCreatedAtDesc(String category, Long artistId, String status);
 
+    // 아티스트 ID로 모든 게시글 찾기
+    List<Board> findByArtistId(Long artistId);
+    
+    // 아티스트 ID와 특정 카테고리(NOTICE)로 찾기
+    List<Board> findByArtistIdAndCategory(Long artistId, String category);
+
     @Modifying
     @Transactional
     @Query("UPDATE Board b SET b.status = :status WHERE b.boardId = :boardId")
