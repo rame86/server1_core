@@ -35,6 +35,7 @@ public class Artist {
     private String category;
     private String profileImageUrl;
     private int followerCount = 0;
+    private String fandomName;
     
     // Artist.java
     @Column(name = "artist_id") // DB의 artist_id 컬럼과 매칭

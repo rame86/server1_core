@@ -277,16 +277,27 @@ public class MemberService {
 		} else {
 			log.warn("---------> [로그아웃] 리프레시 토큰이 이미 없거나 만료되었습니다.");
 		}
+		
+		ResponseCookie accessCoocke = ResponseCookie.from("Token", "")
+				.httpOnly(true)
+	            .secure(false) // 로그인 시 설정과 동일하게 (운영 시 true)
+	            .path("/")
+	            .maxAge(0) // 즉시 만료
+	            .sameSite("Lax")
+	            .build();
 
 		// 쿠키에서 리프레시토큰 삭제
-		ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
+		ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", "")
 				.httpOnly(true)
 				.secure(false)
 				.path("/")
 				.maxAge(0)
 				.sameSite("Lax")
 				.build();
-		response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+		
+		response.addHeader(HttpHeaders.SET_COOKIE, accessCoocke.toString());
+		response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+		
 		log.info("---------> [로그아웃] 브라우저 쿠키 삭제 명령 전송 완료");
 	}
 	
