@@ -11,4 +11,6 @@ public class ArtistResponse {
     private long followerCount;
     private String category;
     private String profileImageUrl;
+    private String fandomName;
+    private String fandomImage;
 }

@@ -10,7 +10,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -37,7 +36,6 @@ import com.example.admin.dto.UserSummaryDTO;
 import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
 import com.example.artist.dto.PaymentRequestDTO;
-import com.example.artist.dto.PaymentResponseDTO;
 import com.example.artist.entity.Artist;
 import com.example.artist.repository.ArtistRepository;
 import com.example.config.RabbitMQConfig;
@@ -66,9 +64,9 @@ public class AdminService {
 	private final MemberHistoryRepository memberHistoryRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final com.fasterxml.jackson.databind.ObjectMapper objectMapper; // JSON 파싱용
-	
+
 	@Value("${pay.admin.url}")
-    private String payAdminUrl;
+	private String payAdminUrl;
 
 	@Transactional
 	public void processApproval(ApprovalDTO dto, String routingKey, Long adminId) {
@@ -105,20 +103,12 @@ public class AdminService {
 			int currentStock = (stockVal != null) ? Integer.parseInt(stockVal) : 0;
 
 			// DTO로 변환
-			return AdminEventListDTO.builder()
-					.approvalId(approval.getApprovalId())
-					.artistname(approval.getRequesterName())
-					.targetId(approval.getTargetId())
-					.title(approval.getTitle())
-					.status(approval.getStatus())
-					.category(approval.getCategory())
-					.location(approval.getLocation())
-					.price(approval.getPrice())
-					.eventStartDate(approval.getEventStartDate())
-					.createdAt(approval.getCreatedAt())
-					.stock(currentStock) // Redis 데이터 합체
-					.imageUrl(approval.getImageUrl())
-					.build();
+			return AdminEventListDTO.builder().approvalId(approval.getApprovalId())
+					.artistname(approval.getRequesterName()).targetId(approval.getTargetId()).title(approval.getTitle())
+					.status(approval.getStatus()).category(approval.getCategory()).location(approval.getLocation())
+					.price(approval.getPrice()).eventStartDate(approval.getEventStartDate())
+					.createdAt(approval.getCreatedAt()).stock(currentStock) // Redis 데이터 합체
+					.imageUrl(approval.getImageUrl()).build();
 		}).collect(Collectors.toList());
 	}
 
@@ -126,16 +116,11 @@ public class AdminService {
 		String requestId = "ADMIN_SETTLEMENT_REQ";
 		CompletableFuture<SettlementDashboardResponse> future = new CompletableFuture<>();
 		pendingRequests.put(requestId, future);
-		
-		PaymentRequestDTO dto = PaymentRequestDTO.builder()
-				.type("ADMIN_SETTLEMENT")
-				.replyRoutingKey(RabbitMQConfig.ADMIN_PAY_RES_ROUTING_KEY)
-				.build();
-		rabbitTemplate.convertAndSend(
-				RabbitMQConfig.EXCHANGE_NAME,
-				RabbitMQConfig.PAY_REQ_ROUTING_KEY,
-				dto);
-		
+
+		PaymentRequestDTO dto = PaymentRequestDTO.builder().type("ADMIN_SETTLEMENT")
+				.replyRoutingKey(RabbitMQConfig.ADMIN_PAY_RES_ROUTING_KEY).build();
+		rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.PAY_REQ_ROUTING_KEY, dto);
+
 		try {
 			return future.get(MQ_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 		} catch (Exception e) {
@@ -144,35 +129,17 @@ public class AdminService {
 		}
 	}
 
-	@RabbitListener(queues = "admin.pay.res.core.queue")
-	public void receiveDashboardData(PaymentResponseDTO<SettlementDashboardResponse> response) {
-		log.info("=====> [RabbitMQ 비동기 응답 수신] 상세 데이터: {}", response);
-		
-        if ("COMPLETE".equals(response.status())) {
-            CompletableFuture<SettlementDashboardResponse> future = pendingRequests.remove("ADMIN_SETTLEMENT_REQ");
-            if (future != null) {
-                log.info("=====> [AdminService] 드디어 진짜 데이터를 찾음");
-                future.complete(response.payload()); // 여기서 기다리던 스레드가 깨어남!
-            }
-        } else {
-            log.info("=====> [AdminService] 접수 알림(PROCESSING) 더 기다림.");
-        }
-	}
-
 	// artist 승인 대기중인 목록
 	public List<ArtistResultDTO> getPendingArtistList(String category, String status) {
 		List<Approval> entityList = approvalRepository.findByCategoryAndStatus(category, status);
-		return entityList.stream().map(entity -> ArtistResultDTO.builder()
-				.approvalId(entity.getApprovalId())
-				.artistName(entity.getRequesterName())
-				.subCategory(entity.getSubCategory())
-				.description(entity.getDescription())
-				.imageUrl(entity.getImageUrl())
-				.status(entity.getStatus())
-				.createdAt(entity.getCreatedAt().toString())
-				.processedAt(entity.getProcessedAt() != null ? entity.getProcessedAt().toString() : entity.getProcessedAt().toString())
-				.rejectionReason(entity.getRejectionReason())
-				.build())
+		return entityList.stream()
+				.map(entity -> ArtistResultDTO.builder().approvalId(entity.getApprovalId())
+						.artistName(entity.getRequesterName()).subCategory(entity.getSubCategory())
+						.description(entity.getDescription()).imageUrl(entity.getImageUrl()).status(entity.getStatus())
+						.createdAt(entity.getCreatedAt().toString())
+						.processedAt(entity.getProcessedAt() != null ? entity.getProcessedAt().toString()
+								: entity.getProcessedAt().toString())
+						.rejectionReason(entity.getRejectionReason()).build())
 				.collect(Collectors.toList());
 	}
 
@@ -183,62 +150,54 @@ public class AdminService {
 			try {
 				// contentJson에 저장된 상세 정보를 ShopResultDTO로 복원
 				ShopResultDTO dto = objectMapper.readValue(entity.getContentJson(), ShopResultDTO.class);
-				
+
 				// 엔티티의 기본 필드(ID, 상태, 날짜 등)로 덮어쓰기 (최신성 유지)
-				return ShopResultDTO.builder()
-						.approvalId(entity.getApprovalId())
-						.goodsId(entity.getTargetId())
-						.requesterId(entity.getArtistId())
-						.requesterName(entity.getRequesterName())
+				return ShopResultDTO.builder().approvalId(entity.getApprovalId()).goodsId(entity.getTargetId())
+						.requesterId(entity.getArtistId()).requesterName(entity.getRequesterName())
 						.goodsName(entity.getTitle())
-						.goodsType(entity.getSubCategory() != null ? entity.getSubCategory() : (dto != null ? dto.getGoodsType() : "UNKNOWN"))
+						.goodsType(entity.getSubCategory() != null ? entity.getSubCategory()
+								: (dto != null ? dto.getGoodsType() : "UNKNOWN"))
 						.description(entity.getDescription())
-						.price(entity.getPrice() != null ? entity.getPrice().intValue() : (dto != null ? dto.getPrice() : 0))
-						.color(dto != null ? dto.getColor() : null)
-						.size(dto != null ? dto.getSize() : null)
-						.stockQuantity(dto != null ? dto.getStockQuantity() : 0)
-						.imageUrl(entity.getImageUrl())
-						.status(entity.getStatus())
-						.createdAt(entity.getCreatedAt().toString())
-						.rejectionReason(entity.getRejectionReason())
-						.build();
+						.price(entity.getPrice() != null ? entity.getPrice().intValue()
+								: (dto != null ? dto.getPrice() : 0))
+						.color(dto != null ? dto.getColor() : null).size(dto != null ? dto.getSize() : null)
+						.stockQuantity(dto != null ? dto.getStockQuantity() : 0).imageUrl(entity.getImageUrl())
+						.status(entity.getStatus()).createdAt(entity.getCreatedAt().toString())
+						.rejectionReason(entity.getRejectionReason()).build();
 			} catch (Exception e) {
 				log.error("Failed to parse shop approval JSON: {}", e.getMessage());
 				// 파싱 실패 시 기본 정보라도 반환
-				return ShopResultDTO.builder()
-						.approvalId(entity.getApprovalId())
-						.goodsName(entity.getTitle())
-						.status(entity.getStatus())
-						.build();
+				return ShopResultDTO.builder().approvalId(entity.getApprovalId()).goodsName(entity.getTitle())
+						.status(entity.getStatus()).build();
 			}
 		}).collect(Collectors.toList());
 	}
-	
+
 	// artist 승인
 	@Transactional
 	public void confirmArtist(ArtistResultDTO dto, Long adminId) {
 		// 신청서 승인 상태로 변경
 		Approval approval = approvalRepository.findById(dto.getApprovalId())
 				.orElseThrow(() -> new IllegalArgumentException("신청서가 없습니다."));
-		
-		if(!"PENDING".equals(approval.getStatus())) {
+
+		if (!"PENDING".equals(approval.getStatus())) {
 			throw new IllegalStateException("이미 처리되었거나 취소된 신청건입니다.");
 		}
-		
-		if(artistRepository.existsById(approval.getArtistId())) {
+
+		if (artistRepository.existsById(approval.getArtistId())) {
 			throw new IllegalStateException("이미 아티스트로 등록된 회원입니다.");
 		}
-		
+
 		approval.setStatus("CONFIRMED");
 		approval.setAdminId(adminId);
 		approval.setProcessedAt(LocalDateTime.now());
-		
+
 		// MEMBER테이블 권한 변경
 		Member member = memberRepository.findById(approval.getArtistId())
 				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 		member.setRole("ARTIST");
 		member.setStatus("ACTIVE");
-		
+
 		// ARTIST테이블 INSERT
 		Artist artist = new Artist();
 		artist.setMember(member);
@@ -246,107 +205,83 @@ public class AdminService {
 		artist.setCategory(approval.getSubCategory());
 		artist.setDescription(approval.getDescription());
 		artistRepository.save(artist);
-		
+
 		// 2서버로 메세지 발송
-		ArtistApprovedEvent event = ArtistApprovedEvent.builder()
-				.memberId(member.getMemberId())
-				.artistName(approval.getRequesterName())
-				.type("ARTIST_APPROVE")
-				.build();
-				
-		rabbitTemplate.convertAndSend(
-				RabbitMQConfig.EXCHANGE_NAME,
-				RabbitMQConfig.PAY_REQ_ROUTING_KEY, 
-				event);
-		
+		ArtistApprovedEvent event = ArtistApprovedEvent.builder().memberId(member.getMemberId())
+				.artistName(approval.getRequesterName()).type("ARTIST_APPROVE").build();
+
+		rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.PAY_REQ_ROUTING_KEY, event);
+
 		log.info("-----> [ARTIST 완료] 1서버 DB 갱신, 메세지 전송 완료");
 	}
-	
+
 	// artist 거절
 	@Transactional
 	public void rejectArtist(ArtistResultDTO dto, Long adminId) {
 		Approval approval = approvalRepository.findById(dto.getApprovalId())
-	            .orElseThrow(() -> new IllegalArgumentException("신청서가 없습니다."));
-		
+				.orElseThrow(() -> new IllegalArgumentException("신청서가 없습니다."));
+
 		approval.setStatus("REJECTED");
 		approval.setRejectionReason(dto.getRejectionReason());
 		approval.setAdminId(adminId);
 		approval.setProcessedAt(LocalDateTime.now());
-		
+
 		Member member = memberRepository.findById(approval.getArtistId())
 				.orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
-		if("PENDING".equals(member.getStatus())) {
+		if ("PENDING".equals(member.getStatus())) {
 			member.setStatus("ACTIVE");
 			log.info("-----> [상태 복구] MemberID: {} 님이 일반 유저(ACTIVE)로 전환되었습니다.", member.getMemberId());
 		}
-		
+
 		log.info("-----> [거절 완료] ID: {}, 사유: {}", dto.getApprovalId(), dto.getRejectionReason());
 	}
 
-    public void approveBoardReport(Long boardId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'approveBoardReport'");
-    }
-	
+	public void approveBoardReport(Long boardId) {
+		// TODO Auto-generated method stub
+		throw new UnsupportedOperationException("Unimplemented method 'approveBoardReport'");
+	}
+
 	// artist 승인된 리스트
 	@Transactional(readOnly = true)
 	public List<ArtistResponseDTO> getActiceArtistList(String category, String status) {
 		List<Approval> entityList = approvalRepository.findByCategoryAndStatus(category, status);
-		
-		return entityList.stream().map(entity -> ArtistResponseDTO.builder()
-				.approvalId(entity.getApprovalId())
-				.artistId(entity.getArtistId())
-                .artistName(entity.getRequesterName())
-                .category(entity.getSubCategory())
-                .status(entity.getStatus())
-                .createdAt(entity.getCreatedAt().toString())
-                .processedAt(entity.getProcessedAt() != null ? entity.getProcessedAt().toString() : null)
-                .adminId(entity.getAdminId())
-                .build())
-				.collect(Collectors.toList());
+
+		return entityList.stream().map(entity -> ArtistResponseDTO.builder().approvalId(entity.getApprovalId())
+				.artistId(entity.getArtistId()).artistName(entity.getRequesterName()).category(entity.getSubCategory())
+				.status(entity.getStatus()).createdAt(entity.getCreatedAt().toString())
+				.processedAt(entity.getProcessedAt() != null ? entity.getProcessedAt().toString() : null)
+				.adminId(entity.getAdminId()).build()).collect(Collectors.toList());
 	}
-	
+
 	// artist 상세 보기
 	public ArtistResponseDTO getArtistDetail(Long approvalId, Long artistId) {
-		
+
 		// 1서버 정보 호출
 		Approval approval = approvalRepository.findById(approvalId)
 				.orElseThrow(() -> new IllegalArgumentException("해당 기록이 없습니다. ID: " + approvalId));
-		
+
 		Artist artist = artistRepository.findByArtistId(artistId)
-	            .orElseThrow(() -> new IllegalArgumentException("아티스트를 찾을 수 없습니다. ID: " + artistId));
-		
+				.orElseThrow(() -> new IllegalArgumentException("아티스트를 찾을 수 없습니다. ID: " + artistId));
+
 		Member member = memberRepository.findById(artist.getMemberId())
 				.orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다. ID: " + artistId));
-		
+
 		// 2서버 WebClient 호출
-		ArtistAccountResponse paymentData = webClient.get()
-				.uri(payAdminUrl + "wallet/artist/{artistId}", artistId)
-				.retrieve()
+		ArtistAccountResponse paymentData = webClient.get().uri(payAdminUrl + "/artist/{artistId}", artistId).retrieve()
 				.bodyToMono(ArtistAccountResponse.class)
-				.onErrorResume(e -> Mono.just(new ArtistAccountResponse(BigDecimal.ZERO, BigDecimal.ZERO)))
-				.block();
-		
-		return ArtistResponseDTO.builder()
-				.approvalId(approval.getApprovalId())
-				.artistId(member.getMemberId())
-				.artistName(member.getName())
-				.category(approval.getCategory())
-				.description(approval.getDescription())
-				.createdAt(approval.getCreatedAt().toString())
-				.status(approval.getStatus())
-				.email(member.getEmail())
-				.phone(member.getPhone())
-				.followerCount(artist.getFollowerCount())
-				.totalBalance(paymentData.getTotalBalance())
-				.withdrawableBalance(paymentData.getWithdrawableBalance())
-				.rejectionReason(approval.getRejectionReason())
-				.adminId(approval.getAdminId())
+				.onErrorResume(e -> Mono.just(new ArtistAccountResponse(BigDecimal.ZERO, BigDecimal.ZERO))).block();
+
+		return ArtistResponseDTO.builder().approvalId(approval.getApprovalId()).artistId(member.getMemberId())
+				.artistName(member.getName()).category(approval.getCategory()).description(approval.getDescription())
+				.createdAt(approval.getCreatedAt().toString()).status(approval.getStatus()).email(member.getEmail())
+				.phone(member.getPhone()).followerCount(artist.getFollowerCount())
+				.totalBalance(paymentData.getTotalBalance()).withdrawableBalance(paymentData.getWithdrawableBalance())
+				.rejectionReason(approval.getRejectionReason()).adminId(approval.getAdminId())
 				.processedAt(approval.getProcessedAt() != null ? approval.getProcessedAt().toString() : "처리 대기중")
 				.build();
-		
+
 	}
-	
+
 	// user정지 (정지한 사람 추가하는부분 필요)
 	@Transactional
 	public void blockUser(Long memberId, Long adminId, String reason) {
@@ -354,156 +289,122 @@ public class AdminService {
 		Member member = memberRepository.findById(memberId)
 				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 		member.setStatus("BLOCK");
-		
-		MemberHistory history = MemberHistory.builder()
-				.memberId(memberId)
-				.status("BLOCK")
-				.reason(reason)
-				.adminId(adminId)
-				.build();
+
+		MemberHistory history = MemberHistory.builder().memberId(memberId).status("BLOCK").reason(reason)
+				.adminId(adminId).build();
 		memberHistoryRepository.save(history);
-		
+
 		redisTemplate.opsForValue().set("BLOCK:" + memberId, "true", 24, TimeUnit.HOURS);
 		log.info("✅ [검거 완료] 유저 {}님은 이제 로그인이 즉시 튕겨나갑니다. ㅃㅇ!", memberId);
 	}
-	
+
 	// user 상단 카드3개
 	public UserSummaryDTO getUserSummary() {
-		return UserSummaryDTO.builder()
-				.totalUserCount(memberRepository.count())
+		return UserSummaryDTO.builder().totalUserCount(memberRepository.count())
 				.activeUserCount(memberRepository.countByStatus("ACTIVE"))
-				.blockedUserCount(memberRepository.countByStatus("BLOCK"))
-				.build();
+				.blockedUserCount(memberRepository.countByStatus("BLOCK")).build();
 	}
-	
+
 	// user List
 	@Transactional(readOnly = true)
 	public Page<UserListResponseDTO> getAllUserList(Pageable pageable) {
 		// 멤버 페이지 가져오기
 		Page<Member> memberPage = memberRepository.findAll(pageable);
-		
+
 		// 현재 페이지에 있는 유저들의 ID만 리스트로 추출
-		List<Long> memberId = memberPage.getContent().stream()
-				.map(Member::getMemberId)
-				.collect(Collectors.toList());
-		
+		List<Long> memberId = memberPage.getContent().stream().map(Member::getMemberId).collect(Collectors.toList());
+
 		Map<String, Object> message = new HashMap<>();
 		message.put("type", "ADMIN");
 		message.put("orderId", "GETALL");
 		message.put("allMemberId", memberId);
 		message.put("replyRoutingKey", RabbitMQConfig.ADMIN_PAY_RES_ROUTING_KEY);
+
+		rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.PAY_REQ_ROUTING_KEY, message);
 		
-		rabbitTemplate.convertAndSend(
-	            RabbitMQConfig.EXCHANGE_NAME,
-	            RabbitMQConfig.PAY_REQ_ROUTING_KEY,
-	            message);
-		
-		return memberPage.map(member -> UserListResponseDTO.builder()
-            .memberId(member.getMemberId())
-            .name(member.getName())
-            .email(member.getEmail())
-            .createdAt(member.getCreatedAt() != null ? member.getCreatedAt().toString() : "날짜 없음")
-            .status(member.getStatus())
-            .purchaseCount(0) // 비동기 응답이므로 초기값 설정 필요
-            .pointBalance(0L)
-            .build());
+		Map<String, Object> messagee = new HashMap<>();
+		messagee.put("type", "ADMIN");
+		messagee.put("orderId", "SUMMARY");
+		messagee.put("allMemberId", memberId);
+		messagee.put("replyRoutingKey", RabbitMQConfig.ADMIN_PAY_RES_ROUTING_KEY);
+
+		rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.PAY_REQ_ROUTING_KEY, messagee);
+
+		return memberPage.map(member -> UserListResponseDTO.builder().memberId(member.getMemberId())
+				.name(member.getName()).email(member.getEmail())
+				.createdAt(member.getCreatedAt() != null ? member.getCreatedAt().toString() : "날짜 없음")
+				.status(member.getStatus()).purchaseCount(0) // 비동기 응답이므로 초기값 설정 필요
+				.pointBalance(0L).build());
 	}
-	
+
 	// user Detail
 	@Transactional
 	public UserDetailResponseDTO getUserDetail(Long memberId) {
 		log.info("-----> [1서버] 유저 상세 정보 수색 시작 (ID: {})", memberId);
-		
+
 		Member member = memberRepository.findById(memberId)
-	            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다. ID: " + memberId));
-		
-		UserDetailPaymentResponseDTO paymentData = webClient.post()
-				.uri(payAdminUrl + "wallet/user/detail")
-				.bodyValue(memberId)
-				.retrieve()
-				.bodyToMono(UserDetailPaymentResponseDTO.class)
-				.block();
-		
-		return UserDetailResponseDTO.builder()
-				.memberId(member.getMemberId())
-				.name(member.getName())
-	            .email(member.getEmail())
-	            .status(member.getStatus())
-	            .phone(member.getPhone())
-	            .address(member.getAddress())
-	            .totalPurchases(paymentData.getTotalPurchases())
-	            .pointBalance(paymentData.getPointBalance())
-	            .purchaseHistory(paymentData.getPurchaseHistory())
-	            .pointHistory(paymentData.getPointHistory())
-	            .build();
+				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다. ID: " + memberId));
+
+		UserDetailPaymentResponseDTO paymentData = webClient.post().uri(payAdminUrl + "wallet/user/detail")
+				.bodyValue(memberId).retrieve().bodyToMono(UserDetailPaymentResponseDTO.class).block();
+
+		return UserDetailResponseDTO.builder().memberId(member.getMemberId()).name(member.getName())
+				.email(member.getEmail()).status(member.getStatus()).phone(member.getPhone())
+				.address(member.getAddress()).totalPurchases(paymentData.getTotalPurchases())
+				.pointBalance(paymentData.getPointBalance()).purchaseHistory(paymentData.getPurchaseHistory())
+				.pointHistory(paymentData.getPointHistory()).build();
 	}
-	
+
 	// user role update
 	@Transactional
 	public void updateUserRole(Long adminId, Long memberId, String role) {
 		Member member = memberRepository.findById(memberId)
-	            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다."));
-		
+				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다."));
+
 		String oldRole = member.getRole();
-	    member.setRole(role);
-	    
-	    MemberHistory history = MemberHistory.builder()
-				.memberId(memberId)
-				.status("ACTIVE")
-				.reason("권한 변경: " + oldRole + " -> " + role)
-				.adminId(adminId)
-				.build();
+		member.setRole(role);
+
+		MemberHistory history = MemberHistory.builder().memberId(memberId).status("ACTIVE")
+				.reason("권한 변경: " + oldRole + " -> " + role).adminId(adminId).build();
 		memberHistoryRepository.save(history);
-		log.info("✅ 권한 변경 완료 및 히스토리 저장 성공!");	
+		log.info("✅ 권한 변경 완료 및 히스토리 저장 성공!");
 	}
-	
+
 	// user password change
 	@Transactional
 	public void resetPassword(Long adminId, Long memberId, String password) {
 		Member member = memberRepository.findById(memberId)
-	            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다."));
-		
+				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다."));
+
 		String encodedPw = passwordEncoder.encode(password);
 		member.setPassword(encodedPw);
-		
-		MemberHistory history = MemberHistory.builder()
-	            .memberId(memberId)
-	            .status("ACTIVE") // 비번만 바꾼 거니 상태는 ACTIVE
-	            .reason("관리자에 의한 비밀번호 강제 초기화")
-	            .adminId(adminId)
-	            .build();
-	    memberHistoryRepository.save(history);
-	    log.info("✅ 유저 {} 비번 초기화 완료 및 기록 저장!", memberId);
+
+		MemberHistory history = MemberHistory.builder().memberId(memberId).status("ACTIVE") // 비번만 바꾼 거니 상태는 ACTIVE
+				.reason("관리자에 의한 비밀번호 강제 초기화").adminId(adminId).build();
+		memberHistoryRepository.save(history);
+		log.info("✅ 유저 {} 비번 초기화 완료 및 기록 저장!", memberId);
 	}
-	
+
 	// user 강제 로그아웃키기기
 	@Transactional
 	public void forceLogout(Long adminId, Long memberId) {
 		log.info("📢 [강제 로그아웃 발령] 관리자 {}님이 유저 {}를 쫓아냅니다.", adminId, memberId);
 		// 1. Redis에 로그아웃 전용 키 생성, 필터에서 이 키가 있으면 토큰을 무효화하게 만들어야됨
 		redisTemplate.opsForValue().set("FORCE_LOGOUT:" + memberId, "true", 1, TimeUnit.HOURS);
-		memberHistoryRepository.save(MemberHistory.builder()
-	            .memberId(memberId)
-	            .status("ACTIVE") // 상태는 그대로
-	            .reason("관리자에 의한 강제 로그아웃 수행")
-	            .adminId(adminId)
-	            .build());
+		memberHistoryRepository.save(MemberHistory.builder().memberId(memberId).status("ACTIVE") // 상태는 그대로
+				.reason("관리자에 의한 강제 로그아웃 수행").adminId(adminId).build());
 	}
-	
+
 	// 유저 탈퇴(?) 시키기
 	@Transactional
 	public void deleteUser(Long adminId, Long memberId) {
 		Member member = memberRepository.findById(memberId)
-	            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다."));
+				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다."));
 		member.setStatus("DELETE");
-		MemberHistory history = MemberHistory.builder()
-	            .memberId(memberId)
-	            .status("DELETE") // 비번만 바꾼 거니 상태는 ACTIVE
-	            .reason("관리자에 의한 계정 삭제 처리")
-	            .adminId(adminId)
-	            .build();
-	    memberHistoryRepository.save(history);
-	    redisTemplate.opsForValue().set("BLOCK:" + memberId, "true", 24, TimeUnit.HOURS);
+		MemberHistory history = MemberHistory.builder().memberId(memberId).status("DELETE") // 비번만 바꾼 거니 상태는 ACTIVE
+				.reason("관리자에 의한 계정 삭제 처리").adminId(adminId).build();
+		memberHistoryRepository.save(history);
+		redisTemplate.opsForValue().set("BLOCK:" + memberId, "true", 24, TimeUnit.HOURS);
 	}
-	
+
 }

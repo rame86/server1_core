@@ -134,7 +134,7 @@ public class MemberService {
 			member.setPassword(passwordEncoder.encode(dto.getPassword()));
 			memberRepository.save(member);
 		}
-		
+
 		return member;
 	}
 
@@ -146,11 +146,9 @@ public class MemberService {
 		String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
 		String refreshToken = jwtTokenProvider.refreshToken(member.getMemberId(), member.getRole());
 
-				
 		// Redis용 키 설정
 		String redisKey = "AUTH:MEMBER:" + member.getMemberId(); // 유저 상세 정보용 (Hash)
 		String refreshKey = "AUTH:REFRESH:" + member.getMemberId(); // 리프레시 토큰 전용 (String)
-
 
 		// Redis 유저 정보 Hash 저장 (token 포함)
 		Map<String, String> userInfo = new HashMap<>();
@@ -166,29 +164,41 @@ public class MemberService {
 		redisTemplate.opsForValue().set(refreshKey, refreshToken, Duration.ofDays(14));
 
 		// 결제 정보 조회 (WebClient 헤더에 직접 토큰 주입)
-        Long balance = webClient.get()
-                .uri(paymentUrl + member.getMemberId())
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)
-                .retrieve()
-                .bodyToMono(Long.class)
-                .onErrorResume(e -> {
-                    log.error("Payment 서버 조회 실패! ID: {}, 원인: {}", member.getMemberId(), e.getMessage());
-                    return Mono.just(0L); // 실패 시 기본값 0 처리
-                }).block();
-		
+		Long balance = webClient.get()
+				.uri(paymentUrl + member.getMemberId())
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)
+				.retrieve()
+				.bodyToMono(Long.class)
+				.onErrorResume(e -> {
+					log.error("Payment 서버 조회 실패! ID: {}, 원인: {}", member.getMemberId(), e.getMessage());
+					return Mono.just(0L); // 실패 시 기본값 0 처리
+				}).block();
+
 		// Redis에 잔액정보 저장
 		redisTemplate.opsForHash().put(redisKey, "balance", String.valueOf(balance));
 
+		// 어세스 토큰을 보안 쿠키에 담기
+		ResponseCookie tokenCookie = ResponseCookie.from("Token", jwtToken)
+				.httpOnly(true)
+				.secure(false) // 운영 환경(HTTPS)에서는 true 권장
+				.path("/")
+				.maxAge(60 * 60) // 1시간
+				.sameSite("Lax")
+				.build();
+
 		// 리프레시 토큰을 보안 쿠키에 담기
-		ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
+		ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", refreshToken)
 				.httpOnly(true) // 자바스크립트로 접근 불가 (XSS 방어)
 				.secure(false) // HTTPS에서만 작동 (로컬 테스트 시 false로 설정 가능)
 				.path("/") // 모든 경로에서 쿠키 사용 가능
 				.maxAge(14 * 24 * 60 * 60) // 14일 유지
 				.sameSite("Lax") // CSRF 공격 방지
 				.build();
-		response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-		log.info("-----> local 저장 정보 member_id:{} role:{} name:{}",member.getMemberId(),member.getRole(),member.getName());
+
+		response.addHeader(HttpHeaders.SET_COOKIE, tokenCookie.toString());
+		response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
+		log.info("-----> local 저장 정보 member_id:{} role:{} name:{}", member.getMemberId(), member.getRole(),
+				member.getName());
 
 		// 로컬 스토리지에 담을 정보들
 		return Map.of(
@@ -231,8 +241,8 @@ public class MemberService {
 	public Map<String, Object> login(String email, String password, HttpServletResponse response) {
 		Member member = memberRepository.findByEmail(email)
 				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 계정입니다."));
-		
-		if("BLOCK".equals(member.getStatus())) {
+
+		if ("BLOCK".equals(member.getStatus())) {
 			throw new IllegalArgumentException("정지된 계정입니다. 고객센터에 문의하세요.");
 		}
 
@@ -261,6 +271,7 @@ public class MemberService {
 		}
 
 		// 리프레시 토큰 삭제
+		log.info("---------> [로그아웃] 리프레시 토큰 삭제 명령 전송 (ID: {})");
 		if (Boolean.TRUE.equals(redisTemplate.hasKey(refreshKey))) {
 			redisTemplate.delete(refreshKey);
 			log.info("---------> [로그아웃] Redis 리프레시 토큰 삭제 완료 (ID: {})", memberId);
@@ -268,61 +279,73 @@ public class MemberService {
 			log.warn("---------> [로그아웃] 리프레시 토큰이 이미 없거나 만료되었습니다.");
 		}
 
+		ResponseCookie accessCoocke = ResponseCookie.from("Token", "")
+				.httpOnly(true)
+				.secure(false) // 로그인 시 설정과 동일하게 (운영 시 true)
+				.path("/")
+				.maxAge(0) // 즉시 만료
+				.sameSite("Lax")
+				.build();
+
 		// 쿠키에서 리프레시토큰 삭제
-		ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
+		ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", "")
 				.httpOnly(true)
 				.secure(false)
 				.path("/")
 				.maxAge(0)
 				.sameSite("Lax")
 				.build();
-		response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+
+		response.addHeader(HttpHeaders.SET_COOKIE, accessCoocke.toString());
+		response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+
 		log.info("---------> [로그아웃] 브라우저 쿠키 삭제 명령 전송 완료");
 	}
-	
+
 	// Artist 신청
 	@Transactional
 	public void applyArtist(Long memberId, ArtistResultDTO dto) {
 		// 재신청(7일) 제한 체크
 		checkReapplication(memberId);
-		
+
 		// 중복심사 체크
 		boolean isPending = approvalRepository.existsByArtistIdAndCategoryAndStatus(
 				memberId, "ARTIST", "PENDING");
-		if(isPending) {
+		if (isPending) {
 			throw new IllegalStateException("이미 심사 중인 아티스트 신청 건이 있습니다. 조금만 기다려주세요!");
 		}
-		
+
 		// 신청서 생성
 		Approval approval = Approval.builder()
 				.category("ARTIST")
-	            .artistId(memberId)
-	            .requesterName(String.valueOf(dto.getArtistName()))
-	            .subCategory(String.valueOf(dto.getSubCategory()))
-	            .description(String.valueOf(dto.getDescription()))
+				.artistId(memberId)
+				.requesterName(String.valueOf(dto.getArtistName()))
+				.subCategory(String.valueOf(dto.getSubCategory()))
+				.description(String.valueOf(dto.getDescription()))
 				.imageUrl(dto.getImageUrl())
-	            .status("PENDING")
-	            .title("아티스트 승인 신청: " + dto.getArtistName())
-	            .build();
+				.status("PENDING")
+				.title("아티스트 승인 신청: " + dto.getArtistName())
+				.build();
 		approvalRepository.save(approval);
-		
+
 		// 멤버테이블 상태 변경
 		Member member = memberRepository.findById(memberId)
 				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 		member.setStatus("PENDING");
-		
+
 		log.info("-----> [아티스트 별도 신청 완료] MemberID: {}", memberId);
 	}
-	
+
 	// Artist신청 시 연속신청 방지
 	public void checkReapplication(Long memberId) {
 		Optional<Approval> latestReject = approvalRepository
 				.findFirstByArtistIdAndCategoryAndStatusOrderByProcessedAtDesc(
 						memberId, "ARTIST", "REJECTED");
-		if(latestReject.isPresent()) {
+		if (latestReject.isPresent()) {
 			LocalDateTime lastProcessed = latestReject.get().getProcessedAt();
-			if (lastProcessed == null) return;
-			if(lastProcessed.plusDays(7).isAfter(LocalDateTime.now())) {
+			if (lastProcessed == null)
+				return;
+			if (lastProcessed.plusDays(7).isAfter(LocalDateTime.now())) {
 				String availableDate = lastProcessed.plusDays(7).toLocalDate().toString();
 				throw new IllegalStateException(
 						"아티스트 신청이 거절된 지 얼마 되지 않았습니다. " + availableDate + " 이후에 다시 신청해주세요!");
@@ -334,7 +357,7 @@ public class MemberService {
 	public MemberInfoResponseDTO getMyInfo(Long memberId) {
 		Member member = memberRepository.findById(memberId)
 				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
-		
+
 		String profileImageUrl = null;
 		if (member.getInfo() != null && member.getInfo().containsKey("profileImageUrl")) {
 			profileImageUrl = String.valueOf(member.getInfo().get("profileImageUrl"));
@@ -356,10 +379,14 @@ public class MemberService {
 		Member member = memberRepository.findById(memberId)
 				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
-		if (dto.getName() != null) member.setName(dto.getName());
-		if (dto.getPhone() != null) member.setPhone(dto.getPhone());
-		if (dto.getAge() != null) member.setAge(dto.getAge());
-		if (dto.getAddress() != null) member.setAddress(dto.getAddress());
+		if (dto.getName() != null)
+			member.setName(dto.getName());
+		if (dto.getPhone() != null)
+			member.setPhone(dto.getPhone());
+		if (dto.getAge() != null)
+			member.setAge(dto.getAge());
+		if (dto.getAddress() != null)
+			member.setAddress(dto.getAddress());
 		if (dto.getProfileImageUrl() != null && !dto.getProfileImageUrl().isEmpty()) {
 			Map<String, Object> info = member.getInfo();
 			if (info == null) {

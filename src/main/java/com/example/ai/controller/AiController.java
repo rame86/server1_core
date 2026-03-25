@@ -19,7 +19,7 @@ public class AiController {
 	
 	private final AiAgentService aiAgentService;
 	
-	@PostMapping("/ask")
+	@PostMapping("/")
 	public ResponseEntity<String> askToAi(@RequestBody Map<String, String> body) {
 		String userMessage = body.get("message");
 		String answer = aiAgentService.getAiAnswer(userMessage);
