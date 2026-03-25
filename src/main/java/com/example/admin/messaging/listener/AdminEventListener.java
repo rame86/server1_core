@@ -54,6 +54,14 @@ public class AdminEventListener {
             
             LocalDateTime startDate = (eventDto != null && eventDto.getEventStartDate() != null) 
                     ? LocalDateTime.parse(eventDto.getEventStartDate()) : null;
+            
+            // [추가] 이벤트 종료일 파싱
+            LocalDateTime endDate = (eventDto != null && eventDto.getEventEndDate() != null)
+                    ? LocalDateTime.parse(eventDto.getEventEndDate()) : null;
+                    
+            // [추가] 실제 이벤트 실행일 파싱
+            LocalDateTime executionDate = (eventDto != null && eventDto.getEventDate() != null)
+                    ? LocalDateTime.parse(eventDto.getEventDate()) : null;
 
             Approval approval = Approval.builder()
                     .category(category)
@@ -63,6 +71,8 @@ public class AdminEventListener {
                     .contentJson(jsonContent)
                     .artistId(requesterId)
                     .eventStartDate(startDate)
+                    .eventEndDate(endDate)
+                    .eventDate(executionDate)
                     .location(eventDto != null ? eventDto.getLocation() : null)
                     .price(eventDto != null ? eventDto.getPrice() : null)
                     .imageUrl(imageUrl)
@@ -112,6 +122,9 @@ public class AdminEventListener {
 	        Object rawData = response.getOrDefault("payload", response.get("data"));
 	        
 	        if (rawData == null) return;
+	        
+	        // 웸소켓으로 보낼 공통 응답 객ㅊ에 생성
+	        Map<String, Object> socketData = new HashMap<>();
 
 	        // 2. [SUMMARY] 타입 응답 처리 (구매건수 + 잔액 들어있음)
 	        if ("SUMMARY".equals(orderId)) {
@@ -119,9 +132,12 @@ public class AdminEventListener {
 	                rawData, new TypeReference<List<UserPaymentSummaryDTO>>() {}
 	            );
 	            
-	            // 핵심: SUMMARY 데이터를 WebSocket으로 전송!
+	            // 핵심: type달기
+	            socketData.put("type", "SUMMARY");
+	            socketData.put("payload", summaryList);
+	            
 	            // 프론트엔드에서 이 데이터를 받을 수 있도록 주소를 맞춥니다.
-	            messagingTemplate.convertAndSend("/topic/user-stats", summaryList);
+	            messagingTemplate.convertAndSend("/topic/user-stats", socketData);
 	            log.info("🚀 [WebSocket] SUMMARY 데이터 전송 완료 ({}건)", summaryList.size());
 	        } 
 	        
@@ -130,8 +146,19 @@ public class AdminEventListener {
 	            List<UserListResponseDTO> userList = objectMapper.convertValue(
 	                rawData, new TypeReference<List<UserListResponseDTO>>() {}
 	            );
-	            messagingTemplate.convertAndSend("/topic/user-stats", userList);
+	            
+	            // 핵심: 이름표(type) 달기
+	            socketData.put("type", "GETALL");
+	            socketData.put("payload", userList);
+	            
+	            messagingTemplate.convertAndSend("/topic/user-stats", socketData);
 	            log.info("🚀 [WebSocket] GETALL 데이터 전송 완료");
+	        } else if ("USER_DETAIL".equals(orderId)) {
+	        	socketData.put("type", "USER_DETAIL");
+	        	socketData.put("payload", rawData);
+	        	
+	        	messagingTemplate.convertAndSend("/topic/user-stats", socketData);
+	        	log.info("🚀 [WebSocket] USER_DETAIL 데이터 전송 완료! (ID: {})", response.get("memberId"));
 	        }
 
 	    } catch (Exception e) {
