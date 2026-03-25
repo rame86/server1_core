@@ -44,6 +44,6 @@ public class WebConfig implements WebMvcConfigurer {
 
         // /images/core/** 요청을 로컬 업로드 디렉토리로 매핑
         registry.addResourceHandler("/images/core/**")
-                .addResourceLocations("file:" + uploadPath);
+                .addResourceLocations("file:///" + uploadPath);
     }
 }

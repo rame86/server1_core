@@ -21,6 +21,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -100,8 +102,8 @@ public class BoardService {
 
         if (file != null && !file.isEmpty()) {
             originalFileName = file.getOriginalFilename();
-            String fullPath = saveFile(file);
-            storedFileName = new File(fullPath).getName();
+            // 수정: 저장된 파일명만 반환받도록 변경
+            storedFileName = saveFile(file); 
         }
         Board board = Board.builder()
                 .title(request.getTitle()).content(request.getContent())
@@ -153,14 +155,14 @@ public class BoardService {
        
         if (file != null && !file.isEmpty()) {
             if (board.getStoredFilePath() != null) {
-                deletePhysicalFile(uploadDir + File.separator + board.getStoredFilePath());
+                deletePhysicalFile(board.getStoredFilePath());
             }
             String originalFileName = file.getOriginalFilename();
-            String fullPath = saveFile(file);
-            board.updateFile(originalFileName, new File(fullPath).getName());
+            String storedFileName = saveFile(file); 
+            board.updateFile(originalFileName, storedFileName); // 파일수정
         } else if (Boolean.TRUE.equals(request.getFileDeleted())) {
             if (board.getStoredFilePath() != null) {
-                deletePhysicalFile(uploadDir + File.separator + board.getStoredFilePath());
+                deletePhysicalFile(board.getStoredFilePath());
             }
             board.updateFile(null, null);
         }
@@ -195,23 +197,30 @@ public class BoardService {
     private String saveFile(MultipartFile file) throws IOException {
         File folder = new File(uploadDir);
         if (!folder.exists()) folder.mkdirs();
+
         String storedFileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
-        String storedFilePath = uploadDir + File.separator + storedFileName;
-        file.transferTo(new File(storedFilePath));
-        return storedFilePath;
+       // 3. 물리적 저장 (절대 경로 사용)
+        Path savePath = Paths.get(uploadDir).resolve(storedFileName).toAbsolutePath().normalize();
+        
+        file.transferTo(savePath.toFile());
+        log.info("파일 실제 저장 경로: {}", savePath);
+        return storedFileName; // DB에는 파일명만 저장
     }
 
-    private void deletePhysicalFile(String filePath) {
-        if (filePath != null) {
-            File file = new File(filePath);
-            if (file.exists()) file.delete();
+    private void deletePhysicalFile(String fileName) {
+        if (fileName != null) {
+            Path filePath = Paths.get(uploadDir).resolve(fileName).toAbsolutePath().normalize();
+            File file = filePath.toFile();
+            if (file.exists()) {
+                file.delete();
+                log.info("물리 파일 삭제 완료: {}", filePath);
+            }
         }
     }
-
     private BoardDTO convertToDTO(Board board) {
-        String fileUrl = board.getStoredFilePath() != null 
-                ? "/msa/core/board/files/" + board.getStoredFilePath() 
-                : null;
+       String fileUrl = board.getStoredFilePath() != null 
+            ? "/images/core/" + board.getStoredFilePath()  //WebConfig 주소랑 맞춤
+            : null;
         return BoardDTO.builder()
                 .boardId(board.getBoardId()).title(board.getTitle()).content(board.getContent())
                 .category(board.getCategory()).memberId(board.getMemberId()).viewCount(board.getViewCount())
