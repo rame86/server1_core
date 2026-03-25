@@ -20,7 +20,6 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class Artist {
-	
 	@Id
     private Long memberId;
 	
@@ -36,6 +35,7 @@ public class Artist {
     private String profileImageUrl;
     private int followerCount = 0;
     private String fandomName;
+    private String fandomImage;
     
     // Artist.java
     @Column(name = "artist_id") // DB의 artist_id 컬럼과 매칭
