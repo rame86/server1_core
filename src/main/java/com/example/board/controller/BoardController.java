@@ -1,5 +1,6 @@
 package com.example.board.controller;
 
+import com.example.artist.entity.Artist;
 import com.example.board.service.BoardCommentService;
 import com.example.board.service.BoardReportService;
 import com.example.board.service.BoardService;
@@ -39,6 +40,20 @@ public class BoardController {
 
     @Value("${file.upload.dir}")
     private String uploadDir;
+
+    // 팬덤, 아티스트 목록
+    @GetMapping("/my-fandoms")
+    public ResponseEntity<List<ArtistSelectDTO>> getMyFandoms(@LoginUser RedisMemberDTO loginUser) {
+    // 1. 로그인 체크
+    if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    
+    log.info("====> [가입 팬덤 조회] memberId: {}", loginUser.getMemberId());
+    
+    // 2. 서비스 호출 (DTO 리스트 반환)
+    List<ArtistSelectDTO> fandomList = boardService.getMyFandomList(loginUser.getMemberId());
+    
+    return ResponseEntity.ok(fandomList);
+}
 
     // --- [1. 게시글 관련 API] ---
     @GetMapping("/list")
