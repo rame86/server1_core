@@ -20,7 +20,7 @@ public class FileUploadService {
     /**
      * MultipartFile을 지정된 하위 폴더에 저장하고 접근 가능한 URL을 반환한다.
      * @param file 업로드할 파일
-     * @param subDir 하위 폴더명 (예: "profile" 또는 "board")
+     * @param subDir 하위 폴더명 (예: "profile" 또는 "board" 또는 "artist")
      * @return 접근 가능한 이미지 URL 경로 (예: "/images/core/profile/UUID.png")
      */
     public String uploadImage(MultipartFile file, String subDir) {
