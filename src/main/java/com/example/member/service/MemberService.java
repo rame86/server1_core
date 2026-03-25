@@ -145,7 +145,6 @@ public class MemberService {
 		// 토큰 2개 생성
 		String jwtToken = jwtTokenProvider.createToken(member.getMemberId(), member.getRole());
 		String refreshToken = jwtTokenProvider.refreshToken(member.getMemberId(), member.getRole());
-
 				
 		// Redis용 키 설정
 		String redisKey = "AUTH:MEMBER:" + member.getMemberId(); // 유저 상세 정보용 (Hash)
@@ -178,16 +177,27 @@ public class MemberService {
 		
 		// Redis에 잔액정보 저장
 		redisTemplate.opsForHash().put(redisKey, "balance", String.valueOf(balance));
+		
+		// 어세스 토큰을 보안 쿠키에 담기
+		ResponseCookie tokenCookie = ResponseCookie.from("Token", jwtToken)
+				.httpOnly(true)
+	            .secure(false) // 운영 환경(HTTPS)에서는 true 권장
+	            .path("/")
+	            .maxAge(60 * 60) // 1시간
+	            .sameSite("Lax")
+	            .build();
 
 		// 리프레시 토큰을 보안 쿠키에 담기
-		ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
+		ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", refreshToken)
 				.httpOnly(true) // 자바스크립트로 접근 불가 (XSS 방어)
 				.secure(false) // HTTPS에서만 작동 (로컬 테스트 시 false로 설정 가능)
 				.path("/") // 모든 경로에서 쿠키 사용 가능
 				.maxAge(14 * 24 * 60 * 60) // 14일 유지
 				.sameSite("Lax") // CSRF 공격 방지
 				.build();
-		response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+		
+		response.addHeader(HttpHeaders.SET_COOKIE, tokenCookie.toString());
+		response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
 		log.info("-----> local 저장 정보 member_id:{} role:{} name:{}",member.getMemberId(),member.getRole(),member.getName());
 
 		// 로컬 스토리지에 담을 정보들
@@ -267,16 +277,27 @@ public class MemberService {
 		} else {
 			log.warn("---------> [로그아웃] 리프레시 토큰이 이미 없거나 만료되었습니다.");
 		}
+		
+		ResponseCookie accessCoocke = ResponseCookie.from("Token", "")
+				.httpOnly(true)
+	            .secure(false) // 로그인 시 설정과 동일하게 (운영 시 true)
+	            .path("/")
+	            .maxAge(0) // 즉시 만료
+	            .sameSite("Lax")
+	            .build();
 
 		// 쿠키에서 리프레시토큰 삭제
-		ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
+		ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", "")
 				.httpOnly(true)
 				.secure(false)
 				.path("/")
 				.maxAge(0)
 				.sameSite("Lax")
 				.build();
-		response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+		
+		response.addHeader(HttpHeaders.SET_COOKIE, accessCoocke.toString());
+		response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+		
 		log.info("---------> [로그아웃] 브라우저 쿠키 삭제 명령 전송 완료");
 	}
 	

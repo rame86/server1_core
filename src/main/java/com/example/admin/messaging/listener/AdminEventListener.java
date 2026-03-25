@@ -89,7 +89,6 @@ public class AdminEventListener {
         rabbitTemplate.convertAndSend("amq.topic", "notification.admin", message);
     }
 
-
 	@RabbitListener(queues = RabbitMQConfig.PAY_RES_QUEUE_NAME)
 	public void handleUserPaymentSummary(List<UserPaymentSummaryDTO> responseList) {
 		log.info("=====> [1서버] 결제 정보 응답 도착: {}건", responseList.size());
@@ -101,51 +100,43 @@ public class AdminEventListener {
 		}
 	}
 	
-	@RabbitListener(queues = RabbitMQConfig.ADMIN_PAY_RES_QUEUE_NAME) // 2서버가 답장 쏘는 큐!
-	public void handleUserPaymentResponse(List<UserListResponseDTO> responseList) {
-	    log.info("📢 [1서버 비동기 리스너] 2서버에서 보낸 결제 데이터 도착! 건수: {}", responseList.size());
+	@RabbitListener(queues = RabbitMQConfig.ADMIN_PAY_RES_QUEUE_NAME)
+	public void handleAdminPayResponse(Map<String, Object> response) {
+	    log.info("📢 [1서버] 2서버로부터 응답 수신: {}", response);
+	    
+	    if (response == null || response.isEmpty()) return;
 
 	    try {
-	        for (UserListResponseDTO dto : responseList) {
-	            // 🚔 비동기식의 핵심: 받은 데이터를 DB에 업데이트해야 나중에 화면에 나와!
-	            // 예: memberRepository.updatePaymentInfo(dto.getMemberId(), dto.getPointBalance(), dto.getPurchaseCount());
-	            log.info("유저 {}님의 잔액 {}원 업데이트 완료!", dto.getMemberId(), dto.getPointBalance());
+	        // 1. 어떤 종류의 응답인지 확인 (보통 요청 보낼 때 넣은 orderId가 돌아옴)
+	        String orderId = (String) response.get("orderId"); 
+	        Object rawData = response.getOrDefault("payload", response.get("data"));
+	        
+	        if (rawData == null) return;
+
+	        // 2. [SUMMARY] 타입 응답 처리 (구매건수 + 잔액 들어있음)
+	        if ("SUMMARY".equals(orderId)) {
+	            List<UserPaymentSummaryDTO> summaryList = objectMapper.convertValue(
+	                rawData, new TypeReference<List<UserPaymentSummaryDTO>>() {}
+	            );
+	            
+	            // 핵심: SUMMARY 데이터를 WebSocket으로 전송!
+	            // 프론트엔드에서 이 데이터를 받을 수 있도록 주소를 맞춥니다.
+	            messagingTemplate.convertAndSend("/topic/user-stats", summaryList);
+	            log.info("🚀 [WebSocket] SUMMARY 데이터 전송 완료 ({}건)", summaryList.size());
+	        } 
+	        
+	        // 3. [GETALL] 타입 응답 처리 (기존 로직 유지)
+	        else if ("GETALL".equals(orderId)) {
+	            List<UserListResponseDTO> userList = objectMapper.convertValue(
+	                rawData, new TypeReference<List<UserListResponseDTO>>() {}
+	            );
+	            messagingTemplate.convertAndSend("/topic/user-stats", userList);
+	            log.info("🚀 [WebSocket] GETALL 데이터 전송 완료");
 	        }
+
 	    } catch (Exception e) {
-	        log.error("❌ [1서버] 비동기 데이터 처리 중 오류: {}", e.getMessage());
+	        log.error("❌ [1서버] 데이터 처리 중 오류 발생: {}", e.getMessage());
 	    }
 	}
-	
-    @RabbitListener(queues = RabbitMQConfig.ADMIN_PAY_RES_QUEUE_NAME)
-    public void handleUserPaymentSummary(Map<String, Object> response) {
-        log.info("=====> [1서버] 결제 정보 응답 도착");
-        
-        // 1. 방어적 로직: 빈 메시지 예외 처리
-        if (response == null || response.isEmpty()) {
-            log.warn("=====> [1서버] 빈 결제 데이터 응답이 수신되었습니다.");
-            return;
-        }
-
-        try {
-            Object rawData = response.getOrDefault("payload", response.get("data"));
-            
-            if (rawData != null) {
-                // 2. 파싱 예외를 구체적으로 캐치하여 데이터 포맷 불일치 오류 추적 용이
-                List<UserPaymentSummaryDTO> list = objectMapper.convertValue(
-                    rawData, 
-                    new TypeReference<List<UserPaymentSummaryDTO>>() {}
-                );
-                
-                messagingTemplate.convertAndSend("/topic/user-stats", list);
-                log.info("=====> [WebSocket] 관리자 화면으로 실시간 결제 데이터 전송 완료 ({}건)", list.size());
-            } else {
-                log.warn("=====> [1서버] 수신된 응답에 유저 데이터(payload)가 없음. 원본: {}", response);
-            }
-        } catch (IllegalArgumentException e) {
-            log.error("=====> [1서버] 결제 데이터 DTO 매핑 오류 (필드 타입 불일치 등): {}", e.getMessage());
-        } catch (Exception e) {
-            log.error("=====> [1서버] WebSocket 전송 중 오류: {}", e.getMessage());
-        }
-    }
     
 }
