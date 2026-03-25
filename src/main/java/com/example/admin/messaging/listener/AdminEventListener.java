@@ -54,6 +54,14 @@ public class AdminEventListener {
             
             LocalDateTime startDate = (eventDto != null && eventDto.getEventStartDate() != null) 
                     ? LocalDateTime.parse(eventDto.getEventStartDate()) : null;
+            
+         // [추가] 이벤트 종료일 파싱
+            LocalDateTime endDate = (eventDto != null && eventDto.getEventEndDate() != null)
+                    ? LocalDateTime.parse(eventDto.getEventEndDate()) : null;
+                    
+            // [추가] 실제 이벤트 실행일 파싱
+            LocalDateTime executionDate = (eventDto != null && eventDto.getEventDate() != null)
+                    ? LocalDateTime.parse(eventDto.getEventDate()) : null;
 
             Approval approval = Approval.builder()
                     .category(category)
@@ -63,6 +71,8 @@ public class AdminEventListener {
                     .contentJson(jsonContent)
                     .artistId(requesterId)
                     .eventStartDate(startDate)
+                    .eventEndDate(endDate)
+                    .eventDate(executionDate)
                     .location(eventDto != null ? eventDto.getLocation() : null)
                     .price(eventDto != null ? eventDto.getPrice() : null)
                     .imageUrl(imageUrl)

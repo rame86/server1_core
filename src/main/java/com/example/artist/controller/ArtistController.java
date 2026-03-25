@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.admin.dto.ArtistResultDTO;
@@ -19,7 +18,6 @@ import com.example.artist.dto.DonationRequset;
 import com.example.artist.service.ArtistService;
 import com.example.board.dto.BoardDTO;
 import com.example.board.service.ArtistBoardService;
-import com.example.board.service.BoardService;
 import com.example.common.annotation.LoginUser;
 import com.example.member.dto.RedisMemberDTO;
 import com.example.member.service.MemberService;

@@ -204,6 +204,8 @@ public class AdminService {
 		artist.setStageName(approval.getRequesterName());
 		artist.setCategory(approval.getSubCategory());
 		artist.setDescription(approval.getDescription());
+		artist.setFandomImage(approval.getFandomImage());
+		artist.setFandomName(approval.getFandomName());
 		artistRepository.save(artist);
 
 		// 2서버로 메세지 발송

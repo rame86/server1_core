@@ -43,12 +43,20 @@ public class Approval {
 	
 	private String requesterName; //신청자 닉네임
 	private String subCategory; // 공식굿즈, 팬메이드 등등....
+	private String fandomName; // 팬덤명
+	private String fandomImage; // 팬덤이미지
+	
 
 	@Column(columnDefinition = "TEXT")
 	private String description; // 간단한 설명
 	
 	@Column(name = "event_start_date")
-    private LocalDateTime eventStartDate; //이벤트 시작일
+    private LocalDateTime eventStartDate; //(예매)이벤트 시작일
+	
+	@Column(name = "event_end_date") // (예매)이벤트 종료일
+	private LocalDateTime eventEndDate;
+	
+	private LocalDateTime eventDate; // 이벤트 실행하는 일
 	
 	@Column(columnDefinition = "TEXT")
 	private String contentJson; // 위 필드를 제외한 나머지 상세 정보

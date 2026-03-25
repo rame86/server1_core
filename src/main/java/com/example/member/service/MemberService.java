@@ -324,6 +324,8 @@ public class MemberService {
 				.imageUrl(dto.getImageUrl())
 	            .status("PENDING")
 	            .title("아티스트 승인 신청: " + dto.getArtistName())
+	            .fandomImage(dto.getFandomImage())
+	            .fandomName(dto.getFandomName())
 	            .build();
 		approvalRepository.save(approval);
 		
