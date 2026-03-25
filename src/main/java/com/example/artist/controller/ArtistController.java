@@ -10,7 +10,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.admin.dto.ArtistResultDTO;
 import com.example.artist.dto.ArtistResponse;
@@ -19,6 +21,7 @@ import com.example.artist.service.ArtistService;
 import com.example.board.dto.BoardDTO;
 import com.example.board.service.ArtistBoardService;
 import com.example.common.annotation.LoginUser;
+import com.example.common.service.FileUploadService;
 import com.example.member.dto.RedisMemberDTO;
 import com.example.member.service.MemberService;
 
@@ -34,6 +37,10 @@ public class ArtistController {
     private final ArtistService artistService;
     private final ArtistBoardService artistBoardService;
     private final MemberService memberService;
+    
+    //--------------------------------------------
+    private final FileUploadService fileUploadService;  //수민 추가내용
+    //--------------------------------------------
 
     @GetMapping("/list")
     public ResponseEntity<List<ArtistResponse>> getList() {
@@ -136,5 +143,24 @@ public class ArtistController {
             return ResponseEntity.status(500).body(Map.of("message", "시스템 오류가 발생했습니다. 다시 시도해주세요."));
 		}
 	}
+
+    //--------------------------------------------------------------------------------------------------------------------------
+    // 수민 수정내용
+    // 아티스트 배경(팬덤) 이미지 사전 업로드 API
+    @PostMapping("/bg-image") // 경로는 네 맘대로 맞춰! (예: /artist/bg-image)
+    public ResponseEntity<?> uploadArtistBgImage(@LoginUser RedisMemberDTO user, @RequestParam("bgImageFile") MultipartFile file) {
+        if (user == null) {
+            return ResponseEntity.status(401).build();
+        }
+        try {
+            // "artist" 폴더에 저장하고 URL 반환
+            String url = fileUploadService.uploadImage(file, "artist");
+            return ResponseEntity.ok(Map.of("url", url));
+        } catch (Exception e) {
+            log.error("아티스트 이미지 업로드 실패", e);
+            return ResponseEntity.internalServerError().body(Map.of("message", "이미지 업로드에 실패했습니다."));
+        }
+    }
+    //--------------------------------------------------------------------------------------------------------------------------
     
 }
