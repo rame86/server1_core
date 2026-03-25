@@ -347,14 +347,29 @@ public class AdminService {
 		Member member = memberRepository.findById(memberId)
 				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다. ID: " + memberId));
 
-		UserDetailPaymentResponseDTO paymentData = webClient.post().uri(payAdminUrl + "wallet/user/detail")
-				.bodyValue(memberId).retrieve().bodyToMono(UserDetailPaymentResponseDTO.class).block();
+		PaymentRequestDTO requestDto = PaymentRequestDTO.builder()
+				.type("ADMIN")
+				.orderId("USER_DETAIL")
+				.memberId(memberId)
+				.replyRoutingKey(RabbitMQConfig.ADMIN_PAY_RES_ROUTING_KEY)
+				.build();
+		
+		rabbitTemplate.convertAndSend(
+				RabbitMQConfig.EXCHANGE_NAME,
+				RabbitMQConfig.PAY_REQ_ROUTING_KEY,
+				requestDto
+		);
+		
+		log.info("🚀 [1서버] 2서버로 USER_DETAIL 요청 메시지 발송 완료");
 
-		return UserDetailResponseDTO.builder().memberId(member.getMemberId()).name(member.getName())
-				.email(member.getEmail()).status(member.getStatus()).phone(member.getPhone())
-				.address(member.getAddress()).totalPurchases(paymentData.getTotalPurchases())
-				.pointBalance(paymentData.getPointBalance()).purchaseHistory(paymentData.getPurchaseHistory())
-				.pointHistory(paymentData.getPointHistory()).build();
+		return UserDetailResponseDTO.builder()
+				.memberId(member.getMemberId())
+				.name(member.getName())
+				.email(member.getEmail())
+				.status(member.getStatus())
+				.phone(member.getPhone())
+				.address(member.getAddress())
+				.build();
 	}
 
 	// user role update
