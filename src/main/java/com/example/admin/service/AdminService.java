@@ -107,6 +107,9 @@ public class AdminService {
 					.artistname(approval.getRequesterName()).targetId(approval.getTargetId()).title(approval.getTitle())
 					.status(approval.getStatus()).category(approval.getCategory()).location(approval.getLocation())
 					.price(approval.getPrice()).eventStartDate(approval.getEventStartDate())
+					.eventEndDate(approval.getEventEndDate())
+					.eventDate(approval.getEventDate())
+					.totalCapacity(approval.getStock())
 					.createdAt(approval.getCreatedAt()).stock(currentStock) // Redis 데이터 합체
 					.imageUrl(approval.getImageUrl()).build();
 		}).collect(Collectors.toList());

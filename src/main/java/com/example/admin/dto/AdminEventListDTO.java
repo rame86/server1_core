@@ -24,6 +24,9 @@ public class AdminEventListDTO {
     private String location;
     private Long price;
     private LocalDateTime eventStartDate;
+    private LocalDateTime eventEndDate; // 🌟 추가 확인
+    private LocalDateTime eventDate;
     private LocalDateTime createdAt; // 신청일
+    private Integer totalCapacity;
     private String imageUrl;
 }
