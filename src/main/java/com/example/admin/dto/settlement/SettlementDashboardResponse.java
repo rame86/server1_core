@@ -1,5 +1,5 @@
 // src/main/java/com/example/admin/dto/SettlementDashboardResponse.java
-package com.example.admin.dto;
+package com.example.admin.dto.settlement;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;

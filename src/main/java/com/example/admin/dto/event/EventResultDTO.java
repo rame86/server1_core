@@ -1,5 +1,6 @@
-package com.example.admin.dto;
+package com.example.admin.dto.event;
 
+import com.example.admin.dto.approval.ApprovalDTO;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
