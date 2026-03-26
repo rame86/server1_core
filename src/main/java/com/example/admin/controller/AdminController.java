@@ -20,10 +20,10 @@ import com.example.admin.dto.ArtistResultDTO;
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.SettlementDashboardResponse;
 import com.example.admin.dto.ShopResultDTO;
-import com.example.admin.dto.UserDetailResponseDTO;
-import com.example.admin.dto.UserListResponseDTO;
-import com.example.admin.dto.UserManagementPageResponse;
-import com.example.admin.dto.UserSummaryDTO;
+import com.example.admin.dto.user.UserDetailResponseDTO;
+import com.example.admin.dto.user.UserListResponseDTO;
+import com.example.admin.dto.user.UserManagementPageResponse;
+import com.example.admin.dto.user.UserSummaryDTO;
 import com.example.admin.service.AdminRefundService;
 import com.example.admin.service.AdminService;
 import com.example.common.annotation.LoginUser;
@@ -122,72 +122,7 @@ public class AdminController {
 	    return ResponseEntity.ok(response);
 	}
 	
-	// 유저 통계
-	@GetMapping("/user")
-	public ResponseEntity<UserManagementPageResponse> getUserList(Pageable pageable) {
-		UserSummaryDTO summary = adminService.getUserSummary();
-		Page<UserListResponseDTO> userList = adminService.getAllUserList(pageable);
-		return ResponseEntity.ok(UserManagementPageResponse.builder()
-				.summary(summary)
-				.userList(userList)
-				.build());
-	}
-	
-	// 유저 상세정보
-	@GetMapping("/user/{memberId}")
-	public ResponseEntity<UserDetailResponseDTO> getUserDetail(@PathVariable("memberId") Long memberId) {
-		log.info("=====> [AdminController] 유저 상세 수색 요청 수신! ID: {}", memberId);
-		UserDetailResponseDTO detail = adminService.getUserDetail(memberId);
-		return ResponseEntity.ok(detail);
-	}
-	
-	// 유저 블락
-	@PostMapping("/user/block")
-	public ResponseEntity<String> blockUser(@LoginUser RedisMemberDTO user, @RequestBody Map<String, Object> params) {
-		Long memberId = Long.parseLong(params.get("memberId").toString());
-		String reason = params.get("reason").toString();
-		
-		log.info("🚨 [AdminController] 관리자 {}님이 유저 {}를 차단합니다. 사유: {}", 
-	             user.getMemberId(), memberId, reason);
-		
-		adminService.blockUser(memberId, user.getMemberId(), reason);
-		return ResponseEntity.ok("유저 차단 및 강제 로그아웃 처리가 완료되었습니다.");
-	}
-	
-	// 유저 권한 변경(USER, ARTIST, ADMIN)
-	@PostMapping("/user/role")
-	public ResponseEntity<String> updateUserRole(@LoginUser RedisMemberDTO user, @RequestBody Map<String, Object> params) {
-		Long memberId = Long.parseLong(params.get("memberId").toString());
-		String newRole = params.get("role").toString();
-		
-		log.info("👮‍♂️ [권한 변경] 유저 ID: {} -> 새로운 권한: {}", memberId, newRole);
-		adminService.updateUserRole(user.getMemberId(), memberId, newRole);
-		return ResponseEntity.ok("권한 변경이 완료되었습니다.");
-	}
-	
-	// 유저 비밀번호 초기화
-	@PostMapping("/user/resetPwd")
-	public ResponseEntity<String> resetPassword(@LoginUser RedisMemberDTO user, @RequestBody Map<String, Object> params) {
-		Long memberId = Long.parseLong(params.get("memberId").toString());
-	    String password = params.get("password").toString();
-	    log.info("🔐 [비번 초기화] 관리자 {}님이 유저 {}의 비번을 변경합니다.", user.getMemberId(), memberId);
-	    adminService.resetPassword(user.getMemberId(), memberId, password);
-	    return ResponseEntity.ok("비밀번호가 성공적으로 초기화되었습니다.");
-	}
-	
-	// 강제 로그아웃 API
-	@PostMapping("/user/logout")
-	public ResponseEntity<String> forceLogout(@RequestBody Map<String, Long> params, @LoginUser RedisMemberDTO user) {
-	    adminService.forceLogout(user.getMemberId(), params.get("memberId"));
-	    return ResponseEntity.ok("강제 로그아웃 처리가 완료되었습니다.");
-	}
-	
-	// 계정 삭제 API.
-	@PostMapping("/user/delete")
-	public ResponseEntity<String> deleteUser(@RequestBody Map<String, Long> params, @LoginUser RedisMemberDTO user) {
-	    adminService.deleteUser(user.getMemberId(), params.get("memberId"));
-	    return ResponseEntity.ok("계정이 삭제 처리되었습니다.");
-	}
+
 	
 	// 샵 승인 대기 목록
 	@GetMapping("/shop/approvalList")

@@ -1,6 +1,5 @@
 package com.example.board.controller;
 
-import com.example.artist.entity.Artist;
 import com.example.board.service.BoardCommentService;
 import com.example.board.service.BoardReportService;
 import com.example.board.service.BoardService;
@@ -21,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -161,38 +161,43 @@ public class BoardController {
         return ResponseEntity.noContent().build();
     }
     
-    // 파일 API
-    @GetMapping({"/files/{fileName}", "/files/download/{fileName}"})
+    // --- [파일 서빙 API (미리보기 및 다운로드 통합)] ---
+    @GetMapping("/files/{*fileName}")
     public ResponseEntity<Resource> serveFile(@PathVariable(name = "fileName") String fileName) {
         try {
-            // 1. 만약 fileName에 'download/'가 포함되어 넘어온다면 파일명만 추출
-            String actualFileName = fileName;
-            if (fileName.contains("/")) {
-                actualFileName = fileName.substring(fileName.lastIndexOf("/") + 1);
-            }
+        // 1. URL 인코딩 해제 (한글 파일명 대비)
+        String decodedPath = java.net.URLDecoder.decode(fileName, StandardCharsets.UTF_8);
+        
+        // 2. 경로에서 순수 파일명만 추출 (앞에 '/'나 'board/'가 붙어와도 파일명만 쏙 뺍니다)
+        String pureFileName = decodedPath.contains("/") 
+            ? decodedPath.substring(decodedPath.lastIndexOf("/") + 1) 
+            : decodedPath;
 
-            Path filePath = Paths.get(uploadDir).resolve(actualFileName).normalize();
+        // 3. [핵심] 어떤 환경이든 uploadDir(core)를 기준으로 'board' 폴더 안의 파일명을 찾습니다.
+        // resolve("board")를 통해 C:/msa_uploads/board/ 또는 /app/.../core/board/ 경로가 완성됩니다.
+        Path filePath = Paths.get(uploadDir).resolve("board").resolve(pureFileName).normalize();
+        File file = filePath.toFile();
+
+        // 디버깅 로그 (서버 터미널에서 실제 어디를 뒤지는지 확인용)
+        log.info("-----> [파일 탐색 경로 확인]: {}", file.getAbsolutePath());
+
+        if (file.exists() && file.isFile()) {
             Resource resource = new UrlResource(filePath.toUri());
-            
-            log.info("-----> [파일 탐색] 실제 경로: {}", filePath.toAbsolutePath());
+            String contentType = Files.probeContentType(filePath);
 
-            if (resource.exists() && resource.isReadable()) {
-                String encodedFileName = UriUtils.encode(actualFileName, StandardCharsets.UTF_8);
-                String contentType = Files.probeContentType(filePath);
-                if (contentType == null) contentType = "application/octet-stream";
-
-                return ResponseEntity.ok()
-                        .contentType(MediaType.parseMediaType(contentType))
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + encodedFileName + "\"")
-                        .body(resource);
-            } else {
-                log.error("-----> [파일 찾기 실패] 폴더에 파일이 없습니다: {}", filePath.toAbsolutePath());
-                return ResponseEntity.notFound().build();
-            }
-        } catch (Exception e) {
-            log.error("-----> [서버 에러] 파일 서빙 중 결함 발생", e);
-            return ResponseEntity.internalServerError().build();
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType != null ? contentType : "application/octet-stream"))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + 
+                            UriUtils.encode(pureFileName, StandardCharsets.UTF_8) + "\"")
+                    .body(resource);
+        } else {
+            log.warn("-----> [파일 없음]: {}", pureFileName);
+            return ResponseEntity.notFound().build();
         }
+    } catch (Exception e) {
+        log.error("-----> [파일 서빙 에러]: ", e);
+        return ResponseEntity.internalServerError().build();
+    }
     }
 
     // --- [4. 사용자용 신고 접수 API] ---
