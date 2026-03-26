@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.admin.dto.approval.ArtistResultDTO;
 import com.example.artist.dto.ArtistResponse;
 import com.example.artist.dto.PaymentRequestDTO;
 import com.example.artist.entity.Artist;
@@ -169,5 +170,37 @@ public class ArtistService {
         dto.setFandomName(artist.getFandomName());
         return dto;
     }
+
+	//--------------------------------------------------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------------------------------------------------------
+	// 수민 수정내용
+	// ArtistProfile 팬덤 이미지 수정
+    // 팬덤 브랜딩(이름, 이미지) 전용 수정 API
+	// 트랜잭션 안에서 엔티티를 수정하면 더티 체킹으로 자동 UPDATE 쿼리 실행됨
+    @Transactional
+    public void updateFandomInfo(Long memberId, ArtistResultDTO dto) {
+        // 아티스트 검증 및 조회 (엔티티가 Member면 MemberRepository 사용)
+        Artist artist = artistRepository.findByMemberId(memberId);
+
+        // 핵심 주석: 객체가 null인지 직접 확인해서 예외 처리
+        if (artist == null) {
+            throw new IllegalArgumentException("아티스트 정보를 찾을 수 없어.");
+        }
+
+        // 2. 입력된 값만 안전하게 업데이트 (Null 및 빈 문자열 방어)
+        if (dto.getFandomName() != null && !dto.getFandomName().trim().isEmpty()) {
+            artist.setFandomName(dto.getFandomName());
+        }
+        
+        // 주의: DTO 필드명은 fandomImage, 엔티티 필드명에 맞게 세팅
+        if(dto.getFandomImage() != null && !dto.getFandomImage().trim().isEmpty()) {
+            artist.setFandomImage(dto.getFandomImage()); 
+        }
+    }
+	//--------------------------------------------------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------------------------------------------------------
+
+
+	
 	
 }
