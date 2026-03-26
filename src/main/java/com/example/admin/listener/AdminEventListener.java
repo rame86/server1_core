@@ -1,4 +1,4 @@
-package com.example.admin.messaging.listener;
+package com.example.admin.listener;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -12,8 +12,8 @@ import org.springframework.stereotype.Component;
 
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.ShopResultDTO;
-import com.example.admin.dto.UserListResponseDTO;
-import com.example.admin.dto.UserPaymentSummaryDTO;
+import com.example.admin.dto.user.UserListResponseDTO;
+import com.example.admin.dto.user.UserPaymentSummaryDTO;
 import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
 import com.example.config.RabbitMQConfig;
@@ -29,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 public class AdminEventListener {
     
     private final RabbitTemplate rabbitTemplate;
-    private final ApprovalRepository approvalRepositroy; // 오타 주의 (approvalRepository)
+    private final ApprovalRepository approvalRepository;
     private final ObjectMapper objectMapper;
     private final SimpMessagingTemplate messagingTemplate;
     
@@ -48,21 +48,8 @@ public class AdminEventListener {
     private void saveToApproval(Object dto, String category, Long targetId, String title, Long requesterId, String imageUrl) {
         try {
             String jsonContent = objectMapper.writeValueAsString(dto);
-            
-            // Java 17 Pattern Matching 적용으로 불필요한 캐스팅 제거
             EventResultDTO eventDto = (dto instanceof EventResultDTO e) ? e : null;
             
-            LocalDateTime startDate = (eventDto != null && eventDto.getEventStartDate() != null) 
-                    ? LocalDateTime.parse(eventDto.getEventStartDate()) : null;
-            
-            // [추가] 이벤트 종료일 파싱
-            LocalDateTime endDate = (eventDto != null && eventDto.getEventEndDate() != null)
-                    ? LocalDateTime.parse(eventDto.getEventEndDate()) : null;
-                    
-            // [추가] 실제 이벤트 실행일 파싱
-            LocalDateTime executionDate = (eventDto != null && eventDto.getEventDate() != null)
-                    ? LocalDateTime.parse(eventDto.getEventDate()) : null;
-
             Approval approval = Approval.builder()
                     .category(category)
                     .targetId(targetId)
@@ -70,21 +57,24 @@ public class AdminEventListener {
                     .status("PENDING")
                     .contentJson(jsonContent)
                     .artistId(requesterId)
-                    .eventStartDate(startDate)
-                    .eventEndDate(endDate)
-                    .eventDate(executionDate)
+                    .eventStartDate(parseDate(eventDto != null ? eventDto.getEventStartDate() : null))
+                    .eventEndDate(parseDate(eventDto != null ? eventDto.getEventEndDate() : null))
+                    .eventDate(parseDate(eventDto != null ? eventDto.getEventDate() : null))
                     .location(eventDto != null ? eventDto.getLocation() : null)
                     .price(eventDto != null ? eventDto.getPrice() : null)
                     .imageUrl(imageUrl)
                     .build();
                             
-            approvalRepositroy.save(approval);
+            approvalRepository.save(approval);
             log.info("=====> [1서버 DB] {} 신청 데이터 저장 완료!", category);
-            
             sendAdminNotification(title, requesterId, category);
         } catch(Exception e) {
             log.error("=====> [1서버] {} 저장 중 오류 발생: {}", category, e.getMessage());
         }
+    }
+    
+    private LocalDateTime parseDate(String dateStr) {
+        return (dateStr != null && !dateStr.isBlank()) ? LocalDateTime.parse(dateStr) : null;
     }
     
     private void sendAdminNotification(String title, Long requesterId, String category) {
