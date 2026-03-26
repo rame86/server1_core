@@ -37,7 +37,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     	    "/member/refresh",
     		"/dbtest", 
     		"/api/**", 
-    		"/test/**"
+    		"/test/**",
+    		"/ws-admin/**"
     };
 
 	@Override

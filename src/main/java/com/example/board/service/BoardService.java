@@ -25,6 +25,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -66,7 +67,7 @@ public class BoardService {
                 })
                 .collect(Collectors.toList());
     }
-    
+ // 게시판 목록 조회   
 @Transactional(readOnly = true)
     public List<BoardDTO> getBoardList(String category, Long memberId) {
         String searchCategory = (category == null || category.isEmpty() || "전체".equals(category)) ? "전체" : category;
@@ -74,12 +75,12 @@ public class BoardService {
             boardRepository.findByStatusOrderByCreatedAtDesc("ACTIVE") : 
             boardRepository.findByCategoryAndStatusOrderByCreatedAtDesc(category, "ACTIVE");
 
-        // 게시글 목록에 있는 모든 작성자 ID를 중복 없이 모읍니다.
+        // 작성자 ID 목록 추출
         Set<Long> memberIds = boards.stream()
                 .map(Board::getMemberId)
                 .collect(Collectors.toSet());
          
-        // 가져온 회원 정보를 Map<ID, 이름> 형태로 만듭니다.
+        // 회원 정보 Map 생성 (Batch 조회 최적화)
         Map<Long, String> memberNameMap = memberRepository.findAllById(memberIds).stream()
                 .collect(Collectors.toMap(
                     Member::getMemberId, 
@@ -124,18 +125,15 @@ public class BoardService {
     // 게시글 작성
     @Transactional
     public BoardResponseDTO writeBoard(BoardCreateRequest request, MultipartFile file, Long memberId) throws IOException {
-        // [수정 포인트] 팔로우 여부 검증
         // request.getArtistId()가 있다면 (팬레터, 팬덤게시판 등) 팔로우 여부 확인
         if (request.getArtistId() != null) {
             // followerId(memberId)가 artistId를 팔로우하는지 체크
            boolean isFollowing = followRepository.existsByMember_MemberIdAndArtist_ArtistId(memberId, request.getArtistId());
-            
             if (!isFollowing) {
                 log.warn("권한 없음: memberId {}는 artistId {}를 팔로우하지 않음", memberId, request.getArtistId());
                 throw new IllegalStateException("해당 아티스트를 팔로우해야 글을 작성할 수 있습니다.");
             }
         }
-        
         String originalFileName = null;
         String storedFileName = null;
 
@@ -233,18 +231,31 @@ public class BoardService {
     }
 
     // 파일 관련 보조 메서드
-    private String saveFile(MultipartFile file) throws IOException {
-        File folder = new File(uploadDir);
-        if (!folder.exists()) folder.mkdirs();
+   private String saveFile(MultipartFile file) throws IOException {
+    // 설정된 경로(core) 밑에 'board' 폴더를 코드가 직접 붙입니다.
+    Path uploadPath = Paths.get(uploadDir).resolve("board").normalize();
+    
+    try {
+        // board 폴더가 없으면 자동으로 생성
+        if (!Files.exists(uploadPath)) {
+            Files.createDirectories(uploadPath); 
+            log.info("-----> [폴더 생성] 경로에 board 폴더가 없어 새로 생성했습니다: {}", uploadPath);
+        }
 
-        String storedFileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
-       // 3. 물리적 저장 (절대 경로 사용)
-        Path savePath = Paths.get(uploadDir).resolve(storedFileName).toAbsolutePath().normalize();
+        // 2. 파일명 생성 및 저장
+        String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+        Path filePath = uploadPath.resolve(fileName);
+        file.transferTo(filePath.toFile());
+
+        log.info("-----> [파일 저장 성공] 물리 경로: {}", filePath);
+
+        // DB에는 'board/파일명' 형태로 저장
+        return "board/" + fileName;
         
-        file.transferTo(savePath.toFile());
-        log.info("파일 실제 저장 경로: {}", savePath);
-        return storedFileName; // DB에는 파일명만 저장
+    } catch (IOException e) {
+        throw new RuntimeException("파일 저장 실패", e);
     }
+}
 
     private void deletePhysicalFile(String fileName) {
         if (fileName != null) {
@@ -257,14 +268,14 @@ public class BoardService {
         }
     }
     private BoardDTO convertToDTO(Board board) {
-       String fileUrl = board.getStoredFilePath() != null 
-            ? "/images/core/" + board.getStoredFilePath()  //WebConfig 주소랑 맞춤
-            : null;
+    // 기존의 "/images/core/"를 제거하고 DB에 저장된 실제 파일명(UUID_파일명)만 보냅니다.
+    String fileName = board.getStoredFilePath();
+    
         return BoardDTO.builder()
                 .boardId(board.getBoardId()).title(board.getTitle()).content(board.getContent())
                 .category(board.getCategory()).memberId(board.getMemberId()).viewCount(board.getViewCount())
                 .status(board.getStatus()).likeCount(board.getLikeCount()).commentCount(board.getCommentCount())
-                .originalFileName(board.getOriginalFileName()).storedFilePath(fileUrl).artistPost(board.isArtistPost())
+                .originalFileName(board.getOriginalFileName()).storedFilePath(board.getStoredFilePath()).artistPost(board.isArtistPost())
                 .createdAt(board.getCreatedAt()).updatedAt(board.getUpdatedAt()).build();
     }
 }

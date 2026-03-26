@@ -1,4 +1,4 @@
-package com.example.admin.messaging.listener;
+package com.example.admin.listener;
 
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;

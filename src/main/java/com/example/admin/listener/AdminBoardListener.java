@@ -1,4 +1,4 @@
-package com.example.admin.messaging.listener;
+package com.example.admin.listener;
 
 import org.springframework.stereotype.Component;
 
