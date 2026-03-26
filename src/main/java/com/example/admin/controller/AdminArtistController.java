@@ -41,7 +41,7 @@ public class AdminArtistController {
 		return ResponseEntity.ok("ARTIST 거절 처리 완료");
 	}
 
-	// 승인요청한 아티스트 목록
+	// 승인요청 아티스트 목록
 	@GetMapping("/approvalList")
 	public ResponseEntity<List<ArtistResultDTO>> getPendingArtist() {
 		return ResponseEntity.ok(adminArtistService.getPendingArtistList("ARTIST", "PENDING"));
