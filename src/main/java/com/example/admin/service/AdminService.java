@@ -2,7 +2,6 @@ package com.example.admin.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -12,8 +11,6 @@ import java.util.stream.Collectors;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -29,9 +26,6 @@ import com.example.admin.dto.ArtistResultDTO;
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.SettlementDashboardResponse;
 import com.example.admin.dto.ShopResultDTO;
-import com.example.admin.dto.UserDetailResponseDTO;
-import com.example.admin.dto.UserListResponseDTO;
-import com.example.admin.dto.UserSummaryDTO;
 import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
 import com.example.artist.dto.PaymentRequestDTO;
@@ -39,7 +33,6 @@ import com.example.artist.entity.Artist;
 import com.example.artist.repository.ArtistRepository;
 import com.example.config.RabbitMQConfig;
 import com.example.member.domain.Member;
-import com.example.member.domain.MemberHistory;
 import com.example.member.repository.MemberHistoryRepository;
 import com.example.member.repository.MemberRepository;
 
@@ -286,144 +279,5 @@ public class AdminService {
 
 	}
 
-	// user정지 (정지한 사람 추가하는부분 필요)
-	@Transactional
-	public void blockUser(Long memberId, Long adminId, String reason) {
-		log.info("🚨 [검거 발령] 유저 ID: {} 차단 시도 (사유: {})", memberId, reason);
-		Member member = memberRepository.findById(memberId)
-				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
-		member.setStatus("BLOCK");
-
-		MemberHistory history = MemberHistory.builder().memberId(memberId).status("BLOCK").reason(reason)
-				.adminId(adminId).build();
-		memberHistoryRepository.save(history);
-
-		redisTemplate.opsForValue().set("BLOCK:" + memberId, "true", 24, TimeUnit.HOURS);
-		log.info("✅ [검거 완료] 유저 {}님은 이제 로그인이 즉시 튕겨나갑니다. ㅃㅇ!", memberId);
-	}
-
-	// user 상단 카드3개
-	public UserSummaryDTO getUserSummary() {
-		return UserSummaryDTO.builder().totalUserCount(memberRepository.count())
-				.activeUserCount(memberRepository.countByStatus("ACTIVE"))
-				.blockedUserCount(memberRepository.countByStatus("BLOCK")).build();
-	}
-
-	// user List
-	@Transactional(readOnly = true)
-	public Page<UserListResponseDTO> getAllUserList(Pageable pageable) {
-		// 멤버 페이지 가져오기
-		Page<Member> memberPage = memberRepository.findAll(pageable);
-
-		// 현재 페이지에 있는 유저들의 ID만 리스트로 추출
-		List<Long> memberId = memberPage.getContent().stream().map(Member::getMemberId).collect(Collectors.toList());
-
-		Map<String, Object> message = new HashMap<>();
-		message.put("type", "ADMIN");
-		message.put("orderId", "GETALL");
-		message.put("allMemberId", memberId);
-		message.put("replyRoutingKey", RabbitMQConfig.ADMIN_PAY_RES_ROUTING_KEY);
-
-		rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.PAY_REQ_ROUTING_KEY, message);
-		
-		Map<String, Object> messagee = new HashMap<>();
-		messagee.put("type", "ADMIN");
-		messagee.put("orderId", "SUMMARY");
-		messagee.put("allMemberId", memberId);
-		messagee.put("replyRoutingKey", RabbitMQConfig.ADMIN_PAY_RES_ROUTING_KEY);
-
-		rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.PAY_REQ_ROUTING_KEY, messagee);
-
-		return memberPage.map(member -> UserListResponseDTO.builder().memberId(member.getMemberId())
-				.name(member.getName()).email(member.getEmail())
-				.createdAt(member.getCreatedAt() != null ? member.getCreatedAt().toString() : "날짜 없음")
-				.status(member.getStatus()).purchaseCount(0) // 비동기 응답이므로 초기값 설정 필요
-				.pointBalance(0L).build());
-	}
-
-	// user Detail
-	@Transactional
-	public UserDetailResponseDTO getUserDetail(Long memberId) {
-		log.info("-----> [1서버] 유저 상세 정보 수색 시작 (ID: {})", memberId);
-
-		Member member = memberRepository.findById(memberId)
-				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다. ID: " + memberId));
-
-		PaymentRequestDTO requestDto = PaymentRequestDTO.builder()
-				.type("ADMIN")
-				.orderId("USER_DETAIL")
-				.memberId(memberId)
-				.replyRoutingKey(RabbitMQConfig.ADMIN_PAY_RES_ROUTING_KEY)
-				.build();
-		
-		rabbitTemplate.convertAndSend(
-				RabbitMQConfig.EXCHANGE_NAME,
-				RabbitMQConfig.PAY_REQ_ROUTING_KEY,
-				requestDto
-		);
-		
-		log.info("🚀 [1서버] 2서버로 USER_DETAIL 요청 메시지 발송 완료");
-
-		return UserDetailResponseDTO.builder()
-				.memberId(member.getMemberId())
-				.name(member.getName())
-				.email(member.getEmail())
-				.status(member.getStatus())
-				.phone(member.getPhone())
-				.address(member.getAddress())
-				.build();
-	}
-
-	// user role update
-	@Transactional
-	public void updateUserRole(Long adminId, Long memberId, String role) {
-		Member member = memberRepository.findById(memberId)
-				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다."));
-
-		String oldRole = member.getRole();
-		member.setRole(role);
-
-		MemberHistory history = MemberHistory.builder().memberId(memberId).status("ACTIVE")
-				.reason("권한 변경: " + oldRole + " -> " + role).adminId(adminId).build();
-		memberHistoryRepository.save(history);
-		log.info("✅ 권한 변경 완료 및 히스토리 저장 성공!");
-	}
-
-	// user password change
-	@Transactional
-	public void resetPassword(Long adminId, Long memberId, String password) {
-		Member member = memberRepository.findById(memberId)
-				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다."));
-
-		String encodedPw = passwordEncoder.encode(password);
-		member.setPassword(encodedPw);
-
-		MemberHistory history = MemberHistory.builder().memberId(memberId).status("ACTIVE") // 비번만 바꾼 거니 상태는 ACTIVE
-				.reason("관리자에 의한 비밀번호 강제 초기화").adminId(adminId).build();
-		memberHistoryRepository.save(history);
-		log.info("✅ 유저 {} 비번 초기화 완료 및 기록 저장!", memberId);
-	}
-
-	// user 강제 로그아웃키기기
-	@Transactional
-	public void forceLogout(Long adminId, Long memberId) {
-		log.info("📢 [강제 로그아웃 발령] 관리자 {}님이 유저 {}를 쫓아냅니다.", adminId, memberId);
-		// 1. Redis에 로그아웃 전용 키 생성, 필터에서 이 키가 있으면 토큰을 무효화하게 만들어야됨
-		redisTemplate.opsForValue().set("FORCE_LOGOUT:" + memberId, "true", 1, TimeUnit.HOURS);
-		memberHistoryRepository.save(MemberHistory.builder().memberId(memberId).status("ACTIVE") // 상태는 그대로
-				.reason("관리자에 의한 강제 로그아웃 수행").adminId(adminId).build());
-	}
-
-	// 유저 탈퇴(?) 시키기
-	@Transactional
-	public void deleteUser(Long adminId, Long memberId) {
-		Member member = memberRepository.findById(memberId)
-				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다."));
-		member.setStatus("DELETE");
-		MemberHistory history = MemberHistory.builder().memberId(memberId).status("DELETE") // 비번만 바꾼 거니 상태는 ACTIVE
-				.reason("관리자에 의한 계정 삭제 처리").adminId(adminId).build();
-		memberHistoryRepository.save(history);
-		redisTemplate.opsForValue().set("BLOCK:" + memberId, "true", 24, TimeUnit.HOURS);
-	}
 
 }

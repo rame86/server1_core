@@ -1,6 +1,7 @@
 package com.example.artist.dto;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,11 +22,10 @@ public class PaymentRequestDTO {
     private String type;
     private String eventTitle;
     private Long artistId;
-
-    // 요청한 서비스가 응답받길 원하는 라우팅 키
-    // 이거 진짜진짜 중요하다고...ㅠ
-    // ex) "res.status.update" 또는 "shop.status.update"
     private String replyRoutingKey;
+    
+    private List<Long> allMemberId; 
+    private List<Long> allArtistId;
     
     private BigDecimal chargeAmount;
     private String payType;

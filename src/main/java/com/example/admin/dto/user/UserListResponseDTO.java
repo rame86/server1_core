@@ -1,4 +1,4 @@
-package com.example.admin.dto;
+package com.example.admin.dto.user;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
