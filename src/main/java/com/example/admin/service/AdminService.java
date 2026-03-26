@@ -140,8 +140,8 @@ public class AdminService {
 						.artistName(entity.getRequesterName()).subCategory(entity.getSubCategory())
 						.description(entity.getDescription()).imageUrl(entity.getImageUrl()).status(entity.getStatus())
 						.createdAt(entity.getCreatedAt().toString())
-						.processedAt(entity.getProcessedAt() != null ? entity.getProcessedAt().toString()
-								: entity.getProcessedAt().toString())
+						// 핵심 주석: processedAt이 null일 때 toString() 호출을 막는 방어 로직
+						.processedAt(entity.getProcessedAt() != null ? entity.getProcessedAt().toString() : null)
 						.rejectionReason(entity.getRejectionReason()).build())
 				.collect(Collectors.toList());
 	}
