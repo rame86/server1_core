@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.example.admin.dto.ArtistResultDTO;
+import com.example.admin.dto.approval.ArtistResultDTO;
 import com.example.artist.dto.ArtistResponse;
 import com.example.artist.dto.DonationRequset;
 import com.example.artist.service.ArtistService;

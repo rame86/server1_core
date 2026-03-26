@@ -3,7 +3,7 @@ package com.example.admin.service;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
-import com.example.admin.dto.AdminRefundResponseDTO;
+import com.example.admin.dto.refund.AdminRefundResponseDTO;
 import com.example.config.RabbitMQConfig;
 
 import lombok.RequiredArgsConstructor;
