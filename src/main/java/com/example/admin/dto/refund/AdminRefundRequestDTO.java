@@ -1,4 +1,4 @@
-package com.example.admin.dto;
+package com.example.admin.dto.refund;
 
 import java.util.Map;
 
