@@ -106,6 +106,9 @@ public class AdminService {
 					.artistname(approval.getRequesterName()).targetId(approval.getTargetId()).title(approval.getTitle())
 					.status(approval.getStatus()).category(approval.getCategory()).location(approval.getLocation())
 					.price(approval.getPrice()).eventStartDate(approval.getEventStartDate())
+					.eventEndDate(approval.getEventEndDate())
+					.eventDate(approval.getEventDate())
+					.totalCapacity(approval.getStock())
 					.createdAt(approval.getCreatedAt()).stock(currentStock) // Redis 데이터 합체
 					.imageUrl(approval.getImageUrl()).build();
 		}).collect(Collectors.toList());
@@ -136,8 +139,8 @@ public class AdminService {
 						.artistName(entity.getRequesterName()).subCategory(entity.getSubCategory())
 						.description(entity.getDescription()).imageUrl(entity.getImageUrl()).status(entity.getStatus())
 						.createdAt(entity.getCreatedAt().toString())
-						.processedAt(entity.getProcessedAt() != null ? entity.getProcessedAt().toString()
-								: entity.getProcessedAt().toString())
+						// 핵심 주석: processedAt이 null일 때 toString() 호출을 막는 방어 로직
+						.processedAt(entity.getProcessedAt() != null ? entity.getProcessedAt().toString() : null)
 						.rejectionReason(entity.getRejectionReason()).build())
 				.collect(Collectors.toList());
 	}

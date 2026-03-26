@@ -1,6 +1,9 @@
 package com.example.board.service;
 
 import com.example.artist.entity.Artist;
+import com.example.artist.entity.Follow;
+import com.example.artist.repository.FollowRepository;
+import com.example.board.dto.ArtistSelectDTO;
 import com.example.board.dto.BoardCreateRequest;
 import com.example.board.dto.BoardDTO;
 import com.example.board.dto.BoardResponseDTO;
@@ -35,12 +38,36 @@ public class BoardService {
     private final BoardRepository boardRepository; 
     private final CommentRepository commentRepository;
     private final MemberRepository memberRepository;
+    private final FollowRepository followRepository;
     
 
     @Value("${file.upload.dir}")
     private String uploadDir;
 
+    // 내가 가입한 팬덤,아티스트 리스트 조회
     @Transactional(readOnly = true)
+    public List<ArtistSelectDTO> getMyFandomList(Long memberId) {
+        // 1. Member 객체 조회
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        // 2. 팔로우 리스트 조회
+        List<Follow> follows = followRepository.findAllByMember(member);
+        log.info("====> [Service] 팔로우 데이터 조회 완료, 개수: {}", follows.size());
+
+        // 3. DTO 변환 (Artist 엔티티의 필드 그대로 사용)
+        return follows.stream()
+                .map(follow -> {
+                    Artist artist = follow.getArtist();
+                    return ArtistSelectDTO.builder()
+                            .artistId(artist.getArtistId()) // Artist 엔티티의 artistId 필드 사용
+                            .stageName(artist.getStageName() != null ? artist.getStageName() : artist.getMember().getName())
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+    
+@Transactional(readOnly = true)
     public List<BoardDTO> getBoardList(String category, Long memberId) {
         String searchCategory = (category == null || category.isEmpty() || "전체".equals(category)) ? "전체" : category;
         List<Board> boards = "전체".equals(searchCategory) ?
@@ -97,6 +124,18 @@ public class BoardService {
     // 게시글 작성
     @Transactional
     public BoardResponseDTO writeBoard(BoardCreateRequest request, MultipartFile file, Long memberId) throws IOException {
+        // [수정 포인트] 팔로우 여부 검증
+        // request.getArtistId()가 있다면 (팬레터, 팬덤게시판 등) 팔로우 여부 확인
+        if (request.getArtistId() != null) {
+            // followerId(memberId)가 artistId를 팔로우하는지 체크
+           boolean isFollowing = followRepository.existsByMember_MemberIdAndArtist_ArtistId(memberId, request.getArtistId());
+            
+            if (!isFollowing) {
+                log.warn("권한 없음: memberId {}는 artistId {}를 팔로우하지 않음", memberId, request.getArtistId());
+                throw new IllegalStateException("해당 아티스트를 팔로우해야 글을 작성할 수 있습니다.");
+            }
+        }
+        
         String originalFileName = null;
         String storedFileName = null;
 
@@ -107,7 +146,7 @@ public class BoardService {
         }
         Board board = Board.builder()
                 .title(request.getTitle()).content(request.getContent())
-                .category(request.getCategory()).memberId(memberId)
+                .category(request.getCategory()).memberId(memberId).artistId(request.getArtistId())
                 .originalFileName(originalFileName).storedFilePath(storedFileName).status("ACTIVE").build();
         boardRepository.save(board);
         return BoardResponseDTO.builder().boardId(board.getBoardId()).status("SUCCESS").build();
@@ -126,7 +165,7 @@ public class BoardService {
         likeRepository.deleteByBoardId(id);    // 좋아요 삭제
         // 파일 삭제
         if (board.getStoredFilePath() != null) {
-            deletePhysicalFile(uploadDir + File.separator + board.getStoredFilePath());
+            deletePhysicalFile(board.getStoredFilePath());
         }
         boardRepository.delete(board);
         return BoardResponseDTO.builder().boardId(id).status("SUCCESS").message("삭제되었습니다.").build();
