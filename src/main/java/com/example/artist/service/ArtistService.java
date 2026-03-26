@@ -128,6 +128,12 @@ public class ArtistService {
 				.build();
 		donationRepository.save(donation);
 		
+		// 아티스트 이름 조회
+		Artist artist = artistRepository.findByMemberId(artistId);
+		String artistDisplayName = (artist != null && artist.getStageName() != null)
+				? artist.getStageName()
+				: artistId + "번 아티스트";
+
 		// DTO 조립, MQ로 전송
 		PaymentRequestDTO requestDTO = PaymentRequestDTO.builder()
 				.orderId(orderId)
@@ -135,7 +141,7 @@ public class ArtistService {
 				.artistId(artistId)
 				.amount(amount)
 				.type("DONATION")
-				.eventTitle(artistId + "번 아티스트 후원")				
+				.eventTitle(artistDisplayName + " 아티스트 후원")
 				.replyRoutingKey(RabbitMQConfig.PAY_RES_ROUTING_KEY)
 				.build();
 		artistEventProducer.sendPaymentRequest(requestDTO);
