@@ -1,9 +1,10 @@
-package com.example.admin.dto;
+package com.example.admin.dto.approval;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.ToString;
 
 @Getter
@@ -11,7 +12,8 @@ import lombok.ToString;
 @AllArgsConstructor
 @Builder
 @ToString
-public class ArtistResultDTO {
+@Setter
+public class ArtistResultDTO implements ApprovalDTO{
 	private Long approvalId; // 승인요청 ID
     private String artistName; // 엔티티의 requesterName (김민준)
     private String subCategory; // ECHO · 발라드
@@ -23,4 +25,8 @@ public class ArtistResultDTO {
     private String processedAt;
     private String fandomImage;
     private String fandomName;
+    
+    public void setApprovalId(Long approvalId) {
+        this.approvalId = approvalId;
+    }
 }

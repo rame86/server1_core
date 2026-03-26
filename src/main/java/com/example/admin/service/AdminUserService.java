@@ -164,7 +164,7 @@ public class AdminUserService {
 		redisTemplate.opsForValue().set("BLOCK:" + memberId, "true", 24, TimeUnit.HOURS);
 	}
 	
-	private Member findMember(Long memberId) {
+	public Member findMember(Long memberId) {
 		return memberRepository.findById(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다."));
 	}

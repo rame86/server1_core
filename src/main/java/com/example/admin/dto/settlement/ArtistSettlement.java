@@ -1,4 +1,4 @@
-package com.example.admin.dto;
+package com.example.admin.dto.settlement;
 
 public record ArtistSettlement (
 	String artistName, // 아티스트 이름

@@ -1,4 +1,4 @@
-package com.example.admin.dto;
+package com.example.admin.dto.artist;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

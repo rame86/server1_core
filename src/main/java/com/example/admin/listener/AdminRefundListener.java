@@ -3,7 +3,7 @@ package com.example.admin.listener;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
-import com.example.admin.dto.AdminRefundRequestDTO;
+import com.example.admin.dto.refund.AdminRefundRequestDTO;
 import com.example.config.RabbitMQConfig;
 
 import lombok.RequiredArgsConstructor;
