@@ -145,6 +145,7 @@ public class ArtistController {
 	}
 
     //--------------------------------------------------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------------------------------------------------------
     // 수민 수정내용
     // 아티스트 배경(팬덤) 이미지 사전 업로드 API
     @PostMapping("/bg-image") // 경로는 네 맘대로 맞춰! (예: /artist/bg-image)
@@ -161,6 +162,35 @@ public class ArtistController {
             return ResponseEntity.internalServerError().body(Map.of("message", "이미지 업로드에 실패했습니다."));
         }
     }
+
+    // 수민 수정내용
+    // ArtistProfile 팬덤 이미지 수정
+    // 핵심 주석: 팬덤 브랜딩(이름, 이미지) 전용 수정 API
+    @PostMapping("/update-fandom")
+    public ResponseEntity<?> updateFandom(@LoginUser RedisMemberDTO user, @RequestBody ArtistResultDTO dto) {
+        // 1. 보안 검토: 로그인 여부 확인
+        if(user == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요한 서비스야."));
+        }
+        
+        try {
+            // 2. 서비스 단으로 유저ID와 데이터 전달
+            artistService.updateFandomInfo(user.getMemberId(), dto);
+            log.info("-----> [팬덤 브랜딩 수정 완료] 아티스트 ID: {}", user.getMemberId());
+            
+            return ResponseEntity.ok(Map.of("message", "팬덤 브랜딩이 성공적으로 수정되었어! ✨"));         
+        } catch (IllegalArgumentException e) {
+            // 예외 처리: 데이터가 없거나 잘못된 요청
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            // 예외 처리: 기타 서버 에러
+            log.error("팬덤 브랜딩 수정 중 서버 오류 발생: ", e);
+            return ResponseEntity.status(500).body(Map.of("message", "시스템 오류가 발생했어. 다시 시도해줘."));
+        }
+    }
     //--------------------------------------------------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------------------------------------------------------
+
+
     
 }
