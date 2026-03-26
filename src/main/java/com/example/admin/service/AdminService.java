@@ -29,7 +29,6 @@ import com.example.admin.dto.ArtistResultDTO;
 import com.example.admin.dto.EventResultDTO;
 import com.example.admin.dto.SettlementDashboardResponse;
 import com.example.admin.dto.ShopResultDTO;
-import com.example.admin.dto.UserDetailPaymentResponseDTO;
 import com.example.admin.dto.UserDetailResponseDTO;
 import com.example.admin.dto.UserListResponseDTO;
 import com.example.admin.dto.UserSummaryDTO;
