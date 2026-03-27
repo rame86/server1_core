@@ -13,4 +13,5 @@ public interface ApprovalRepository extends JpaRepository<Approval, Long>{
 	Optional<Approval> findByArtistIdAndStatus(Long artistId, String status);
 	Optional<Approval> findFirstByArtistIdAndCategoryAndStatusOrderByProcessedAtDesc(Long artistId, String category, String status);
 	boolean existsByArtistIdAndCategoryAndStatus(Long artistId, String category, String status);
+	long countByCategoryAndStatus(String category, String status);
 }
