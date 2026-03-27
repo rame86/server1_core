@@ -55,17 +55,17 @@ public class BoardController {
     return ResponseEntity.ok(fandomList);
 }
 
-    // --- [1. 게시글 관련 API] ---
+    // 게시글 목록 조회 (일반 사용자도 공지사항 카테고리 조회 가능)
     @GetMapping("/list")
     public ResponseEntity<List<BoardDTO>> getList(
-        @LoginUser RedisMemberDTO loginUser,
-        @RequestParam(name = "category", required = false) String category) {
-        log.info("====> [목록 조회] 카테고리: {}", category);
+            @LoginUser RedisMemberDTO loginUser,
+            @RequestParam(name = "category", required = false) String category) {
+        log.info("====> [목록 조회] 카테고리: {}, 요청자: {}", category, loginUser != null ? loginUser.getMemberId() : "비로그인");
         List<BoardDTO> list = boardService.getBoardList(category, loginUser != null ? loginUser.getMemberId() : null);
         return ResponseEntity.ok(list);
     }
 
-    // 게시글 보기
+    // 게시글 상세 보기
     @GetMapping("/{id}")
     public ResponseEntity<BoardDTO> getDetail(
         @LoginUser RedisMemberDTO loginUser, 
@@ -73,7 +73,7 @@ public class BoardController {
         BoardDTO detail = boardService.getBoardDetail(id, loginUser != null ? loginUser.getMemberId() : null);
         return ResponseEntity.ok(detail);
     }
-     // 게시글 작성
+    // 게시글 작성 (공지사항은 오직 ADMIN만 작성 가능)
     @PostMapping(value = "/write", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<BoardResponseDTO> write(
             @LoginUser RedisMemberDTO loginUser,
@@ -81,10 +81,18 @@ public class BoardController {
             @RequestPart(value = "file", required = false) MultipartFile file) throws IOException {
 
         if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        // [추가된 로직] 카테고리가 공지사항인데 관리자가 아닌 경우 차단
+        if ("공지사항".equals(request.getCategory()) && !"ADMIN".equals(loginUser.getRole())) {
+            log.warn("====> [권한 없음] 일반 사용자가 공지사항 작성을 시도함: {}", loginUser.getMemberId());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        log.info("====> [게시글 작성] 작성자: {}, 카테고리: {}", loginUser.getMemberId(), request.getCategory());
         BoardResponseDTO response = boardService.writeBoard(request, file, loginUser.getMemberId());
         return ResponseEntity.ok(response);
     }
-    
+    // 게시글 수정 (서비스 단에서 본인 확인 및 ADMIN 권한 체크 수행)
     @PutMapping(value = "/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<BoardResponseDTO> update(
             @LoginUser RedisMemberDTO loginUser,
@@ -93,6 +101,10 @@ public class BoardController {
             @RequestPart(value = "file", required = false) MultipartFile file) throws Exception {
 
         if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        // 공지사항 수정 시 관리자 권한 체크 (추가 방어 로직)
+        if ("공지사항".equals(request.getCategory()) && !"ADMIN".equals(loginUser.getRole())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         BoardResponseDTO response = boardService.updateBoard(id, request, file, loginUser.getMemberId(), loginUser.getRole());
         return ResponseEntity.ok(response);
     }
@@ -145,7 +157,6 @@ public class BoardController {
         @RequestBody CommentRequestDTO requestDTO){
 
         if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-
         CommentResponseDTO response = boardCommentService.updateComment(commentId,requestDTO,loginUser.getMemberId());
         return ResponseEntity.ok(response);
     }
@@ -156,7 +167,6 @@ public class BoardController {
         @PathVariable(name = "commentId") Long commentId) {
             
         if (loginUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        
         boardCommentService.deleteComment(commentId, loginUser.getMemberId(), loginUser.getRole());
         return ResponseEntity.noContent().build();
     }

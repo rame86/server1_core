@@ -126,13 +126,14 @@ public class BoardService {
     @Transactional
     public BoardResponseDTO writeBoard(BoardCreateRequest request, MultipartFile file, Long memberId) throws IOException {
         // request.getArtistId()가 있다면 (팬레터, 팬덤게시판 등) 팔로우 여부 확인
-        if (request.getArtistId() != null) {
-            // followerId(memberId)가 artistId를 팔로우하는지 체크
-           boolean isFollowing = followRepository.existsByMember_MemberIdAndArtist_ArtistId(memberId, request.getArtistId());
+        if (request.getArtistId() != null && request.getArtistId() != 0 && !"공지사항".equals(request.getCategory())) {
+            boolean isFollowing = followRepository.existsByMember_MemberIdAndArtist_ArtistId(memberId, request.getArtistId());
             if (!isFollowing) {
                 log.warn("권한 없음: memberId {}는 artistId {}를 팔로우하지 않음", memberId, request.getArtistId());
                 throw new IllegalStateException("해당 아티스트를 팔로우해야 글을 작성할 수 있습니다.");
             }
+        } else {
+            log.info("====> [Service] 공지사항 또는 전체 공지(artistId: 0)이므로 팔로우 체크를 건너뜁니다.");
         }
         String originalFileName = null;
         String storedFileName = null;
@@ -208,27 +209,38 @@ public class BoardService {
     // 좋아요 토글
     @Transactional
     public int toggleLike(Long boardId, Long memberId) {
-        Board board = boardRepository.findById(boardId).orElseThrow(() -> new IllegalArgumentException("게시글이 존재하지 않습니다."));
-        
-        // 1. 이미 좋아요를 눌렀는지 확인
-        boolean exists = likeRepository.existsByBoardIdAndMemberId(boardId, memberId);
+    // 1. 게시글 존재 확인 (영속 상태로 가져옴)
+    Board board = boardRepository.findById(boardId)
+            .orElseThrow(() -> new IllegalArgumentException("게시글이 존재하지 않습니다."));
+    
+    // 2. 이미 좋아요를 눌렀는지 확인
+    boolean exists = likeRepository.existsByBoardIdAndMemberId(boardId, memberId);
 
-        if (exists) {
-            // 2. 이미 있다면 삭제 (좋아요 취소)
-            likeRepository.deleteByBoardIdAndMemberId(boardId, memberId);
-            board.updateLikeCount(false);
-        } else {
-            // 3. 없다면 추가 (좋아요) 중복 클릭 방지를 위해 한 번 더 체크하거나 try-catch로 DB 예외 처리 가능
-            try {
-                likeRepository.save(LikeBoard.builder().boardId(boardId).memberId(memberId).build());
-                board.updateLikeCount(true);
-            } catch (Exception e) {
-                log.warn("이미 좋아요 처리가 진행 중입니다.");
-            }
-        }// 변경된 count 반영
-        boardRepository.save(board); 
-        return board.getLikeCount();
+    if (exists) {
+        // 3. 좋아요 취소
+        likeRepository.deleteByBoardIdAndMemberId(boardId, memberId);
+        // [중요] 엔티티 내부에서 숫자를 안전하게 감소
+        board.updateLikeCount(false); 
+        log.info("====> [좋아요 취소] boardId: {}, memberId: {}, 현재 카운트: {}", boardId, memberId, board.getLikeCount());
+    } else {
+        // 4. 좋아요 추가
+        try {
+            likeRepository.save(LikeBoard.builder()
+                    .boardId(boardId)
+                    .memberId(memberId)
+                    .build());
+            // [중요] 엔티티 내부에서 숫자를 안전하게 증가
+            board.updateLikeCount(true);
+            log.info("====> [좋아요 추가] boardId: {}, memberId: {}, 현재 카운트: {}", boardId, memberId, board.getLikeCount());
+        } catch (Exception e) {
+            log.warn("이미 좋아요 처리가 진행 중입니다(중복 클릭 방지).");
+        }
     }
+    boardRepository.saveAndFlush(board);
+    // @Transactional이 있으므로 boardRepository.save(board)를 굳이 호출하지 않아도 
+    // 메서드 종료 시점에 변경된 likeCount가 자동으로 DB에 Update 됩니다. (더티 체킹)
+    return board.getLikeCount();
+}
 
     // 파일 관련 보조 메서드
    private String saveFile(MultipartFile file) throws IOException {
@@ -268,14 +280,13 @@ public class BoardService {
         }
     }
     private BoardDTO convertToDTO(Board board) {
-    // 기존의 "/images/core/"를 제거하고 DB에 저장된 실제 파일명(UUID_파일명)만 보냅니다.
-    String fileName = board.getStoredFilePath();
-    
-        return BoardDTO.builder()
+   
+       return BoardDTO.builder()
                 .boardId(board.getBoardId()).title(board.getTitle()).content(board.getContent())
                 .category(board.getCategory()).memberId(board.getMemberId()).viewCount(board.getViewCount())
                 .status(board.getStatus()).likeCount(board.getLikeCount()).commentCount(board.getCommentCount())
-                .originalFileName(board.getOriginalFileName()).storedFilePath(board.getStoredFilePath()).artistPost(board.isArtistPost())
+                .originalFileName(board.getOriginalFileName())
+                .storedFilePath(board.getStoredFilePath()) // 그대로 전달.artistPost(board.isArtistPost())
                 .createdAt(board.getCreatedAt()).updatedAt(board.getUpdatedAt()).build();
     }
 }
