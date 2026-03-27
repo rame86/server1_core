@@ -23,7 +23,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // 프론트엔드에서 웹소켓에 접속할 엔드포인트 설정
-        registry.addEndpoint("/ws-admin")
+        registry.addEndpoint("/ws")
                 .setAllowedOriginPatterns("*") // 테스트 시 모든 도메인 허용 (운영 시 제한 필요)
                 .withSockJS(); // SockJS 지원 (브라우저 호환성)
     }

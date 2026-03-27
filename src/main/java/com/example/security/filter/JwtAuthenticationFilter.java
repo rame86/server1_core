@@ -38,7 +38,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     		"/dbtest", 
     		"/api/**", 
     		"/test/**",
-    		"/ws-admin/**"
+    		"/ws/**"
     };
 
 	@Override
