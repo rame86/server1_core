@@ -35,6 +35,7 @@ public class AdminDashBoardController {
         return ResponseEntity.ok(getDashboardCounts());
     }
     
+    
     private Map<String, Object> getDashboardCounts() {
         Map<String, Object> data = new HashMap<>();
         data.put("totalUsers", adminUserService.getUserSummary().getTotalUserCount());
