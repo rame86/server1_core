@@ -25,12 +25,21 @@ public class AdminDashBoardController {
     
     @GetMapping
     public ResponseEntity<Map<String, Object>> getDashboardSummary() {
-        Map<String, Object> data = new HashMap<>();
+        Map<String, Object> data = getDashboardCounts(); // 아래 만든 공통 메서드 호출
+        data.put("userGrowth", adminUserService.userGrowthCounts()); // 차트 데이터 추가
+        return ResponseEntity.ok(data);
+    }
 
+    @GetMapping("/counts")
+    public ResponseEntity<Map<String, Object>> getSidebarCounts() {
+        return ResponseEntity.ok(getDashboardCounts());
+    }
+    
+    private Map<String, Object> getDashboardCounts() {
+        Map<String, Object> data = new HashMap<>();
         data.put("totalUsers", adminUserService.getUserSummary().getTotalUserCount());
         data.put("totalArtists", adminArtistService.getActiceArtistList("ARTIST", "CONFIRMED").size());
-        data.put("userGrowth", adminUserService.userGrowthCounts());
-
+        
         Map<String, Long> eventStats = adminEventService.getEventCounts();
         data.put("totalEvents", eventStats.get("confirmedCount"));
         data.put("pendingEvents", eventStats.get("pendingCount"));
@@ -38,8 +47,7 @@ public class AdminDashBoardController {
         
         data.put("pendingArtists", adminArtistService.getPendingArtistList("ARTIST", "PENDING").size());
         data.put("pendingReports", 0);
-
-        return ResponseEntity.ok(data);
+        return data;
     }
-
+    
 }

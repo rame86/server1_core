@@ -1,11 +1,14 @@
 package com.example.admin.service;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -37,6 +40,7 @@ public class AdminArtistService {
 	private final ArtistRepository artistRepository;
 	private final AdminApprovalService adminApprovalService;
 	private final AdminUserService adminUserService;
+	private final SimpMessagingTemplate messagingTemplate;
 	
 	@Value("${pay.admin.url}")
 	private String payAdminUrl;
@@ -84,6 +88,10 @@ public class AdminArtistService {
 		rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.PAY_REQ_ROUTING_KEY, event);
 
 		log.info("-----> [ARTIST 완료] 1서버 DB 갱신, 메세지 전송 완료");
+		
+		Map<String, String> alert = new HashMap<>();
+		alert.put("message", approval.getRequesterName() + " 님이 아티스트로 최종 승인되었습니다!");
+		messagingTemplate.convertAndSend("/topic/notifications/admin", alert);
 	}
 
 	// artist 승인 대기중인 목록
