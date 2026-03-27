@@ -1,21 +1,17 @@
 package com.example.admin.service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import com.example.admin.dto.event.AdminEventListDTO;
 import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
-import com.example.artist.repository.ArtistRepository;
-import com.example.member.repository.MemberHistoryRepository;
-import com.example.member.repository.MemberRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,5 +46,14 @@ public class AdminEventService {
 					.imageUrl(approval.getImageUrl()).build();
 		}).collect(Collectors.toList());
 	}
-
+	
+	@Transactional(readOnly = true)
+	public Map<String, Long> getEventCounts() {
+	    Map<String, Long> counts = new HashMap<>();
+	    counts.put("confirmedCount", approvalRepository.countByCategoryAndStatus("EVENT", "CONFIRMED"));
+	    counts.put("pendingCount", approvalRepository.countByCategoryAndStatus("EVENT", "PENDING"));
+	    counts.put("shopCount", approvalRepository.countByCategoryAndStatus("SHOP", "PENDING"));
+	    return counts;
+	}
+	
 }
