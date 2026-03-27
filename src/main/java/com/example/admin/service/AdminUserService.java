@@ -1,6 +1,7 @@
 package com.example.admin.service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -177,5 +178,9 @@ public class AdminUserService {
 	            .reason(reason)
 	            .build());
     }
+	
+	public List<Map<String, Object>> userGrowthCounts(){
+		return memberRepository.getMonthlyUserGrowth();
+	}
 
 }

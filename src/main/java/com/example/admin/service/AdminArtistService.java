@@ -104,7 +104,8 @@ public class AdminArtistService {
 	public ArtistResponseDTO getArtistDetail(Long approvalId, Long artistId) {
 
 		Approval approval = adminApprovalService.findApproval(approvalId);
-		Artist artist = findArtist(artistId);
+		Artist artist = artistRepository.findById(artistId)
+	            .orElseThrow(() -> new IllegalArgumentException("아티스트를 찾을 수 없습니다."));
 		Member member = adminUserService.findMember(artist.getMemberId());
 		
 		// 2서버 WebClient 호출
