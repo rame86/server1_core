@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.admin.service.AdminArtistService;
 import com.example.admin.service.AdminEventService;
-import com.example.admin.service.AdminShopService;
 import com.example.admin.service.AdminUserService;
 
 import lombok.RequiredArgsConstructor;
@@ -22,7 +21,6 @@ public class AdminDashBoardController {
 	
 	private final AdminUserService adminUserService;
     private final AdminArtistService adminArtistService;
-    private final AdminShopService adminShopService;
     private final AdminEventService adminEventService;
     
     @GetMapping
@@ -36,8 +34,8 @@ public class AdminDashBoardController {
         Map<String, Long> eventStats = adminEventService.getEventCounts();
         data.put("totalEvents", eventStats.get("confirmedCount"));
         data.put("pendingEvents", eventStats.get("pendingCount"));
+        data.put("pendingGoods", eventStats.get("shopCount"));
         
-        data.put("pendingGoods", adminShopService.getPendingShopList("SHOP", "PENDING").size());
         data.put("pendingArtists", adminArtistService.getPendingArtistList("ARTIST", "PENDING").size());
         data.put("pendingReports", 0);
 

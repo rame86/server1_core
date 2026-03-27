@@ -11,5 +11,4 @@ public interface ArtistRepository extends JpaRepository<Artist, Long> {
 	List<Artist> findAllByOrderByMemberCreatedAtDesc();
 	Artist findByMemberId(Long artistId);
 	Optional<Artist> findByArtistId(Long artistId);
-	
 }

@@ -52,6 +52,7 @@ public class AdminEventService {
 	    Map<String, Long> counts = new HashMap<>();
 	    counts.put("confirmedCount", approvalRepository.countByCategoryAndStatus("EVENT", "CONFIRMED"));
 	    counts.put("pendingCount", approvalRepository.countByCategoryAndStatus("EVENT", "PENDING"));
+	    counts.put("shopCount", approvalRepository.countByCategoryAndStatus("SHOP", "PENDING"));
 	    return counts;
 	}
 	
