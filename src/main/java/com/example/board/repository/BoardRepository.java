@@ -25,6 +25,7 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
     
     // 아티스트 ID와 특정 카테고리(NOTICE)로 찾기
     List<Board> findByArtistIdAndCategory(Long artistId, String category);
+    
 
     @Modifying
     @Transactional
