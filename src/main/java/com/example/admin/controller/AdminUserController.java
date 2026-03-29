@@ -97,4 +97,11 @@ public class AdminUserController {
 	    return ResponseEntity.ok("계정이 삭제 처리되었습니다.");
 	}
 	
+	@GetMapping("/block/list")
+	public ResponseEntity<Page<UserListResponseDTO>> getBlockedUsers(Pageable pageable) {
+	    log.info("🚨 [AdminController] 차단 유저 명단 수색 개시!");
+	    Page<UserListResponseDTO> blockedList = adminUserService.getBlockedUserList(pageable);
+	    return ResponseEntity.ok(blockedList);
+	}
+	
 }

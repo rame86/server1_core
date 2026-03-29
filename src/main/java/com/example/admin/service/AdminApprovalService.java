@@ -27,14 +27,25 @@ public class AdminApprovalService {
 	private final RabbitTemplate rabbitTemplate;
 	private final ApprovalRepository approvalRepository;
 	private final ObjectMapper objectMapper;
+	private final AdminNotifyService adminNotifyService;
 
 	@Transactional
 	public void processApproval(ApprovalDTO dto, String routingKey, Long adminId) {
 		Long eventId = updateApprovalStatus(dto, adminId);
+		Approval approval = findApproval(dto.getApprovalId());
+		
 		if (dto instanceof EventResultDTO eventResultDto) {
 			eventResultDto.setApprovalId(eventId);
 		}
 		rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, routingKey, dto);
+		
+		String status = "CONFIRMED".equals(dto.getStatus()) ? "승인" : "반려";
+		String adminMsg = approval.getTitle() + "의 " 
+				+  approval.getCategory() + " 신청이 최종 "+ status + " 되었습니다!";
+		String userMsg = approval.getTitle() + "의 " +  approval.getCategory() + "신청이 "+ status + " 되었습니다.";
+		
+		adminNotifyService.sendAlert(adminMsg);
+		adminNotifyService.sendUserAlert(approval.getArtistId(), userMsg);
 	}
 
 	public Long updateApprovalStatus(ApprovalDTO dto, Long adminId) {

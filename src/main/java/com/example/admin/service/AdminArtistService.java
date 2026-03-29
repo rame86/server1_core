@@ -40,7 +40,7 @@ public class AdminArtistService {
 	private final ArtistRepository artistRepository;
 	private final AdminApprovalService adminApprovalService;
 	private final AdminUserService adminUserService;
-	private final SimpMessagingTemplate messagingTemplate;
+	private final AdminNotifyService adminNotifyService;
 	
 	@Value("${pay.admin.url}")
 	private String payAdminUrl;
@@ -89,9 +89,12 @@ public class AdminArtistService {
 
 		log.info("-----> [ARTIST 완료] 1서버 DB 갱신, 메세지 전송 완료");
 		
-		Map<String, String> alert = new HashMap<>();
-		alert.put("message", approval.getRequesterName() + " 님이 아티스트로 최종 승인되었습니다!");
-		messagingTemplate.convertAndSend("/topic/notifications/admin", alert);
+		String adminMsg = approval.getRequesterName() + " 님이 아티스트로 최종 승인되었습니다!";
+		adminNotifyService.sendAlert(adminMsg);
+		
+		String userMsg = "축하합니다! 아티스트 승인 신청이 수락되었습니다.";
+		adminNotifyService.sendUserAlert(approval.getArtistId(), userMsg);
+		
 	}
 
 	// artist 승인 대기중인 목록
