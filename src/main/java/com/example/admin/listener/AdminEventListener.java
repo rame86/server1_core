@@ -24,14 +24,14 @@ public class AdminEventListener {
     public void handleEventResult(EventResultDTO dto) {
         log.info("=====> [1서버] EVENT 신청서 도착: {}", dto);
         adminApprovalService.saveEventApproval(dto);
-        adminNotifyService.sendAlert("새로운 이벤트 승인 요청이 도착했습니다 - " + dto.getEventTitle());
+        adminNotifyService.sendAlert("새로운 이벤트 승인 요청이 도착했습니다.");
     }
     
     @RabbitListener(queues = RabbitMQConfig.SHOP_REQ_QUEUE_NAME)
     public void handleShopRequest(ShopResultDTO dto) {
         log.info("=====> [1서버] SHOP 신청서 도착: {}", dto);
         adminApprovalService.saveShopApproval(dto);
-        adminNotifyService.sendAlert("새로운 굿즈 승인 요청이 도착했습니다 - " + dto.getGoodsName());
+        adminNotifyService.sendAlert("새로운 굿즈 승인 요청이 도착했습니다.");
     }
         
 }

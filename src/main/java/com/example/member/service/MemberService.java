@@ -17,6 +17,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import com.example.admin.dto.approval.ArtistResultDTO;
 import com.example.admin.entity.Approval;
 import com.example.admin.repository.ApprovalRepository;
+import com.example.admin.service.AdminNotifyService;
 import com.example.artist.repository.ArtistRepository;
 import com.example.member.domain.Member;
 import com.example.member.domain.SocialAccount;
@@ -49,6 +50,7 @@ public class MemberService {
 	private final WebClient webClient;
 	private final ApprovalRepository approvalRepository;
 	private final ArtistRepository artistRepository;
+	private final AdminNotifyService adminNotifyService;
 
 	@Value("${pay.url}")
 	private String paymentUrl;
@@ -337,6 +339,8 @@ public class MemberService {
 		member.setStatus("PENDING");
 
 		log.info("-----> [아티스트 별도 신청 완료] MemberID: {}", memberId);
+		
+		adminNotifyService.sendAlert("새로운 아티스트 승인 요청이 도착했습니다");
 	}
 
 	// Artist신청 시 연속신청 방지

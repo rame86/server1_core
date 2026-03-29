@@ -24,5 +24,16 @@ public class AdminNotifyService {
         messagingTemplate.convertAndSend(ADMIN_TOPIC, payload);
         log.info("🔔 [관리자 알람] : {}", message);
     }
+	
+	public void sendUserAlert(Long memberId, String message) {
+	    String userTopic = "/topic/notifications/user/" + memberId;
+	    
+	    Map<String, String> payload = new HashMap<>();
+	    payload.put("message", message);
+	    payload.put("type", "AUTH_CHANGED");
+	    
+	    messagingTemplate.convertAndSend(userTopic, payload);
+	    log.info("👤 [사용자 알람] : {}", message);
+	}
 
 }

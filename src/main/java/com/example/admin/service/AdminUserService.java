@@ -182,5 +182,20 @@ public class AdminUserService {
 	public List<Map<String, Object>> userGrowthCounts(){
 		return memberRepository.getMonthlyUserGrowth();
 	}
+	
+	@Transactional(readOnly = true)
+	public Page<UserListResponseDTO> getBlockedUserList(Pageable pageable) {
+	    Page<Member> blockedPage = memberRepository.findByStatus("BLOCK", pageable);
+
+	    List<Long> memberIds = blockedPage.getContent().stream()
+	            .map(Member::getMemberId)
+	            .collect(Collectors.toList());
+	    
+	    if(!memberIds.isEmpty()) {
+	        sendMqRequest("GETALL", memberIds);
+	    }
+
+	    return blockedPage.map(this::convertToUserListDTO);
+	}
 
 }
