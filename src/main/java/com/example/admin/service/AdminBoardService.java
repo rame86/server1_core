@@ -36,7 +36,7 @@ public class AdminBoardService {
     private final BoardRepository boardRepository;
     private final CommentRepository commentRepository;
 
-    @Value("${service.board.url:http://localhost:8080}")
+    @Value("${service.board.url:}")
     private String boardServiceUrl;
 
     // --- [1. 게시글 신고 내역 조회] ---
