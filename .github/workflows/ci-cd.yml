@@ -1,4 +1,4 @@
-#Core Service/ CI-CD
+# Core Service/ CI-CD
 name: CI/CD Pipeline
 
 on:
